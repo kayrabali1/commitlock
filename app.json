@@ -108,6 +108,14 @@
         {
           "iosUrlScheme": "com.googleusercontent.apps.REPLACE_WITH_YOUR_REVERSED_CLIENT_ID"
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
       ]
     ],
     "experiments": {
