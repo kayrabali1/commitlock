@@ -230,7 +230,6 @@ export default function CommitScreen() {
   const [paymentStep, setPaymentStep] = useState<'idle' | 'processing' | 'success'>('idle');
   const [isDisclaimerVisible, setIsDisclaimerVisible] = useState(false);
   const [hasAcceptedDisclaimer, setHasAcceptedDisclaimer] = useState(false);
-  const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
   const [isVerificationGuideVisible, setIsVerificationGuideVisible] = useState(false);
 
   // Default values when metric changes
@@ -341,7 +340,6 @@ export default function CommitScreen() {
     if (!hasAcceptedDisclaimer) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setIsDisclaimerVisible(false);
-    setHasAcceptedTerms(false);
     setIsPaymentSheetVisible(true);
     setPaymentStep('idle');
   };
@@ -1327,49 +1325,26 @@ export default function CommitScreen() {
                   <Text style={styles.payTotalValue}>€{stake}.00</Text>
                 </View>
 
-                {/* Agreement Checkbox */}
-                <TouchableOpacity
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setHasAcceptedTerms(!hasAcceptedTerms);
-                  }}
-                  style={styles.termsCheckboxRow}
-                  activeOpacity={0.8}
-                >
-                  <View style={[styles.checkbox, { marginTop: 2 }, hasAcceptedTerms && styles.checkboxChecked]}>
-                    {hasAcceptedTerms && (
-                      <MaterialCommunityIcons name="check" size={14} color="#FFFFFF" />
-                    )}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.termsCheckboxHeader}>📄 Challenge Agreement & Forfeiture Terms</Text>
-                    <Text style={styles.termsCheckboxLabel}>
-                      By locking in this stake, you explicitly authorize Commitlock to process this transaction. If you fail to meet your sensor-verified fitness commitment by the last day of your commitment at 23:59, your stake is permanently forfeited. Forfeited stakes are processed as platform revenue. To ensure ethical alignment, Commitlock guarantees that exactly 50% of all gross forfeited revenue is donated quarterly to your selected cause category. The remaining 50% funds platform operations, server costs, and verification security.
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-
                 {/* Double click side button prompt for iOS feel */}
                 {Platform.OS === 'ios' ? (
                   <View style={styles.doubleClickWrapper}>
-                    <MaterialCommunityIcons name="gesture-double-tap" size={24} color={hasAcceptedTerms ? "#7C3AED" : "#64748B"} />
-                    <Text style={[styles.doubleClickText, !hasAcceptedTerms && { color: '#64748B' }]}>
-                      {hasAcceptedTerms ? "Double Click to Confirm" : "Accept Terms to Confirm"}
+                    <MaterialCommunityIcons name="gesture-double-tap" size={24} color="#7C3AED" />
+                    <Text style={styles.doubleClickText}>
+                      Double Click to Confirm
                     </Text>
                   </View>
                 ) : (
-                  <Text style={[styles.fingerprintPrompt, !hasAcceptedTerms && { color: '#64748B' }]}>
-                    {hasAcceptedTerms ? "Place finger on sensor to confirm" : "Accept Terms to Confirm"}
+                  <Text style={styles.fingerprintPrompt}>
+                    Place finger on sensor to confirm
                   </Text>
                 )}
 
                 <TouchableOpacity 
                   onPress={confirmPayment} 
-                  disabled={!hasAcceptedTerms}
-                  style={[styles.payButton, !hasAcceptedTerms && styles.payButtonDisabled]}
+                  style={styles.payButton}
                   activeOpacity={0.8}
                 >
-                  <Text style={[styles.payButtonText, !hasAcceptedTerms && styles.payButtonTextDisabled]}>
+                  <Text style={styles.payButtonText}>
                     Confirm Pledge & Pay €{stake}.00
                   </Text>
                 </TouchableOpacity>
@@ -1946,6 +1921,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.one,
+    marginTop: Spacing.three,
     marginBottom: Spacing.three,
   },
   doubleClickText: {
@@ -1957,6 +1933,7 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     fontSize: 13,
     textAlign: 'center',
+    marginTop: Spacing.three,
     marginBottom: Spacing.three,
   },
   payButton: {
@@ -2170,30 +2147,6 @@ const styles = StyleSheet.create({
     color: '#475569',
   },
 
-  termsCheckboxRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.two,
-    backgroundColor: 'rgba(124, 58, 237, 0.05)',
-    borderColor: 'rgba(124, 58, 237, 0.2)',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: Spacing.three,
-    marginVertical: Spacing.three,
-  },
-  termsCheckboxHeader: {
-    fontFamily: Fonts.sans,
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  termsCheckboxLabel: {
-    fontFamily: Fonts.sans,
-    color: '#94A3B8',
-    fontSize: 10,
-    lineHeight: 14,
-  },
   payButtonDisabled: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
