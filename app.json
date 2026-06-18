@@ -8,11 +8,17 @@
     "scheme": "commitlock",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/images/icon.png",
+      "bundleIdentifier": "com.commitlock.app",
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.commitlock.app"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#06070B",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -28,11 +34,50 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#06070B",
           "android": {
             "image": "./assets/images/splash-icon.png",
             "imageWidth": 76
           }
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you set a profile picture.",
+          "cameraPermission": "The app accesses your camera to let you take a profile picture."
+        }
+      ],
+      [
+        "expo-widgets",
+        {
+          "ios": {
+            "src": "./src/widgets/ios"
+          },
+          "widgets": [
+            {
+              "name": "CommitmentsProgressWidget",
+              "displayName": "Commitments Progress",
+              "description": "Track your active commitments progress.",
+              "supportedFamilies": ["systemSmall", "systemMedium"]
+            }
+          ]
+        }
+      ],
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "CommitmentsProgressWidgetAndroid",
+              "label": "Commitments Progress",
+              "description": "Show your active commitments progress.",
+              "minWidth": "320dp",
+              "minHeight": "120dp",
+              "updatePeriodMillis": 1800000,
+              "resizeMode": "horizontal|vertical"
+            }
+          ]
         }
       ]
     ],

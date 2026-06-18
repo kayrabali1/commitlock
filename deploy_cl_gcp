@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+
+# Exit immediately if a command exits with a non-zero status
+set -e
+
+# Define color outputs for visibility
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+PROJECT_ID="commitlock-499812"
+REGION="europe-west3"
+SERVICE_NAME="commitlock-backend"
+
+echo -e "${BLUE}=== Starting Commitlock GCP Backend Deployment ===${NC}"
+
+# Check if gcloud CLI is installed
+if ! command -v gcloud &> /dev/null; then
+    echo -e "${RED}Error: gcloud CLI is not installed.${NC}"
+    echo "Please install the Google Cloud SDK before running this script."
+    echo "Ref: https://cloud.google.com/sdk/docs/install"
+    exit 1
+fi
+
+# 1. Authenticate with GCP
+echo -e "\n${YELLOW}Step 1: Authenticating with Google Cloud Account...${NC}"
+gcloud auth login
+
+# 2. Configure project ID
+echo -e "\n${YELLOW}Step 2: Configuring gcloud for project '${PROJECT_ID}'...${NC}"
+gcloud config set project "$PROJECT_ID"
+
+# 3. Enable necessary APIs
+echo -e "\n${YELLOW}Step 3: Enabling Firestore, Cloud Run, Cloud Build, and Artifact Registry APIs...${NC}"
+gcloud services enable firestore.googleapis.com \
+                       run.googleapis.com \
+                       artifactregistry.googleapis.com \
+                       cloudbuild.googleapis.com
+
+# 4. Configure Service Account permissions (Required for Cloud Run builds)
+echo -e "\n${YELLOW}Step 4: Configuring Service Account IAM permissions...${NC}"
+PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format="value(projectNumber)")
+COMPUTE_SERVICE_ACCOUNT="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+
+echo "Granting storage.admin role to default Compute Service Account ($COMPUTE_SERVICE_ACCOUNT)..."
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:$COMPUTE_SERVICE_ACCOUNT" \
+    --role="roles/storage.admin" \
+    --quiet
+
+echo "Granting artifactregistry.writer role to default Compute Service Account..."
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:$COMPUTE_SERVICE_ACCOUNT" \
+    --role="roles/artifactregistry.writer" \
+    --quiet
+
+# 5. Initialize Firestore Database (in Native mode) if it doesn't exist yet
+echo -e "\n${YELLOW}Step 5: Ensuring Firestore Native database exists...${NC}"
+if gcloud firestore databases list --format="value(name)" | grep -q "default"; then
+    echo "Firestore default database already initialized."
+else
+    echo "Initializing Firestore default database in Native Mode in region ${REGION}..."
+    gcloud firestore databases create --location="$REGION" --type=firestore-native || true
+fi
+
+# 6. Build and Deploy Cloud Run service
+echo -e "\n${YELLOW}Step 6: Deploying backend service to Google Cloud Run...${NC}"
+if [ -d "backend" ]; then
+    cd backend
+else
+    echo -e "${RED}Error: 'backend' directory not found in the current directory.${NC}"
+    exit 1
+fi
+
+# Run the deployment command
+gcloud run deploy "$SERVICE_NAME" \
+  --source . \
+  --platform managed \
+  --region "$REGION" \
+  --allow-unauthenticated
+
+# Retrieve the deployed service URL
+SERVICE_URL=$(gcloud run services describe "$SERVICE_NAME" --platform managed --region "$REGION" --format="value(status.url)")
+
+echo -e "\n${GREEN}=== Deployment Successful! ===${NC}"
+echo -e "${GREEN}Backend Cloud Run Service URL: ${SERVICE_URL}${NC}"
+echo -e "\n${YELLOW}What to do next:${NC}"
+echo -e "1. Copy your Service URL: ${BLUE}${SERVICE_URL}${NC}"
+echo -e "2. Open the file ${BLUE}src/services/auth.tsx${NC} and update the fallback URL on line 43 with this URL."
+echo -e "3. Save the file, and then build your iOS application using: ${BLUE}eas build --platform ios --profile production --auto-submit${NC}"
