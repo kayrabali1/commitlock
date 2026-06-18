@@ -344,6 +344,30 @@ export default function CommitScreen() {
     setPaymentStep('idle');
   };
 
+  const resetForm = () => {
+    setActiveStep(0);
+    setIsMetricSelected(false);
+    setIsTargetSelected(false);
+    setIsDurationSelected(false);
+    setIsStakeSelected(false);
+    setMetric('steps');
+    setTargetScope('daily');
+    setTargetValue(10000);
+    setPeriod('week');
+    setStartDateChoice('today');
+    const today = new Date();
+    setCustomStartDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2, 12, 0, 0));
+    setIsDatePickerVisible(false);
+    setStake(10);
+    setCustomStake('');
+    setIsCustomSheetVisible(false);
+    setTempStake(25);
+    setPaymentStep('idle');
+    setHasAcceptedDisclaimer(false);
+    setIsVerificationGuideVisible(false);
+    scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+  };
+
   const confirmPayment = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setPaymentStep('processing');
@@ -384,6 +408,11 @@ export default function CommitScreen() {
         setTimeout(() => {
           setIsPaymentSheetVisible(false);
           router.replace('/');
+          
+          // Reset form fields after redirect completes to avoid visual glitching on close animation
+          setTimeout(() => {
+            resetForm();
+          }, 300);
         }, 1500);
 
       } catch (error) {

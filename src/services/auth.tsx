@@ -3,6 +3,8 @@ import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system/legacy';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 export interface User {
   id: string;
@@ -23,6 +25,7 @@ interface AuthContextType {
   signInWithApple: () => Promise<void>;
   signOut: () => Promise<void>;
   updateAvatar: (avatarUri: string | null) => Promise<void>;
+  refreshUser: () => Promise<void>;
   error: string | null;
   clearError: () => void;
 }
@@ -33,9 +36,6 @@ const USER_STORAGE_KEY = '@commitlock_user_profile';
 const TOKEN_STORAGE_KEY = '@commitlock_jwt_token';
 
 // Smart backend URL detection
-// 1. Check EXPO_PUBLIC_API_URL environment variable
-// 2. In Dev mode, resolve to host machine's IP (so physical devices can connect locally)
-// 3. Fallback to GCP Cloud Run address
 export const getBaseUrl = (): string => {
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL;
@@ -50,11 +50,18 @@ export const getBaseUrl = (): string => {
     return Platform.OS === 'android' ? 'http://10.0.2.2:8080' : 'http://localhost:8080';
   }
 
-  // Replace with the deployed Cloud Run URL when available
   return 'https://commitlock-backend-yigcukfpnq-ey.a.run.app';
 };
 
 export const API_URL = getBaseUrl();
+
+// Configure Google Sign-In on mobile platforms
+if (Platform.OS !== 'web') {
+  GoogleSignin.configure({
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB || '853032822187-j5u9r1afl2pnd2qbf23n74geefvmoop7.apps.googleusercontent.com',
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS || '853032822187-j5u9r1afl2pnd2qbf23n74geefvmoop7.apps.googleusercontent.com',
+  });
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -107,6 +114,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const clearError = () => setError(null);
+
+  // Refresh User Profile
+  const refreshUser = async () => {
+    try {
+      const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+      if (token) {
+        const response = await fetch(`${API_URL}/api/auth/validate`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data.user);
+          await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(data.user));
+        }
+      }
+    } catch (e) {
+      console.error('Failed to refresh user profile from backend', e);
+    }
+  };
 
   // Local Sign In
   const signIn = async (email: string, password: string) => {
@@ -168,36 +199,103 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Google Sign In (Simulated for iOS client, matches simulator config)
+  // Real Google Sign In
   const signInWithGoogle = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      // Simulate Google OAuth flow
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (Platform.OS === 'web') {
+        throw new Error('Google Sign-In is not supported on web. Please use email or a mobile device.');
+      }
 
-      // Auto-register/login demo google user on our server
-      await signUp('Google Athlete', 'google.user@gmail.com', 'google_oauth_bypass_pwd_123');
+      await GoogleSignin.hasPlayServices();
+      const userInfo = await GoogleSignin.signIn();
+      const idToken = userInfo.data?.idToken;
+
+      if (!idToken) {
+        throw new Error('No idToken returned from Google Sign-In.');
+      }
+
+      // Send to backend
+      const response = await fetch(`${API_URL}/api/auth/google`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          idToken,
+          name: userInfo.data?.user?.name || undefined,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Google sign-in failed on server.');
+      }
+
+      await AsyncStorage.setItem(TOKEN_STORAGE_KEY, data.token);
+      await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(data.user));
+      setUser(data.user);
     } catch (err: any) {
-      setError('Google Sign-In was cancelled or failed.');
+      console.error('Google Sign-In Error:', err);
+      setError(err.message || 'Google Sign-In failed');
       throw err;
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Apple Sign In (Simulated for iOS client, matches simulator config)
+  // Real Apple Sign In
   const signInWithApple = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      // Simulate Apple ID flow
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (Platform.OS === 'web') {
+        throw new Error('Apple Sign-In is not supported on web. Please use email or a mobile device.');
+      }
 
-      // Auto-register/login demo apple user on our server
-      await signUp('Apple Champion', 'apple.fitness@icloud.com', 'apple_oauth_bypass_pwd_123');
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      if (!credential.identityToken) {
+        throw new Error('No identityToken returned from Apple Sign-In.');
+      }
+
+      // Format name if present
+      let name = undefined;
+      if (credential.fullName) {
+        const given = credential.fullName.givenName || '';
+        const family = credential.fullName.familyName || '';
+        name = `${given} ${family}`.trim() || undefined;
+      }
+
+      // Send to backend
+      const response = await fetch(`${API_URL}/api/auth/apple`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          identityToken: credential.identityToken,
+          name,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Apple sign-in failed on server.');
+      }
+
+      await AsyncStorage.setItem(TOKEN_STORAGE_KEY, data.token);
+      await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(data.user));
+      setUser(data.user);
     } catch (err: any) {
-      setError('Apple Sign-In was cancelled or failed.');
+      console.error('Apple Sign-In Error:', err);
+      setError(err.message || 'Apple Sign-In failed');
       throw err;
     } finally {
       setIsLoading(false);
@@ -208,6 +306,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     setIsLoading(true);
     try {
+      if (Platform.OS !== 'web') {
+        try {
+          await GoogleSignin.signOut();
+        } catch {}
+      }
       await AsyncStorage.multiRemove([TOKEN_STORAGE_KEY, USER_STORAGE_KEY]);
       setUser(null);
     } catch (err: any) {
@@ -285,6 +388,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signInWithApple,
         signOut,
         updateAvatar,
+        refreshUser,
         error,
         clearError,
       }}

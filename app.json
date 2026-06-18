@@ -10,11 +10,12 @@
     "ios": {
       "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.commitlock.app",
+      "usesAppleSignIn": true,
       "entitlements": {
         "com.apple.security.application-groups": [
-          "group.com.commitlock.app",
           "group.com.commitlock.app"
-        ]
+        ],
+        "com.apple.developer.healthkit": true
       },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -99,6 +100,13 @@
         {
           "healthSharePermission": "Allow Commitlock to read your health data to verify your goals.",
           "healthUpdatePermission": "Allow Commitlock to save health and workout data."
+        }
+      ],
+      "expo-apple-authentication",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.REPLACE_WITH_YOUR_REVERSED_CLIENT_ID"
         }
       ]
     ],

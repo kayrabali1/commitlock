@@ -101,31 +101,22 @@ export default function AuthScreen() {
 
   const triggerSocialAuth = async (provider: 'Google' | 'Apple') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setSocialProvider(provider);
-    setSocialModalVisible(true);
-    setSocialLoadingStep(1);
+    setLoading(true);
     clearError();
 
-    // Step 1: Open mock web browser or Apple FaceID sheet overlay
-    setTimeout(() => {
-      setSocialLoadingStep(2);
-      
-      // Step 2: Perform authentication and log in
-      setTimeout(async () => {
-        try {
-          if (provider === 'Google') {
-            await signInWithGoogle();
-          } else {
-            await signInWithApple();
-          }
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          setSocialModalVisible(false);
-        } catch {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-          setSocialModalVisible(false);
-        }
-      }, 1500);
-    }, 1200);
+    try {
+      if (provider === 'Google') {
+        await signInWithGoogle();
+      } else {
+        await signInWithApple();
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const displayError = validationError || authError;
@@ -316,49 +307,6 @@ export default function AuthScreen() {
         </View>
       </ScrollView>
 
-      {/* Social Auth Simulated Modal overlay */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={socialModalVisible}
-        onRequestClose={() => setSocialModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            {socialProvider === 'Google' ? (
-              <>
-                <View style={[styles.modalIconBg, { backgroundColor: 'rgba(234, 67, 53, 0.15)' }]}>
-                  <MaterialCommunityIcons name="google" size={32} color="#EA4335" />
-                </View>
-                <Text style={styles.modalTitle}>Google Secure Authentication</Text>
-                <Text style={styles.modalSubtitle}>
-                  {socialLoadingStep === 1 
-                    ? 'Establishing secure handshake...' 
-                    : 'Validating athlete profile tokens...'}
-                </Text>
-              </>
-            ) : (
-              <>
-                <View style={[styles.modalIconBg, { backgroundColor: 'rgba(255, 255, 255, 0.15)' }]}>
-                  <MaterialCommunityIcons name="apple" size={32} color="#FFFFFF" />
-                </View>
-                <Text style={styles.modalTitle}>Sign in with Apple ID</Text>
-                <Text style={styles.modalSubtitle}>
-                  {socialLoadingStep === 1 
-                    ? 'Activating biometric key check...' 
-                    : 'Verifying iCloud fitness security tokens...'}
-                </Text>
-              </>
-            )}
-            
-            <View style={styles.loadingSpinnerContainer}>
-              <ActivityIndicator size="large" color="#7C3AED" />
-            </View>
-
-            <Text style={styles.modalFooterText}>Secured via Commitlock Protocol</Text>
-          </View>
-        </View>
-      </Modal>
     </KeyboardAvoidingView>
   );
 }

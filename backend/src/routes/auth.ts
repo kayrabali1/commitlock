@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import appleSignin from 'apple-signin-auth';
 import { db } from '../config/firestore';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 
@@ -191,6 +192,159 @@ router.get('/validate', authenticateToken as any, async (req: AuthenticatedReque
   } catch (err: any) {
     console.error('Token validation error:', err);
     return res.status(500).json({ error: 'Internal server error validating token' });
+  }
+});
+
+// Google sign in/up verification
+router.post('/google', async (req: any, res: any) => {
+  try {
+    const { idToken, name } = req.body;
+    if (!idToken) {
+      return res.status(400).json({ error: 'idToken is required' });
+    }
+
+    // Call Google's tokeninfo API to verify the token
+    const verifyResponse = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+    if (!verifyResponse.ok) {
+      return res.status(401).json({ error: 'Invalid Google token' });
+    }
+
+    const tokenInfo = await verifyResponse.json();
+    const { email, name: decodedName, picture, sub } = tokenInfo;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Google account must have an email associated with it' });
+    }
+
+    const normEmail = email.toLowerCase().trim();
+    const displayName = name?.trim() || decodedName?.trim() || 'Google Athlete';
+
+    const usersRef = db.collection('users');
+    let userQuery = await usersRef.where('googleId', '==', sub).get();
+    let userId: string;
+    let userData: any;
+
+    if (userQuery.empty) {
+      const emailQuery = await usersRef.where('email', '==', normEmail).get();
+      if (!emailQuery.empty) {
+        const userDoc = emailQuery.docs[0];
+        userId = userDoc.id;
+        userData = userDoc.data();
+        await usersRef.doc(userId).update({ googleId: sub, provider: 'google' });
+        userData.googleId = sub;
+        userData.provider = 'google';
+      } else {
+        const avatar = picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=8B5CF6&color=fff&bold=true`;
+        const newUser = {
+          name: displayName,
+          email: normEmail,
+          googleId: sub,
+          avatar,
+          tier: 'High Accountability (Tier 3)',
+          walletBalance: 100.0,
+          createdAt: new Date().toISOString(),
+          provider: 'google',
+        };
+        const docRef = await usersRef.add(newUser);
+        userId = docRef.id;
+        userData = newUser;
+      }
+    } else {
+      const userDoc = userQuery.docs[0];
+      userId = userDoc.id;
+      userData = userDoc.data();
+    }
+
+    const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: '30d' });
+    return res.status(200).json({
+      token,
+      user: {
+        id: userId,
+        name: userData.name,
+        email: userData.email,
+        avatar: userData.avatar,
+        tier: userData.tier,
+        walletBalance: userData.walletBalance,
+        provider: 'google',
+      },
+    });
+  } catch (err: any) {
+    console.error('Google Auth Error:', err);
+    return res.status(500).json({ error: 'Internal server error during Google sign-in' });
+  }
+});
+
+// Apple sign in/up verification
+router.post('/apple', async (req: any, res: any) => {
+  try {
+    const { identityToken, name } = req.body;
+    if (!identityToken) {
+      return res.status(400).json({ error: 'identityToken is required' });
+    }
+
+    const clientID = 'com.commitlock.app';
+    const appleUserData = await appleSignin.verifyIdToken(identityToken, {
+      audience: clientID,
+      ignoreExpiration: false,
+    });
+
+    const sub = appleUserData.sub;
+    const email = appleUserData.email;
+    const normEmail = email ? email.toLowerCase().trim() : `${sub}@apple-user.commitlock.com`;
+    const displayName = name?.trim() || 'Apple Champion';
+
+    const usersRef = db.collection('users');
+    let userQuery = await usersRef.where('appleId', '==', sub).get();
+    let userId: string;
+    let userData: any;
+
+    if (userQuery.empty) {
+      const emailQuery = await usersRef.where('email', '==', normEmail).get();
+      if (!emailQuery.empty) {
+        const userDoc = emailQuery.docs[0];
+        userId = userDoc.id;
+        userData = userDoc.data();
+        await usersRef.doc(userId).update({ appleId: sub, provider: 'apple' });
+        userData.appleId = sub;
+        userData.provider = 'apple';
+      } else {
+        const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=8B5CF6&color=fff&bold=true`;
+        const newUser = {
+          name: displayName,
+          email: normEmail,
+          appleId: sub,
+          avatar,
+          tier: 'High Accountability (Tier 3)',
+          walletBalance: 100.0,
+          createdAt: new Date().toISOString(),
+          provider: 'apple',
+        };
+        const docRef = await usersRef.add(newUser);
+        userId = docRef.id;
+        userData = newUser;
+      }
+    } else {
+      const userDoc = userQuery.docs[0];
+      userId = userDoc.id;
+      userData = userDoc.data();
+    }
+
+    const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: '30d' });
+    return res.status(200).json({
+      token,
+      user: {
+        id: userId,
+        name: userData.name,
+        email: userData.email,
+        avatar: userData.avatar,
+        tier: userData.tier,
+        walletBalance: userData.walletBalance,
+        provider: 'apple',
+      },
+    });
+  } catch (err: any) {
+    console.error('Apple Auth Error:', err);
+    return res.status(500).json({ error: 'Internal server error during Apple sign-in' });
   }
 });
 

@@ -36,7 +36,7 @@ type NotificationKeys = 'dailyReminder' | 'statusUpdates' | 'stakeAlerts' | 'wee
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user, signOut, updateAvatar } = useAuth();
+  const { user, signOut, updateAvatar, refreshUser } = useAuth();
   const { width: screenWidth } = useWindowDimensions();
 
   // State controls
@@ -45,6 +45,7 @@ export default function SettingsScreen() {
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [syncMetrics, setSyncMetrics] = useState({ steps: 0, calories: 0, mindfulness: 0, distance: 0 });
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isDepositing, setIsDepositing] = useState(false);
   const [activePane, setActivePane] = useState<'main' | 'notifications'>('main');
 
   // Notification toggles
@@ -321,6 +322,30 @@ export default function SettingsScreen() {
     setIsSyncing(false);
   };
 
+  const handleMockDeposit = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setIsDepositing(true);
+    try {
+      await HealthDataService.updateWalletBalance(50.0);
+      await refreshUser();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (Platform.OS === 'web') {
+        alert('Mock deposit of €50.00 successful!');
+      } else {
+        Alert.alert('Deposit Successful', 'Your testing wallet has been topped up with €50.00.');
+      }
+    } catch (e) {
+      console.error('Failed to deposit funds', e);
+      if (Platform.OS === 'web') {
+        alert('Could not top up wallet balance.');
+      } else {
+        Alert.alert('Deposit Failed', 'Could not top up wallet balance.');
+      }
+    } finally {
+      setIsDepositing(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* Main settings content */}
@@ -370,6 +395,7 @@ export default function SettingsScreen() {
               <View style={styles.profileInfo}>
                 <Text style={styles.profileName}>{user?.name || 'Kayra Bali'}</Text>
                 <Text style={styles.profileEmail}>{user?.email || 'demo@commitlock.com'}</Text>
+                <Text style={styles.profileWallet}>Mock Balance: €{user?.walletBalance !== undefined ? Number(user.walletBalance).toFixed(2) : '0.00'}</Text>
                 <TouchableOpacity
                   onPress={handleAvatarPress}
                   activeOpacity={0.7}
@@ -385,6 +411,28 @@ export default function SettingsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Preferences</Text>
             <View style={styles.cardList}>
+              <TouchableOpacity 
+                onPress={handleMockDeposit} 
+                style={styles.settingItemClickable}
+                disabled={isDepositing}
+                activeOpacity={0.6}
+              >
+                <View style={styles.settingItemLeft}>
+                  <View style={[styles.iconBg, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
+                    <MaterialCommunityIcons name="wallet-plus-outline" size={20} color="#10B981" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.itemTitle}>Deposit Mock Funds</Text>
+                    <Text style={styles.itemSubtitle}>Top up your testing wallet with €50.00</Text>
+                  </View>
+                </View>
+                {isDepositing ? (
+                  <ActivityIndicator size="small" color="#10B981" style={{ marginRight: 4 }} />
+                ) : (
+                  <MaterialCommunityIcons name="plus" size={20} color="#10B981" style={{ marginRight: 2 }} />
+                )}
+              </TouchableOpacity>
+
               <TouchableOpacity 
                 onPress={() => navigateToPane('notifications')} 
                 style={[styles.settingItemClickable, { borderBottomWidth: 0 }]}
@@ -814,6 +862,12 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     fontSize: 12,
     marginTop: 2,
+  },
+  profileWallet: {
+    color: '#10B981',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
   },
   editProfileButton: {
     marginTop: 6,

@@ -423,18 +423,15 @@ export class HealthDataService {
           };
         }
 
-        // Default template fallback for visual presentation
-        const selectedData = DEFAULT_SIMULATED_DATA[metric];
-        const item = selectedData[index % selectedData.length];
         return {
           dayName,
-          value: item ? item.value : 0,
+          value: 0,
           dateString: dateStr,
         };
       });
     } catch (e) {
       console.error('Error fetching health data from backend', e);
-      return DEFAULT_SIMULATED_DATA[metric];
+      return [];
     }
   }
 
@@ -627,57 +624,7 @@ export class HealthDataService {
         }
       }
       
-      // Fallback local mock history so that first-time launches don't look completely bare
-      const stored = await AsyncStorage.getItem(STORAGE_KEYS.HISTORY);
-      if (!stored) {
-        const mockHistory: Commitment[] = [
-          {
-            id: 'mock-1',
-            metricType: 'steps',
-            targetValue: 10000,
-            period: 'week',
-            stakeAmount: 20,
-            startDate: '2026-06-01',
-            endDate: '2026-06-07',
-            status: 'success',
-            createdAt: new Date('2026-06-01T08:00:00Z').toISOString(),
-            targetScope: 'daily',
-            performanceData: [
-              { dayName: 'Mon', value: 11200, dateString: '2026-06-01' },
-              { dayName: 'Tue', value: 10450, dateString: '2026-06-02' },
-              { dayName: 'Wed', value: 12100, dateString: '2026-06-03' },
-              { dayName: 'Thu', value: 10800, dateString: '2026-06-04' },
-              { dayName: 'Fri', value: 11500, dateString: '2026-06-05' },
-              { dayName: 'Sat', value: 13400, dateString: '2026-06-06' },
-              { dayName: 'Sun', value: 10050, dateString: '2026-06-07' },
-            ],
-          },
-          {
-            id: 'mock-2',
-            metricType: 'run',
-            targetValue: 5.0,
-            period: 'week',
-            stakeAmount: 10,
-            startDate: '2026-06-08',
-            endDate: '2026-06-14',
-            status: 'failed',
-            createdAt: new Date('2026-06-08T08:00:00Z').toISOString(),
-            targetScope: 'daily',
-            performanceData: [
-              { dayName: 'Mon', value: 5.2, dateString: '2026-06-08' },
-              { dayName: 'Tue', value: 4.8, dateString: '2026-06-09' },
-              { dayName: 'Wed', value: 5.5, dateString: '2026-06-10' },
-              { dayName: 'Thu', value: 6.1, dateString: '2026-06-11' },
-              { dayName: 'Fri', value: 3.2, dateString: '2026-06-12' },
-              { dayName: 'Sat', value: 7.2, dateString: '2026-06-13' },
-              { dayName: 'Sun', value: 5.1, dateString: '2026-06-14' },
-            ],
-          },
-        ];
-        await AsyncStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(mockHistory));
-        return mockHistory;
-      }
-      return JSON.parse(stored);
+      return [];
     } catch {
       return [];
     }
@@ -805,12 +752,17 @@ export class HealthDataService {
     }
   }
 
+  static getTodayIndex(): number {
+    const day = new Date().getDay();
+    return day === 0 ? 6 : day - 1;
+  }
+
   static getCommitmentStats(commitment: Commitment, weeklyDataList: DailyHealthData[]) {
     if (!commitment || !weeklyDataList || weeklyDataList.length === 0) {
       return { completedDays: 0, failedDays: 0, overallProgress: 0, totalAccumulated: 0 };
     }
 
-    const simulatedTodayIndex = 2;
+    const simulatedTodayIndex = this.getTodayIndex();
     const pastAndTodayData = weeklyDataList.slice(0, simulatedTodayIndex + 1);
     const totalAccumulated = pastAndTodayData.reduce((acc, day) => acc + day.value, 0);
 
@@ -880,7 +832,7 @@ export class HealthDataService {
     if (commitment.targetScope === 'weekly') {
       return false;
     }
-    const simulatedTodayIndex = 2;
+    const simulatedTodayIndex = this.getTodayIndex();
     return weeklyDataList.slice(0, simulatedTodayIndex).some(
       (day) => day.value < commitment.targetValue
     );
@@ -889,7 +841,7 @@ export class HealthDataService {
   static getRemainingDaysString(commitment: Commitment, weeklyDataList: DailyHealthData[]) {
     if (!commitment) return '0 Days';
     try {
-      const simulatedTodayIndex = 2;
+      const simulatedTodayIndex = this.getTodayIndex();
       const todayDateStr = weeklyDataList?.[simulatedTodayIndex]?.dateString;
       const now = new Date();
       const today = todayDateStr 
@@ -913,7 +865,7 @@ export class HealthDataService {
   static getCommitmentSegments(commitment: Commitment, weeklyDataList: DailyHealthData[]): ('future' | 'success' | 'failed' | 'today')[] {
     const segments: ('future' | 'success' | 'failed' | 'today')[] = [];
     const allDays = this.getCommitmentDaysList(commitment);
-    const simulatedTodayIndex = 2;
+    const simulatedTodayIndex = this.getTodayIndex();
     const todayDateStr = weeklyDataList?.[simulatedTodayIndex]?.dateString;
 
     allDays.forEach((dateStr) => {

@@ -17,7 +17,6 @@ import * as Haptics from 'expo-haptics';
 
 import { Spacing, BottomTabInset } from '@/constants/theme';
 import { HealthDataService, Commitment, DailyHealthData } from '@/services/health';
-import SensorSimulator from '@/components/SensorSimulator';
 import HowItWorksPane from '@/components/HowItWorksPane';
 import { VerificationGuideModal } from '@/components/VerificationGuideModal';
 import AppHeader, { BASE_HEADER_HEIGHT } from '@/components/AppHeader';
@@ -175,8 +174,12 @@ export default function TrackerDashboard() {
     }
   };
 
-  // Find today's daily index (for simulation, let's pretend today is Wednesday, index 2)
-  const simulatedTodayIndex = 2;
+  // Find today's daily index (0 = Monday, ..., 6 = Sunday)
+  const getTodayIndex = () => {
+    const day = new Date().getDay(); // 0 is Sunday, 1 is Monday, ...
+    return day === 0 ? 6 : day - 1;
+  };
+  const simulatedTodayIndex = getTodayIndex();
 
   // Calculate stats for active commitment
   const getCommitmentStats = (commitment: Commitment, weeklyDataList: DailyHealthData[]) => {
@@ -609,36 +612,6 @@ export default function TrackerDashboard() {
                             })()}
                           </View>
                         </ScrollView>
-
-                        {/* Inline Action Buttons inside Expanded Logs */}
-                        <View style={[styles.cardActionsRow, { marginTop: Spacing.three }]}>
-                          <TouchableOpacity
-                            onPress={() => {
-                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                              setSimulatingCommitment(commitment);
-                            }}
-                            style={styles.cardActionButton}
-                            activeOpacity={0.8}
-                          >
-                            <MaterialCommunityIcons name="developer-board" size={14} color="#7C3AED" />
-                            <Text style={styles.cardActionButtonText}>Simulate Sensors</Text>
-                          </TouchableOpacity>
-
-                          <TouchableOpacity
-                            onPress={() => {
-                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                              router.push({
-                                pathname: '/resolution',
-                                params: { id: commitment.id }
-                              });
-                            }}
-                            style={[styles.cardActionButton, styles.cardActionButtonPrimary]}
-                            activeOpacity={0.8}
-                          >
-                            <MaterialCommunityIcons name="clock-fast" size={14} color="#FFFFFF" />
-                            <Text style={[styles.cardActionButtonText, { color: '#FFFFFF' }]}>Simulate Resolution</Text>
-                          </TouchableOpacity>
-                        </View>
                       </View>
                     )}
 
@@ -653,14 +626,6 @@ export default function TrackerDashboard() {
 
         <AppHeader />
       </View>
-
-      {/* Sensor Simulator Bottom Sheet Panel */}
-      <SensorSimulator 
-        visible={simulatingCommitment !== null} 
-        onClose={() => setSimulatingCommitment(null)} 
-        onDataChanged={loadData}
-        commitment={simulatingCommitment}
-      />
 
       {/* Verification Guide Modal */}
       <VerificationGuideModal
