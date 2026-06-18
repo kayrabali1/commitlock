@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   heroGradient: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     height: 300,
   },
   logoContainer: {

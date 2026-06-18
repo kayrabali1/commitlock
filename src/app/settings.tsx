@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -51,7 +51,7 @@ export default function SettingsScreen() {
   });
 
   // Animated sliding positions (start off-screen to the right)
-  const notificationsTranslateX = useRef(new Animated.Value(screenWidth)).current;
+  const [notificationsTranslateX] = useState(() => new Animated.Value(screenWidth));
 
   // Sync offscreen coordinates if dimensions change
   useEffect(() => {

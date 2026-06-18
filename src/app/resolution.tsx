@@ -146,6 +146,7 @@ export default function ResolutionScreen() {
         return () => clearTimeout(timer);
       } else {
         // Finished checking all 7 days!
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setPhase('resolved');
         Haptics.notificationAsync(
           isSuccess 

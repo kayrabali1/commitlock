@@ -43,6 +43,7 @@ export default function SensorSimulator({
 
   useEffect(() => {
     if (visible) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       loadSimulatedData();
     }
   }, [visible, loadSimulatedData]);

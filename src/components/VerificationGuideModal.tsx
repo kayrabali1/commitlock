@@ -74,7 +74,7 @@ export function VerificationGuideModal({ visible, onClose }: VerificationGuideMo
     >
       <View style={styles.modalOverlay}>
         <Pressable 
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           onPress={handleClose}
         />
         <BlurView tint="dark" intensity={95} style={styles.modalContent}>

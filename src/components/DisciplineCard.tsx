@@ -648,7 +648,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   shareOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',

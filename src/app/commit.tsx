@@ -993,7 +993,7 @@ export default function CommitScreen() {
         >
           <View style={styles.modalOverlay}>
             <TouchableOpacity 
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               activeOpacity={1}
               onPress={() => setIsDatePickerVisible(false)}
             />
@@ -1045,7 +1045,7 @@ export default function CommitScreen() {
       >
         <View style={styles.modalOverlay}>
           <TouchableOpacity 
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             activeOpacity={1}
             onPress={() => setIsCustomSheetVisible(false)}
           />
@@ -1156,7 +1156,7 @@ export default function CommitScreen() {
       >
         <View style={styles.modalOverlay}>
           <TouchableOpacity 
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             activeOpacity={1}
             onPress={() => setIsDisclaimerVisible(false)}
           />
@@ -1276,7 +1276,7 @@ export default function CommitScreen() {
       >
         <View style={styles.modalOverlay}>
           <TouchableOpacity 
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             activeOpacity={1}
             onPress={() => paymentStep !== 'processing' && setIsPaymentSheetVisible(false)}
           />
