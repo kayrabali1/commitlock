@@ -2,6 +2,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { API_URL } from './auth';
 
+let AppleHealthKit: any;
+if (Platform.OS === 'ios') {
+  try {
+    AppleHealthKit = require('react-native-health').default;
+  } catch (e) {
+    console.warn('[HealthDataService] react-native-health could not be loaded:', e);
+  }
+}
+
+
 export type MetricType = 'steps' | 'run' | 'mindfulness' | 'cycle' | 'calories' | 'activeTime';
 
 export interface Commitment {
@@ -107,15 +117,235 @@ export class HealthDataService {
    */
   static async requestPermissions(): Promise<boolean> {
     try {
-      if (Platform.OS === 'web') {
-        console.log('[HealthDataService] Mocking permission request on Web');
+      if (Platform.OS !== 'ios' || !AppleHealthKit) {
+        console.log('[HealthDataService] Mocking permission request on non-iOS or native module not loaded');
         return true;
       }
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      return true;
+      return new Promise((resolve) => {
+        const permissions = {
+          permissions: {
+            read: [
+              AppleHealthKit.Constants.Permissions.StepCount,
+              AppleHealthKit.Constants.Permissions.DistanceWalkingRunning,
+              AppleHealthKit.Constants.Permissions.DistanceCycling,
+              AppleHealthKit.Constants.Permissions.ActiveEnergyBurned,
+              AppleHealthKit.Constants.Permissions.AppleExerciseTime,
+              AppleHealthKit.Constants.Permissions.MindfulSession,
+            ],
+            write: [],
+          },
+        };
+        AppleHealthKit.initHealthKit(permissions, (error: string) => {
+          if (error) {
+            console.error('[HealthDataService] Error requesting health permissions:', error);
+            resolve(false);
+          } else {
+            console.log('[HealthDataService] Health permissions granted/synced successfully');
+            resolve(true);
+          }
+        });
+      });
     } catch (e) {
       console.error('Error requesting health permissions', e);
       return false;
+    }
+  }
+
+  /**
+   * Queries daily health data for a specific metric over a date range from native HealthKit
+   */
+  static async queryHealthDataDaily(metric: MetricType, startDateStr: string, endDateStr: string): Promise<Record<string, number>> {
+    if (Platform.OS !== 'ios' || !AppleHealthKit) {
+      return {};
+    }
+
+    const startDate = new Date(startDateStr + 'T00:00:00');
+    const endDate = new Date(endDateStr + 'T23:59:59');
+
+    const options = {
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      ascending: true,
+    };
+
+    return new Promise((resolve) => {
+      const callback = (err: any, results: any) => {
+        if (err) {
+          console.error(`[HealthDataService] Error querying ${metric} from HealthKit:`, err);
+          resolve({});
+          return;
+        }
+
+        const dailyValues: Record<string, number> = {};
+
+        if (Array.isArray(results)) {
+          results.forEach((sample: any) => {
+            if (!sample.startDate) return;
+            const d = new Date(sample.startDate);
+            const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            let val = Number(sample.value) || 0;
+            
+            // Adjust units if needed (e.g. distance is stored in meters if not specified, convert meters to km)
+            if (metric === 'run' || metric === 'cycle') {
+              if (val > 100) {
+                val = val / 1000;
+              }
+            }
+            
+            dailyValues[dateKey] = (dailyValues[dateKey] || 0) + val;
+          });
+        } else if (results && typeof results === 'object' && results.value !== undefined) {
+          const d = new Date(results.startDate || startDate);
+          const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          dailyValues[dateKey] = Number(results.value) || 0;
+        }
+
+        resolve(dailyValues);
+      };
+
+      try {
+        switch (metric) {
+          case 'steps':
+            AppleHealthKit.getDailyStepCountSamples(options, callback);
+            break;
+          case 'run':
+            AppleHealthKit.getDailyDistanceWalkingRunningSamples({ ...options, unit: 'km' }, callback);
+            break;
+          case 'cycle':
+            AppleHealthKit.getDailyDistanceCyclingSamples({ ...options, unit: 'km' }, callback);
+            break;
+          case 'calories':
+            AppleHealthKit.getActiveEnergyBurned(options, callback);
+            break;
+          case 'activeTime':
+            AppleHealthKit.getAppleExerciseTime(options, callback);
+            break;
+          case 'mindfulness':
+            AppleHealthKit.getMindfulSession(options, (err: any, results: any) => {
+              if (err) {
+                console.error(`[HealthDataService] Error querying mindfulness from HealthKit:`, err);
+                resolve({});
+                return;
+              }
+              const dailyValues: Record<string, number> = {};
+              if (Array.isArray(results)) {
+                results.forEach((sample: any) => {
+                  if (!sample.startDate || !sample.endDate) return;
+                  const start = new Date(sample.startDate).getTime();
+                  const end = new Date(sample.endDate).getTime();
+                  const durationMins = (end - start) / (1000 * 60);
+                  
+                  const d = new Date(sample.startDate);
+                  const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                  dailyValues[dateKey] = (dailyValues[dateKey] || 0) + durationMins;
+                });
+              }
+              resolve(dailyValues);
+            });
+            break;
+          default:
+            resolve({});
+        }
+      } catch (e) {
+        console.error(`[HealthDataService] Exception querying HealthKit for ${metric}:`, e);
+        resolve({});
+      }
+    });
+  }
+
+  /**
+   * Log health data directly to the backend API
+   */
+  static async logHealthData(metric: MetricType, dateStr: string, value: number): Promise<void> {
+    try {
+      const response = await this.authenticatedFetch('/api/health/log', {
+        method: 'POST',
+        body: JSON.stringify({
+          metricType: metric,
+          dateString: dateStr,
+          value: Number(value),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update daily metric on backend');
+      }
+    } catch (e) {
+      console.error('[HealthDataService] Error logging health data to backend:', e);
+    }
+  }
+
+  /**
+   * Synchronizes active commitments with Apple HealthKit (called on index screen focus)
+   */
+  static async syncActiveCommitmentsWithHealthKit(commitments: Commitment[]): Promise<void> {
+    if (Platform.OS !== 'ios' || !AppleHealthKit) {
+      return;
+    }
+
+    const permissionSuccess = await this.requestPermissions();
+    if (!permissionSuccess) {
+      console.log('[HealthDataService] HealthKit permissions not granted, skipping sync');
+      return;
+    }
+
+    for (const commitment of commitments) {
+      const dates = this.getCommitmentDaysList(commitment);
+      if (dates.length === 0) continue;
+
+      const startDateStr = dates[0];
+      const endDateStr = dates[dates.length - 1];
+
+      // Query real HealthKit data
+      const dailyData = await this.queryHealthDataDaily(commitment.metricType, startDateStr, endDateStr);
+
+      // Upload to backend
+      for (const dateStr of dates) {
+        const value = dailyData[dateStr] || 0;
+        await this.logHealthData(commitment.metricType, dateStr, value);
+      }
+    }
+    await this.syncWidgets();
+  }
+
+  /**
+   * Queries live HealthKit metrics for today (used in connection check modal)
+   */
+  static async queryTodayMetrics(): Promise<{
+    steps: number;
+    calories: number;
+    mindfulness: number;
+    distance: number;
+  }> {
+    if (Platform.OS !== 'ios' || !AppleHealthKit) {
+      // Mock metrics for Simulator / Web
+      return {
+        steps: 7420,
+        calories: 340,
+        mindfulness: 15,
+        distance: 4.2,
+      };
+    }
+
+    try {
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      
+      const stepsMap = await this.queryHealthDataDaily('steps', todayStr, todayStr);
+      const caloriesMap = await this.queryHealthDataDaily('calories', todayStr, todayStr);
+      const mindfulnessMap = await this.queryHealthDataDaily('mindfulness', todayStr, todayStr);
+      const runDistanceMap = await this.queryHealthDataDaily('run', todayStr, todayStr);
+      const cycleDistanceMap = await this.queryHealthDataDaily('cycle', todayStr, todayStr);
+
+      const steps = stepsMap[todayStr] || 0;
+      const calories = caloriesMap[todayStr] || 0;
+      const mindfulness = mindfulnessMap[todayStr] || 0;
+      const distance = (runDistanceMap[todayStr] || 0) + (cycleDistanceMap[todayStr] || 0);
+
+      return { steps, calories, mindfulness, distance };
+    } catch (e) {
+      console.error('[HealthDataService] Error querying today\'s metrics:', e);
+      return { steps: 0, calories: 0, mindfulness: 0, distance: 0 };
     }
   }
 

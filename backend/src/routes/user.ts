@@ -23,10 +23,11 @@ router.get('/profile', authenticateToken as any, async (req: AuthenticatedReques
       tier: userData.tier,
       walletBalance: userData.walletBalance,
       notificationSettings: userData.notificationSettings || {
-        commitmentReminders: true,
-        progressUpdates: true,
-        failedCommitments: true,
-        weeklyDigest: true,
+        dailyReminder: true,
+        statusUpdates: true,
+        stakeAlerts: true,
+        weeklyReport: false,
+        gracePeriodSync: true,
       },
     });
   } catch (err: any) {

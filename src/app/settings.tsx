@@ -13,6 +13,7 @@ import {
   Animated,
   useWindowDimensions,
   BackHandler,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -27,9 +28,10 @@ import { Spacing, BottomTabInset } from '@/constants/theme';
 import { HealthDataService } from '@/services/health';
 import { useAuth, API_URL } from '@/services/auth';
 import { VerificationGuideModal } from '@/components/VerificationGuideModal';
+import { SyncVerificationModal } from '@/components/SyncVerificationModal';
 import AppHeader, { BASE_HEADER_HEIGHT } from '@/components/AppHeader';
 
-type NotificationKeys = 'dailyReminder' | 'statusUpdates' | 'stakeAlerts' | 'weeklyReport';
+type NotificationKeys = 'dailyReminder' | 'statusUpdates' | 'stakeAlerts' | 'weeklyReport' | 'gracePeriodSync';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -40,6 +42,9 @@ export default function SettingsScreen() {
   // State controls
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [showSyncModal, setShowSyncModal] = useState(false);
+  const [syncMetrics, setSyncMetrics] = useState({ steps: 0, calories: 0, mindfulness: 0, distance: 0 });
+  const [isSyncing, setIsSyncing] = useState(false);
   const [activePane, setActivePane] = useState<'main' | 'notifications'>('main');
 
   // Notification toggles
@@ -48,6 +53,7 @@ export default function SettingsScreen() {
     statusUpdates: true,
     stakeAlerts: true,
     weeklyReport: false,
+    gracePeriodSync: true,
   });
 
   // Animated sliding positions (start off-screen to the right)
@@ -302,15 +308,17 @@ export default function SettingsScreen() {
 
   const handleRequestPermissions = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setIsSyncing(true);
     const success = await HealthDataService.requestPermissions();
     if (success) {
+      const todayMetrics = await HealthDataService.queryTodayMetrics();
+      setSyncMetrics(todayMetrics);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      if (Platform.OS === 'web') {
-        alert('Health permissions synced successfully.');
-      } else {
-        Alert.alert('Sensor Sync', 'Health sensor synchronization verified.');
-      }
+      setShowSyncModal(true);
+    } else {
+      Alert.alert('Sync Failed', 'Could not request or verify health sensor access. Please verify settings.');
     }
+    setIsSyncing(false);
   };
 
   return (
@@ -416,7 +424,11 @@ export default function SettingsScreen() {
                     <Text style={styles.itemSubtitle}>Connected • Tap to verify sensor sync</Text>
                   </View>
                 </View>
-                <MaterialCommunityIcons name="check-circle" size={18} color="#10B981" style={{ marginRight: 2 }} />
+                {isSyncing ? (
+                  <ActivityIndicator size="small" color="#10B981" style={{ marginRight: 4 }} />
+                ) : (
+                  <MaterialCommunityIcons name="check-circle" size={18} color="#10B981" style={{ marginRight: 2 }} />
+                )}
               </TouchableOpacity>
 
               <TouchableOpacity 
@@ -575,6 +587,25 @@ export default function SettingsScreen() {
               />
             </View>
 
+            <View style={styles.settingItemSwitch}>
+              <View style={styles.settingItemLeft}>
+                <View style={[styles.iconBg, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
+                  <MaterialCommunityIcons name="clock-alert-outline" size={20} color="#3B82F6" />
+                </View>
+                <View style={{ flex: 1, paddingRight: Spacing.two }}>
+                  <Text style={styles.itemTitle}>Grace Period Reminders</Text>
+                  <Text style={styles.itemSubtitle}>Daily alerts on the last day and during the 48h grace period if you haven't synced yet.</Text>
+                </View>
+              </View>
+              <Switch
+                value={notifications.gracePeriodSync}
+                onValueChange={() => toggleNotification('gracePeriodSync')}
+                trackColor={{ false: 'rgba(255, 255, 255, 0.08)', true: '#7C3AED' }}
+                thumbColor={Platform.OS === 'ios' ? undefined : '#FFFFFF'}
+                ios_backgroundColor="rgba(255, 255, 255, 0.08)"
+              />
+            </View>
+
             <View style={[styles.settingItemSwitch, { borderBottomWidth: 0 }]}>
               <View style={styles.settingItemLeft}>
                 <View style={[styles.iconBg, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
@@ -666,6 +697,13 @@ export default function SettingsScreen() {
       <VerificationGuideModal
         visible={showVerificationModal}
         onClose={() => setShowVerificationModal(false)}
+      />
+
+      {/* Sync Verification Modal */}
+      <SyncVerificationModal
+        visible={showSyncModal}
+        onClose={() => setShowSyncModal(false)}
+        metrics={syncMetrics}
       />
     </View>
   );

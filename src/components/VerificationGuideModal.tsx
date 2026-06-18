@@ -53,15 +53,15 @@ export function VerificationGuideModal({ visible, onClose }: VerificationGuideMo
       icon: 'sync',
       iconColor: '#3B82F6',
       bgColor: 'rgba(59, 130, 246, 0.1)',
-      title: '4. Open the App to Sync',
-      desc: 'Health sensors store statistics on your phone. Make sure to open the Commitlock app daily (or at least once before your commitment period ends on Sunday at 23:59) to sync the latest data.',
+      title: '4. 48-Hour Sync Grace Period',
+      desc: 'Health sensors store statistics locally on your phone. To make sure all weekly values (including the final day) are uploaded, you have a 48-hour grace period after the commitment period ends (until Tuesday at 23:59) to open the app and sync.',
     },
     {
       icon: 'scale-balance',
       iconColor: '#F59E0B',
       bgColor: 'rgba(245, 158, 11, 0.1)',
-      title: '5. Fair Forfeit Resolution',
-      desc: 'At 11:59 PM on the final day of your commitment, your device sensor data is evaluated. If you met the goal, your staked money is returned. If missed, your staked money is forfeited to operations.',
+      title: '5. Resolution & Forfeiture',
+      desc: 'If you sync within the 48-hour grace period and meet your target, your stake is fully returned. If you fail to meet the target, or if you do not open the app to sync before the 48 hours expire, your stake is forfeited.',
     },
   ];
 

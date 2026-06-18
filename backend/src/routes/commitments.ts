@@ -4,6 +4,13 @@ import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
 
+function isGracePeriodExpired(endDateStr: string): boolean {
+  const [year, month, day] = endDateStr.split('-').map(Number);
+  const gracePeriodEnd = new Date(year, month - 1, day + 3, 0, 0, 0, 0);
+  const now = new Date();
+  return now > gracePeriodEnd;
+}
+
 // Get all commitments (active and history) for the authenticated user
 router.get('/', authenticateToken as any, async (req: AuthenticatedRequest, res: any) => {
   try {
@@ -12,16 +19,53 @@ router.get('/', authenticateToken as any, async (req: AuthenticatedRequest, res:
     const commitmentsSnapshot = await db
       .collection('commitments')
       .where('userId', '==', userId)
-      .orderBy('createdAt', 'desc')
       .get();
 
     const commitments: any[] = [];
+    const expiredIdsToUpdate: string[] = [];
+    const resolvedAt = new Date().toISOString();
+
     commitmentsSnapshot.forEach((doc) => {
       const data = doc.data();
-      commitments.push({
-        id: doc.id,
-        ...data,
+      const id = doc.id;
+      
+      if (data.status === 'active' && isGracePeriodExpired(data.endDate)) {
+        expiredIdsToUpdate.push(id);
+        commitments.push({
+          id,
+          ...data,
+          status: 'failed',
+          resolvedAt,
+          failureReason: 'grace_period_expired',
+        });
+      } else {
+        commitments.push({
+          id,
+          ...data,
+        });
+      }
+    });
+
+    // Lazy resolve in batch
+    if (expiredIdsToUpdate.length > 0) {
+      const batch = db.batch();
+      expiredIdsToUpdate.forEach((id) => {
+        const ref = db.collection('commitments').doc(id);
+        batch.update(ref, {
+          status: 'failed',
+          resolvedAt,
+          failureReason: 'grace_period_expired',
+        });
       });
+      await batch.commit();
+      console.log(`Lazy-resolved ${expiredIdsToUpdate.length} expired commitments to failed.`);
+    }
+
+    // Sort commitments by createdAt descending in-memory to avoid requiring a composite Firestore index
+    commitments.sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
+      return dateB - dateA;
     });
 
     return res.status(200).json(commitments);
@@ -172,6 +216,10 @@ router.post('/:id/resolve', authenticateToken as any, async (req: AuthenticatedR
 
       if (commitment.status !== 'active') {
         throw new Error('Commitment is already resolved');
+      }
+
+      if (status === 'success' && isGracePeriodExpired(commitment.endDate)) {
+        throw new Error('Grace period (48 hours) for this commitment has expired');
       }
 
       // If success, refund the stake

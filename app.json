@@ -94,7 +94,13 @@
       "expo-font",
       "expo-image",
       "expo-status-bar",
-      "expo-web-browser"
+      [
+        "react-native-health",
+        {
+          "healthSharePermission": "Allow Commitlock to read your health data to verify your goals.",
+          "healthUpdatePermission": "Allow Commitlock to save health and workout data."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

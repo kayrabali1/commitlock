@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   RefreshControl,
   Platform,
+  AppState,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -35,11 +36,20 @@ export default function TrackerDashboard() {
   // Simulator Panel Visibility & Target Commitment
   const [simulatingCommitment, setSimulatingCommitment] = useState<Commitment | null>(null);
 
-  // Load state from local storage
+  // Load state from local storage and sync HealthKit
   const loadData = async () => {
     try {
       const commitments = await HealthDataService.getActiveCommitments();
       setActiveCommitments(commitments);
+
+      // Real HealthKit sync
+      if (Platform.OS === 'ios') {
+        try {
+          await HealthDataService.syncActiveCommitmentsWithHealthKit(commitments);
+        } catch (e) {
+          console.error('[TrackerDashboard] Error syncing HealthKit data:', e);
+        }
+      }
 
       const weeklyDataMap: Record<string, DailyHealthData[]> = {};
       for (const commitment of commitments) {
@@ -52,6 +62,18 @@ export default function TrackerDashboard() {
     }
   };
 
+  // Request native permissions automatically when the user first opens the application
+  useEffect(() => {
+    const requestInitialPermissions = async () => {
+      try {
+        await HealthDataService.requestPermissions();
+      } catch (e) {
+        console.error('[TrackerDashboard] Failed requesting initial HealthKit permissions:', e);
+      }
+    };
+    requestInitialPermissions();
+  }, []);
+
   const toggleExpandLog = (id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setExpandedLogs((prev) => ({
@@ -59,6 +81,18 @@ export default function TrackerDashboard() {
       [id]: !prev[id],
     }));
   };
+
+  // Listen for AppState changes to refresh data when app returns to foreground
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        loadData();
+      }
+    });
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   // Reload data every time tab gains focus
   useFocusEffect(
@@ -244,8 +278,22 @@ export default function TrackerDashboard() {
       const endMidnight = new Date(end.getFullYear(), end.getMonth(), end.getDate());
       
       const diffMs = endMidnight.getTime() - todayMidnight.getTime();
-      const diffDays = Math.max(0, Math.round(diffMs / (1000 * 60 * 60 * 24)));
       
+      if (diffMs < 0) {
+        // Commitment has ended. Calculate grace period remaining (48 hours from end of endDate day)
+        // Which is Wednesday 00:00:00 if endDate was Sunday
+        const [year, month, day] = commitment.endDate.split('-').map(Number);
+        const gracePeriodEnd = new Date(year, month - 1, day + 3, 0, 0, 0, 0);
+        const graceDiffMs = gracePeriodEnd.getTime() - today.getTime();
+        
+        if (graceDiffMs > 0) {
+          const graceDiffHours = Math.max(0, Math.ceil(graceDiffMs / (1000 * 60 * 60)));
+          return `${graceDiffHours}h sync window`;
+        }
+        return 'Expired';
+      }
+      
+      const diffDays = Math.max(0, Math.round(diffMs / (1000 * 60 * 60 * 24)));
       return `${diffDays} Day${diffDays !== 1 ? 's' : ''}`;
     } catch {
       return '0 Days';
