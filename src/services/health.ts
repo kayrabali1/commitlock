@@ -177,17 +177,21 @@ export class HealthDataService {
       return {};
     }
 
-    const startDate = new Date(startDateStr + 'T00:00:00');
-    const endDate = new Date(endDateStr + 'T23:59:59');
+    const startDate = this.parseLocalDate(startDateStr, 0, 0, 0);
+    const endDate = this.parseLocalDate(endDateStr, 23, 59, 59);
 
     const options = {
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
       ascending: true,
+      includeManuallyAdded: true,
     };
+
+    console.log(`[HealthDataService] queryHealthDataDaily options for ${metric}:`, options);
 
     return new Promise((resolve) => {
       const callback = (err: any, results: any) => {
+        console.log(`[HealthDataService] queryHealthDataDaily results for ${metric}:`, JSON.stringify(results));
         if (err) {
           console.error(`[HealthDataService] Error querying ${metric} from HealthKit:`, err);
           resolve({});
@@ -310,12 +314,15 @@ export class HealthDataService {
       return;
     }
 
+    const todayStr = this.getTodayDateString();
+
     for (const commitment of commitments) {
       const dates = this.getCommitmentDaysList(commitment);
       if (dates.length === 0) continue;
 
       const startDateStr = dates[0];
-      const endDateStr = dates[dates.length - 1];
+      // Do not query past the current day to avoid potential native query side-effects with future dates.
+      const endDateStr = dates[dates.length - 1] > todayStr ? todayStr : dates[dates.length - 1];
 
       // Query real HealthKit data
       const dailyData = await this.queryHealthDataDaily(commitment.metricType, startDateStr, endDateStr);
@@ -357,15 +364,19 @@ export class HealthDataService {
 
     try {
       const result = await new Promise<Record<string, number>>((resolve, reject) => {
-        const startDate = new Date(todayStr + 'T00:00:00');
-        const endDate = new Date(todayStr + 'T23:59:59');
+        const startDate = this.parseLocalDate(todayStr, 0, 0, 0);
+        const endDate = this.parseLocalDate(todayStr, 23, 59, 59);
         const options = {
           startDate: startDate.toISOString(),
           endDate: endDate.toISOString(),
           ascending: true,
+          includeManuallyAdded: true,
         };
 
+        console.log(`[HealthDataService] queryTodayMetricWithStatus options for ${metric}:`, options);
+
         const callback = (err: any, results: any) => {
+          console.log(`[HealthDataService] queryTodayMetricWithStatus results for ${metric}:`, JSON.stringify(results));
           if (err) {
             reject(err);
             return;
