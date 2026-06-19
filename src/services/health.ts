@@ -199,8 +199,8 @@ export class HealthDataService {
         if (Array.isArray(results)) {
           results.forEach((sample: any) => {
             if (!sample.startDate) return;
-            const d = new Date(sample.startDate);
-            const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            const dateStr = typeof sample.startDate === 'string' ? sample.startDate : new Date(sample.startDate).toISOString();
+            const dateKey = dateStr.substring(0, 10);
             let val = Number(sample.value) || 0;
             
             // Adjust units if needed (e.g. distance is stored in meters if not specified, convert meters to km)
@@ -211,8 +211,9 @@ export class HealthDataService {
             dailyValues[dateKey] = (dailyValues[dateKey] || 0) + val;
           });
         } else if (results && typeof results === 'object' && results.value !== undefined) {
-          const d = new Date(results.startDate || startDate);
-          const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          const rawDate = results.startDate || startDateStr;
+          const dateStr = typeof rawDate === 'string' ? rawDate : new Date(rawDate).toISOString();
+          const dateKey = dateStr.substring(0, 10);
           let val = Number(results.value) || 0;
           if (metric === 'run' || metric === 'cycle') {
             val = val / 1000;
@@ -373,8 +374,8 @@ export class HealthDataService {
           if (Array.isArray(results)) {
             results.forEach((sample: any) => {
               if (!sample.startDate) return;
-              const d = new Date(sample.startDate);
-              const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+              const dateStr = typeof sample.startDate === 'string' ? sample.startDate : new Date(sample.startDate).toISOString();
+              const dateKey = dateStr.substring(0, 10);
               let val = Number(sample.value) || 0;
               if (metric === 'run' || metric === 'cycle') {
                 val = val / 1000;
@@ -382,8 +383,9 @@ export class HealthDataService {
               dailyValues[dateKey] = (dailyValues[dateKey] || 0) + val;
             });
           } else if (results && typeof results === 'object' && results.value !== undefined) {
-            const d = new Date(results.startDate || startDate);
-            const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            const rawDate = results.startDate || todayStr;
+            const dateStr = typeof rawDate === 'string' ? rawDate : new Date(rawDate).toISOString();
+            const dateKey = dateStr.substring(0, 10);
             let val = Number(results.value) || 0;
             if (metric === 'run' || metric === 'cycle') {
               val = val / 1000;
