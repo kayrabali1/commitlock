@@ -1,11 +1,29 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
+import { Platform, NativeModules } from 'react-native';
 import { API_URL } from './auth';
 
 let AppleHealthKit: any;
 if (Platform.OS === 'ios') {
   try {
-    AppleHealthKit = require('react-native-health').default;
+    const healthModule = require('react-native-health');
+    const nativeModule = NativeModules.AppleHealthKit || NativeModules.RCTAppleHealthKit;
+    
+    if (nativeModule) {
+      // Merge JS constants with native module methods to bypass the Object.assign non-enumerable bug
+      AppleHealthKit = Object.assign({}, nativeModule, healthModule.default || healthModule, {
+        initHealthKit: nativeModule.initHealthKit ? nativeModule.initHealthKit.bind(nativeModule) : undefined,
+        getDailyStepCountSamples: nativeModule.getDailyStepCountSamples ? nativeModule.getDailyStepCountSamples.bind(nativeModule) : undefined,
+        getDailyDistanceWalkingRunningSamples: nativeModule.getDailyDistanceWalkingRunningSamples ? nativeModule.getDailyDistanceWalkingRunningSamples.bind(nativeModule) : undefined,
+        getDailyDistanceCyclingSamples: nativeModule.getDailyDistanceCyclingSamples ? nativeModule.getDailyDistanceCyclingSamples.bind(nativeModule) : undefined,
+        getActiveEnergyBurned: nativeModule.getActiveEnergyBurned ? nativeModule.getActiveEnergyBurned.bind(nativeModule) : undefined,
+        getAppleExerciseTime: nativeModule.getAppleExerciseTime ? nativeModule.getAppleExerciseTime.bind(nativeModule) : undefined,
+        getMindfulSession: nativeModule.getMindfulSession ? nativeModule.getMindfulSession.bind(nativeModule) : undefined,
+      });
+      console.log('[HealthDataService] Successfully bound raw AppleHealthKit native methods');
+    } else {
+      AppleHealthKit = healthModule.default || healthModule;
+      console.warn('[HealthDataService] Raw NativeModule.AppleHealthKit not found on NativeModules');
+    }
   } catch (e) {
     console.warn('[HealthDataService] react-native-health could not be loaded:', e);
   }
@@ -35,8 +53,8 @@ export interface DailyHealthData {
 }
 
 const STORAGE_KEYS = {
-  SELECTED_COMMITMENT_ID: 'commitlock_selected_active_commitment_id',
-  HISTORY: 'commitlock_history',
+  SELECTED_COMMITMENT_ID: 'habitcontract_selected_active_commitment_id',
+  HISTORY: 'habitcontract_history',
 };
 
 // Default simulated values for the week
@@ -100,7 +118,7 @@ const DEFAULT_SIMULATED_DATA: Record<MetricType, DailyHealthData[]> = {
 export class HealthDataService {
   // Helper to make authenticated HTTP requests to the backend API
   private static async authenticatedFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
-    const token = await AsyncStorage.getItem('@commitlock_jwt_token');
+    const token = await AsyncStorage.getItem('@habitcontract_jwt_token');
     const headers = {
       'Content-Type': 'application/json',
       ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
@@ -117,7 +135,7 @@ export class HealthDataService {
    */
   static async requestPermissions(): Promise<boolean> {
     try {
-      if (Platform.OS !== 'ios' || !AppleHealthKit) {
+      if (Platform.OS !== 'ios' || !AppleHealthKit || typeof AppleHealthKit.initHealthKit !== 'function') {
         console.log('[HealthDataService] Mocking permission request on non-iOS or native module not loaded');
         return true;
       }
@@ -155,7 +173,7 @@ export class HealthDataService {
    * Queries daily health data for a specific metric over a date range from native HealthKit
    */
   static async queryHealthDataDaily(metric: MetricType, startDateStr: string, endDateStr: string): Promise<Record<string, number>> {
-    if (Platform.OS !== 'ios' || !AppleHealthKit) {
+    if (Platform.OS !== 'ios' || !AppleHealthKit || typeof AppleHealthKit.getDailyStepCountSamples !== 'function') {
       return {};
     }
 
@@ -187,9 +205,7 @@ export class HealthDataService {
             
             // Adjust units if needed (e.g. distance is stored in meters if not specified, convert meters to km)
             if (metric === 'run' || metric === 'cycle') {
-              if (val > 100) {
-                val = val / 1000;
-              }
+              val = val / 1000;
             }
             
             dailyValues[dateKey] = (dailyValues[dateKey] || 0) + val;
@@ -197,7 +213,11 @@ export class HealthDataService {
         } else if (results && typeof results === 'object' && results.value !== undefined) {
           const d = new Date(results.startDate || startDate);
           const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-          dailyValues[dateKey] = Number(results.value) || 0;
+          let val = Number(results.value) || 0;
+          if (metric === 'run' || metric === 'cycle') {
+            val = val / 1000;
+          }
+          dailyValues[dateKey] = val;
         }
 
         resolve(dailyValues);
@@ -279,7 +299,7 @@ export class HealthDataService {
    * Synchronizes active commitments with Apple HealthKit (called on index screen focus)
    */
   static async syncActiveCommitmentsWithHealthKit(commitments: Commitment[]): Promise<void> {
-    if (Platform.OS !== 'ios' || !AppleHealthKit) {
+    if (Platform.OS !== 'ios' || !AppleHealthKit || typeof AppleHealthKit.initHealthKit !== 'function') {
       return;
     }
 
@@ -309,44 +329,158 @@ export class HealthDataService {
   }
 
   /**
-   * Queries live HealthKit metrics for today (used in connection check modal)
+   * Helper to query today's metric with status
    */
-  static async queryTodayMetrics(): Promise<{
-    steps: number;
-    calories: number;
-    mindfulness: number;
-    distance: number;
+  static async queryTodayMetricWithStatus(metric: MetricType): Promise<{
+    value: number;
+    status: 'granted' | 'denied' | 'unsupported';
   }> {
-    if (Platform.OS !== 'ios' || !AppleHealthKit) {
-      // Mock metrics for Simulator / Web
-      return {
+    if (Platform.OS !== 'ios' || !AppleHealthKit || typeof AppleHealthKit.getDailyStepCountSamples !== 'function') {
+      // Mock/fallback values if running on Web / Android / Expo Go
+      const defaults: Record<string, number> = {
         steps: 7420,
         calories: 340,
         mindfulness: 15,
-        distance: 4.2,
+        run: 4.2,
+        cycle: 0,
+        activeTime: 30,
+      };
+      return {
+        value: defaults[metric] || 0,
+        status: 'unsupported',
       };
     }
 
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
     try {
-      const now = new Date();
-      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      
-      const stepsMap = await this.queryHealthDataDaily('steps', todayStr, todayStr);
-      const caloriesMap = await this.queryHealthDataDaily('calories', todayStr, todayStr);
-      const mindfulnessMap = await this.queryHealthDataDaily('mindfulness', todayStr, todayStr);
-      const runDistanceMap = await this.queryHealthDataDaily('run', todayStr, todayStr);
-      const cycleDistanceMap = await this.queryHealthDataDaily('cycle', todayStr, todayStr);
+      const result = await new Promise<Record<string, number>>((resolve, reject) => {
+        const startDate = new Date(todayStr + 'T00:00:00');
+        const endDate = new Date(todayStr + 'T23:59:59');
+        const options = {
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          ascending: true,
+        };
 
-      const steps = stepsMap[todayStr] || 0;
-      const calories = caloriesMap[todayStr] || 0;
-      const mindfulness = mindfulnessMap[todayStr] || 0;
-      const distance = (runDistanceMap[todayStr] || 0) + (cycleDistanceMap[todayStr] || 0);
+        const callback = (err: any, results: any) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          const dailyValues: Record<string, number> = {};
+          if (Array.isArray(results)) {
+            results.forEach((sample: any) => {
+              if (!sample.startDate) return;
+              const d = new Date(sample.startDate);
+              const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+              let val = Number(sample.value) || 0;
+              if (metric === 'run' || metric === 'cycle') {
+                val = val / 1000;
+              }
+              dailyValues[dateKey] = (dailyValues[dateKey] || 0) + val;
+            });
+          } else if (results && typeof results === 'object' && results.value !== undefined) {
+            const d = new Date(results.startDate || startDate);
+            const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            let val = Number(results.value) || 0;
+            if (metric === 'run' || metric === 'cycle') {
+              val = val / 1000;
+            }
+            dailyValues[dateKey] = val;
+          }
+          resolve(dailyValues);
+        };
 
-      return { steps, calories, mindfulness, distance };
-    } catch (e) {
-      console.error('[HealthDataService] Error querying today\'s metrics:', e);
-      return { steps: 0, calories: 0, mindfulness: 0, distance: 0 };
+        switch (metric) {
+          case 'steps':
+            AppleHealthKit.getDailyStepCountSamples(options, callback);
+            break;
+          case 'run':
+            AppleHealthKit.getDailyDistanceWalkingRunningSamples({ ...options, unit: 'km' }, callback);
+            break;
+          case 'cycle':
+            AppleHealthKit.getDailyDistanceCyclingSamples({ ...options, unit: 'km' }, callback);
+            break;
+          case 'calories':
+            AppleHealthKit.getActiveEnergyBurned(options, callback);
+            break;
+          case 'activeTime':
+            AppleHealthKit.getAppleExerciseTime(options, callback);
+            break;
+          case 'mindfulness':
+            AppleHealthKit.getMindfulSession(options, (err: any, results: any) => {
+              if (err) {
+                reject(err);
+                return;
+              }
+              const dailyValues: Record<string, number> = {};
+              if (Array.isArray(results)) {
+                results.forEach((sample: any) => {
+                  if (!sample.startDate || !sample.endDate) return;
+                  const start = new Date(sample.startDate).getTime();
+                  const end = new Date(sample.endDate).getTime();
+                  const durationMins = (end - start) / (1000 * 60);
+                  const d = new Date(sample.startDate);
+                  const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                  dailyValues[dateKey] = (dailyValues[dateKey] || 0) + durationMins;
+                });
+              }
+              resolve(dailyValues);
+            });
+            break;
+          default:
+            resolve({});
+        }
+      });
+
+      return {
+        value: result[todayStr] || 0,
+        status: 'granted',
+      };
+    } catch (error) {
+      console.error(`[HealthDataService] Error querying ${metric} today:`, error);
+      return {
+        value: 0,
+        status: 'denied',
+      };
     }
+  }
+
+  /**
+   * Queries live HealthKit metrics for today (used in connection check modal)
+   */
+  static async queryTodayMetrics(): Promise<{
+    steps: { value: number; status: 'granted' | 'denied' | 'unsupported' };
+    calories: { value: number; status: 'granted' | 'denied' | 'unsupported' };
+    mindfulness: { value: number; status: 'granted' | 'denied' | 'unsupported' };
+    distance: { value: number; status: 'granted' | 'denied' | 'unsupported' };
+  }> {
+    const stepsData = await this.queryTodayMetricWithStatus('steps');
+    const caloriesData = await this.queryTodayMetricWithStatus('calories');
+    const mindfulnessData = await this.queryTodayMetricWithStatus('mindfulness');
+    
+    // Check both run and cycle distances for combined distance
+    const runData = await this.queryTodayMetricWithStatus('run');
+    const cycleData = await this.queryTodayMetricWithStatus('cycle');
+
+    let distanceStatus: 'granted' | 'denied' | 'unsupported' = 'granted';
+    if (runData.status === 'unsupported' || cycleData.status === 'unsupported') {
+      distanceStatus = 'unsupported';
+    } else if (runData.status === 'denied' && cycleData.status === 'denied') {
+      distanceStatus = 'denied';
+    }
+
+    return {
+      steps: stepsData,
+      calories: caloriesData,
+      mindfulness: mindfulnessData,
+      distance: {
+        value: runData.value + cycleData.value,
+        status: distanceStatus,
+      },
+    };
   }
 
   static parseLocalDate(dateStr: string, hours = 12, minutes = 0, seconds = 0): Date {
@@ -553,11 +687,11 @@ export class HealthDataService {
       await this.setSelectedActiveCommitmentId(data.commitment.id);
       
       // Update cached user wallet balance
-      const storedUser = await AsyncStorage.getItem('@commitlock_user_profile');
+      const storedUser = await AsyncStorage.getItem('@habitcontract_user_profile');
       if (storedUser) {
         const user = JSON.parse(storedUser);
         user.walletBalance = data.walletBalance;
-        await AsyncStorage.setItem('@commitlock_user_profile', JSON.stringify(user));
+        await AsyncStorage.setItem('@habitcontract_user_profile', JSON.stringify(user));
       }
 
       await this.syncWidgets();
@@ -588,11 +722,11 @@ export class HealthDataService {
           if (delResponse.ok) {
             const data = await delResponse.json();
             // Update cached wallet balance
-            const storedUser = await AsyncStorage.getItem('@commitlock_user_profile');
+            const storedUser = await AsyncStorage.getItem('@habitcontract_user_profile');
             if (storedUser) {
               const user = JSON.parse(storedUser);
               user.walletBalance = data.walletBalance;
-              await AsyncStorage.setItem('@commitlock_user_profile', JSON.stringify(user));
+              await AsyncStorage.setItem('@habitcontract_user_profile', JSON.stringify(user));
             }
           }
         }
@@ -648,11 +782,11 @@ export class HealthDataService {
       const data = await response.json();
       
       // Update cached wallet balance
-      const storedUser = await AsyncStorage.getItem('@commitlock_user_profile');
+      const storedUser = await AsyncStorage.getItem('@habitcontract_user_profile');
       if (storedUser) {
         const user = JSON.parse(storedUser);
         user.walletBalance = data.walletBalance;
-        await AsyncStorage.setItem('@commitlock_user_profile', JSON.stringify(user));
+        await AsyncStorage.setItem('@habitcontract_user_profile', JSON.stringify(user));
       }
     } catch (e) {
       console.error('Error resolving commitment on backend', e);
@@ -665,7 +799,7 @@ export class HealthDataService {
       if (response.ok) {
         const data = await response.json();
         // Update cached profile
-        await AsyncStorage.setItem('@commitlock_user_profile', JSON.stringify(data));
+        await AsyncStorage.setItem('@habitcontract_user_profile', JSON.stringify(data));
         return data.walletBalance;
       }
     } catch (e) {
@@ -673,7 +807,7 @@ export class HealthDataService {
     }
 
     try {
-      const stored = await AsyncStorage.getItem('@commitlock_user_profile');
+      const stored = await AsyncStorage.getItem('@habitcontract_user_profile');
       if (stored) {
         const user = JSON.parse(stored);
         return user.walletBalance || 100.0;
@@ -692,11 +826,11 @@ export class HealthDataService {
       if (response.ok) {
         const data = await response.json();
         // Update cached profile
-        const storedUser = await AsyncStorage.getItem('@commitlock_user_profile');
+        const storedUser = await AsyncStorage.getItem('@habitcontract_user_profile');
         if (storedUser) {
           const user = JSON.parse(storedUser);
           user.walletBalance = data.walletBalance;
-          await AsyncStorage.setItem('@commitlock_user_profile', JSON.stringify(user));
+          await AsyncStorage.setItem('@habitcontract_user_profile', JSON.stringify(user));
         }
         return data.walletBalance;
       }

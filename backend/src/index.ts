@@ -34,5 +34,5 @@ app.use('/api/health', healthRouter);
 
 // Start server
 app.listen(port, () => {
-  console.log(`Commitlock backend listening on port ${port}`);
+  console.log(`HabitContract backend listening on port ${port}`);
 });

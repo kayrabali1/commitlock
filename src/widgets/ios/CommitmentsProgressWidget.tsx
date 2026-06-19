@@ -89,7 +89,7 @@ export default function CommitmentsProgressWidget(props: WidgetProps, context: a
         >
           <Spacer />
           <Text modifiers={[font({ size: 16, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
-            Commitlock 🔒
+            HabitContract 🔒
           </Text>
           <Text modifiers={[font({ size: 12 }), foregroundColor('#8F93A3')]}>
             No active commitments.
@@ -166,7 +166,7 @@ export default function CommitmentsProgressWidget(props: WidgetProps, context: a
         {/* Header Title */}
         <HStack>
           <Text modifiers={[font({ size: 12, weight: 'bold' }), foregroundColor('#8F93A3')]}>
-            COMMITLOCK ACTIVE PROGRESS
+            HABITCONTRACT ACTIVE PROGRESS
           </Text>
           <Spacer />
           <Text modifiers={[font({ size: 11 }), foregroundColor('#4F46E5')]}>

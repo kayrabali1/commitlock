@@ -109,7 +109,7 @@ export default function AndroidCommitmentsWidget({ commitments = [], weeklyData 
         }}
       >
         <TextWidget
-          text="Commitlock 🔒"
+          text="HabitContract 🔒"
           style={{
             fontSize: 16,
             fontWeight: 'bold',
@@ -162,7 +162,7 @@ export default function AndroidCommitmentsWidget({ commitments = [], weeklyData 
         }}
       >
         <TextWidget
-          text="COMMITLOCK ACTIVE PROGRESS"
+          text="HABITCONTRACT ACTIVE PROGRESS"
           style={{
             fontSize: 10,
             fontWeight: 'bold',

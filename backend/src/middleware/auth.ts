@@ -17,7 +17,7 @@ export const authenticateToken = (
     return res.status(401).json({ error: 'Authentication token required' });
   }
 
-  const jwtSecret = process.env.JWT_SECRET || 'commitlock_secret_key_testing_499812';
+  const jwtSecret = process.env.JWT_SECRET || 'habitcontract_secret_key_testing_499812';
 
   jwt.verify(token, jwtSecret, (err, decoded: any) => {
     if (err) {

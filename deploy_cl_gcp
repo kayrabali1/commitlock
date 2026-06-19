@@ -12,9 +12,9 @@ NC='\033[0m' # No Color
 
 PROJECT_ID="commitlock-499812"
 REGION="europe-west3"
-SERVICE_NAME="commitlock-backend"
+SERVICE_NAME="habitcontract-backend"
 
-echo -e "${BLUE}=== Starting Commitlock GCP Backend Deployment ===${NC}"
+echo -e "${BLUE}=== Starting HabitContract GCP Backend Deployment ===${NC}"
 
 # Check if gcloud CLI is installed
 if ! command -v gcloud &> /dev/null; then

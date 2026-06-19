@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
+  Keyboard,
   Modal,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -43,6 +43,26 @@ export default function AuthScreen() {
   const [socialModalVisible, setSocialModalVisible] = useState(false);
   const [socialProvider, setSocialProvider] = useState<'Google' | 'Apple' | null>(null);
   const [socialLoadingStep, setSocialLoadingStep] = useState(0);
+
+  // Focus and keyboard tracking for responsive UI
+  const [focusedField, setFocusedField] = useState<'name' | 'email' | 'password' | 'confirmPassword' | null>(null);
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => setKeyboardVisible(true)
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => setKeyboardVisible(false)
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
 
   const toggleAuthMode = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -126,31 +146,44 @@ export default function AuthScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
+      <LinearGradient
+        colors={['#0F0C20', '#06070B', '#06070B']}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+      />
+      <LinearGradient
+        colors={['rgba(124, 58, 237, 0.18)', 'rgba(79, 70, 229, 0.03)', 'transparent']}
+        style={styles.topGlow}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+      />
+
+      <View style={styles.innerContainer}>
         {/* Header Hero Area */}
-        <View style={styles.heroSection}>
-          <LinearGradient
-            colors={['rgba(124, 58, 237, 0.2)', 'rgba(6, 7, 11, 0)']}
-            style={styles.heroGradient}
-          />
-          <View style={styles.logoContainer}>
-            <Image 
-              source={require('@/assets/images/icon.png')} 
-              style={styles.logoImage} 
-            />
-            <Text style={styles.appName}>CommitLock</Text>
-            <Text style={styles.appTagline}>Verify workouts. Protect stakes. Build discipline.</Text>
+        {!isKeyboardVisible && (
+          <View style={styles.heroSection}>
+            <View style={styles.logoContainer}>
+              <Image 
+                source={require('@/assets/images/icon.png')} 
+                style={styles.logoImage} 
+              />
+              <Text style={styles.appName}>HabitContract</Text>
+              <Text style={styles.appTagline}>Verify workouts. Protect stakes. Build discipline.</Text>
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Input Card Container */}
-        <View style={styles.authCard}>
+        <View style={[styles.authCard, isKeyboardVisible && styles.authCardKeyboardVisible]}>
           <Text style={styles.cardHeaderTitle}>
             {isSignUp ? 'Create Account' : 'Welcome Back'}
           </Text>
-          <Text style={styles.cardHeaderSubtitle}>
-            {isSignUp ? 'Sign up to lock in your fitness commitments.' : 'Sign in to track your active commitments.'}
-          </Text>
+          {!isKeyboardVisible && (
+            <Text style={styles.cardHeaderSubtitle}>
+              {isSignUp ? 'Sign up to lock in your commitments.' : 'Sign in to track your active commitments.'}
+            </Text>
+          )}
 
           {/* Error Banner */}
           {displayError && (
@@ -161,10 +194,15 @@ export default function AuthScreen() {
           )}
 
           {/* Form Fields */}
-          <View style={styles.formContainer}>
+          <View style={[styles.formContainer, isKeyboardVisible && { gap: Spacing.two }]}>
             {isSignUp && (
-              <View style={styles.inputWrapper}>
-                <MaterialCommunityIcons name="account-outline" size={20} color="#576880" style={styles.inputIcon} />
+              <View style={[styles.inputWrapper, focusedField === 'name' && styles.inputWrapperFocused]}>
+                <MaterialCommunityIcons 
+                  name="account-outline" 
+                  size={20} 
+                  color={focusedField === 'name' ? '#7C3AED' : '#576880'} 
+                  style={styles.inputIcon} 
+                />
                 <TextInput
                   style={styles.textInput}
                   placeholder="Full Name"
@@ -174,13 +212,20 @@ export default function AuthScreen() {
                     setName(val);
                     if (validationError) setValidationError(null);
                   }}
+                  onFocus={() => setFocusedField('name')}
+                  onBlur={() => setFocusedField(null)}
                   autoCapitalize="words"
                 />
               </View>
             )}
 
-            <View style={styles.inputWrapper}>
-              <MaterialCommunityIcons name="email-outline" size={20} color="#576880" style={styles.inputIcon} />
+            <View style={[styles.inputWrapper, focusedField === 'email' && styles.inputWrapperFocused]}>
+              <MaterialCommunityIcons 
+                name="email-outline" 
+                size={20} 
+                color={focusedField === 'email' ? '#7C3AED' : '#576880'} 
+                style={styles.inputIcon} 
+              />
               <TextInput
                 style={styles.textInput}
                 placeholder="Email Address"
@@ -190,16 +235,23 @@ export default function AuthScreen() {
                   setEmail(val);
                   if (validationError) setValidationError(null);
                 }}
+                onFocus={() => setFocusedField('email')}
+                onBlur={() => setFocusedField(null)}
                 autoCapitalize="none"
                 keyboardType="email-address"
               />
             </View>
 
-            <View style={styles.inputWrapper}>
-              <MaterialCommunityIcons name="lock-outline" size={20} color="#576880" style={styles.inputIcon} />
+            <View style={[styles.inputWrapper, focusedField === 'password' && styles.inputWrapperFocused]}>
+              <MaterialCommunityIcons 
+                name="lock-outline" 
+                size={20} 
+                color={focusedField === 'password' ? '#7C3AED' : '#576880'} 
+                style={styles.inputIcon} 
+              />
               <TextInput
                 style={styles.textInput}
-                placeholder="Password (min. 6 characters)"
+                placeholder={isSignUp ? "Password (min. 6 chars)" : "Password"}
                 placeholderTextColor="#576880"
                 secureTextEntry
                 value={password}
@@ -207,13 +259,20 @@ export default function AuthScreen() {
                   setPassword(val);
                   if (validationError) setValidationError(null);
                 }}
+                onFocus={() => setFocusedField('password')}
+                onBlur={() => setFocusedField(null)}
                 autoCapitalize="none"
               />
             </View>
 
             {isSignUp && (
-              <View style={styles.inputWrapper}>
-                <MaterialCommunityIcons name="lock-check-outline" size={20} color="#576880" style={styles.inputIcon} />
+              <View style={[styles.inputWrapper, focusedField === 'confirmPassword' && styles.inputWrapperFocused]}>
+                <MaterialCommunityIcons 
+                  name="lock-check-outline" 
+                  size={20} 
+                  color={focusedField === 'confirmPassword' ? '#7C3AED' : '#576880'} 
+                  style={styles.inputIcon} 
+                />
                 <TextInput
                   style={styles.textInput}
                   placeholder="Confirm Password"
@@ -224,12 +283,14 @@ export default function AuthScreen() {
                     setConfirmPassword(val);
                     if (validationError) setValidationError(null);
                   }}
+                  onFocus={() => setFocusedField('confirmPassword')}
+                  onBlur={() => setFocusedField(null)}
                   autoCapitalize="none"
                 />
               </View>
             )}
 
-            {/* Forgot Password Link (Visual Only) */}
+            {/* Forgot Password Link */}
             {!isSignUp && (
               <TouchableOpacity style={styles.forgotPasswordContainer} activeOpacity={0.7}>
                 <Text style={styles.forgotPasswordText}>Forgot password?</Text>
@@ -243,58 +304,71 @@ export default function AuthScreen() {
               disabled={loading}
               activeOpacity={0.8}
             >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <Text style={styles.primaryButtonText}>
-                  {isSignUp ? 'Sign Up with Email' : 'Sign In'}
-                </Text>
-              )}
+              <LinearGradient
+                colors={['#7C3AED', '#4F46E5']}
+                style={styles.primaryButtonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <View style={styles.primaryButtonContent}>
+                    <Text style={styles.primaryButtonText}>
+                      {isSignUp ? 'Create Account' : 'Sign In'}
+                    </Text>
+                    <MaterialCommunityIcons name="arrow-right" size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                  </View>
+                )}
+              </LinearGradient>
             </TouchableOpacity>
 
             {/* Dev Hint Box */}
-            {!isSignUp && (
+            {!isSignUp && !isKeyboardVisible && (
               <View style={styles.demoHintBox}>
                 <MaterialCommunityIcons name="information" size={14} color="#8B5CF6" />
                 <Text style={styles.demoHintText}>
-                  Testing: Use <Text style={styles.boldText}>demo@commitlock.com</Text> / <Text style={styles.boldText}>password</Text>
+                  Testing: Use <Text style={styles.boldText}>demo@habitcontract.com</Text> / <Text style={styles.boldText}>password</Text>
                 </Text>
               </View>
             )}
           </View>
 
-          {/* Divider */}
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR CONTINUE WITH</Text>
-            <View style={styles.dividerLine} />
-          </View>
+          {/* Divider & Social Buttons (only show when keyboard is closed) */}
+          {!isKeyboardVisible && (
+            <>
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>OR CONTINUE WITH</Text>
+                <View style={styles.dividerLine} />
+              </View>
 
-          {/* Social Logins */}
-          <View style={styles.socialButtonsContainer}>
-            {/* Google Sign In Button */}
-            <TouchableOpacity
-              style={[styles.socialButton, styles.googleButton]}
-              onPress={() => triggerSocialAuth('Google')}
-              activeOpacity={0.8}
-            >
-              <MaterialCommunityIcons name="google" size={20} color="#EA4335" />
-              <Text style={styles.socialButtonText}>Google</Text>
-            </TouchableOpacity>
+              <View style={styles.socialButtonsContainer}>
+                {/* Apple Sign In Button */}
+                <TouchableOpacity
+                  style={styles.socialButton}
+                  onPress={() => triggerSocialAuth('Apple')}
+                  activeOpacity={0.8}
+                >
+                  <MaterialCommunityIcons name="apple" size={20} color="#FFFFFF" />
+                  <Text style={styles.socialButtonText}>Apple</Text>
+                </TouchableOpacity>
 
-            {/* Apple Sign In Button */}
-            <TouchableOpacity
-              style={[styles.socialButton, styles.appleButton]}
-              onPress={() => triggerSocialAuth('Apple')}
-              activeOpacity={0.8}
-            >
-              <MaterialCommunityIcons name="apple" size={20} color="#FFFFFF" />
-              <Text style={styles.socialButtonText}>Apple</Text>
-            </TouchableOpacity>
-          </View>
+                {/* Google Sign In Button */}
+                <TouchableOpacity
+                  style={styles.socialButton}
+                  onPress={() => triggerSocialAuth('Google')}
+                  activeOpacity={0.8}
+                >
+                  <MaterialCommunityIcons name="google" size={18} color="#FFFFFF" />
+                  <Text style={styles.socialButtonText}>Google</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
 
           {/* Toggle Auth Mode Button */}
-          <View style={styles.toggleModeContainer}>
+          <View style={[styles.toggleModeContainer, isKeyboardVisible && styles.toggleModeContainerKeyboardVisible]}>
             <Text style={styles.toggleModeText}>
               {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
             </Text>
@@ -305,8 +379,7 @@ export default function AuthScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </ScrollView>
-
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -316,34 +389,37 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#06070B',
   },
-  scrollContainer: {
-    flexGrow: 1,
+  innerContainer: {
+    flex: 1,
     justifyContent: 'center',
-    padding: Spacing.four,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Platform.OS === 'ios' ? Spacing.five : Spacing.four,
+  },
+  topGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 350,
   },
   heroSection: {
-    position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.five,
+    paddingVertical: Spacing.three,
     width: '100%',
-  },
-  heroGradient: {
-    ...StyleSheet.absoluteFill,
-    height: 300,
+    marginBottom: Spacing.three,
   },
   logoContainer: {
     alignItems: 'center',
-    marginTop: Spacing.two,
   },
   logoImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    marginBottom: Spacing.three,
+    width: 72,
+    height: 72,
+    borderRadius: 18,
+    marginBottom: Spacing.two,
   },
   appName: {
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: 'bold',
     color: '#FFFFFF',
     letterSpacing: 0.5,
@@ -356,10 +432,10 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   authCard: {
-    backgroundColor: '#11131E',
+    backgroundColor: 'rgba(17, 19, 30, 0.75)',
     borderWidth: 1,
-    borderColor: '#181B28',
-    borderRadius: Spacing.four,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 20,
     padding: Spacing.four,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
@@ -367,21 +443,26 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 8,
     width: '100%',
-    maxWidth: 480,
+    maxWidth: 400,
     alignSelf: 'center',
-    marginBottom: Spacing.four,
+  },
+  authCardKeyboardVisible: {
+    padding: Spacing.three,
+    marginTop: -Spacing.four,
   },
   cardHeaderTitle: {
     fontSize: 22,
     fontWeight: 'bold',
     color: '#FFFFFF',
     marginBottom: Spacing.one,
+    textAlign: 'center',
   },
   cardHeaderSubtitle: {
     fontSize: 13,
     color: '#94A3B8',
     lineHeight: 18,
     marginBottom: Spacing.four,
+    textAlign: 'center',
   },
   errorBanner: {
     flexDirection: 'row',
@@ -405,12 +486,21 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#06070B',
-    borderWidth: 1,
-    borderColor: '#181B28',
-    borderRadius: Spacing.two,
+    backgroundColor: 'rgba(6, 7, 11, 0.6)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 12,
     paddingHorizontal: Spacing.three,
     height: 52,
+  },
+  inputWrapperFocused: {
+    borderColor: '#7C3AED',
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 2,
+    backgroundColor: '#06070B',
   },
   inputIcon: {
     marginRight: Spacing.two,
@@ -423,26 +513,34 @@ const styles = StyleSheet.create({
   },
   forgotPasswordContainer: {
     alignSelf: 'flex-end',
-    marginTop: -Spacing.one,
-    marginBottom: Spacing.two,
+    marginTop: -Spacing.two,
+    marginBottom: Spacing.one,
   },
   forgotPasswordText: {
-    color: '#7C3AED',
+    color: '#94A3B8',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   primaryButton: {
-    backgroundColor: '#7C3AED',
-    borderRadius: Spacing.two,
+    borderRadius: 12,
     height: 52,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: Spacing.two,
+    marginTop: Spacing.one,
+    overflow: 'hidden',
     shadowColor: '#7C3AED',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 4,
+  },
+  primaryButtonGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  primaryButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   primaryButtonText: {
     color: '#FFFFFF',
@@ -454,9 +552,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'center',
     gap: 6,
-    backgroundColor: 'rgba(124, 58, 237, 0.08)',
+    backgroundColor: 'rgba(124, 58, 237, 0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(124, 58, 237, 0.15)',
+    borderColor: 'rgba(124, 58, 237, 0.12)',
     paddingVertical: 6,
     paddingHorizontal: Spacing.three,
     borderRadius: 20,
@@ -473,12 +571,12 @@ const styles = StyleSheet.create({
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: Spacing.four,
+    marginVertical: Spacing.three,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#181B28',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   dividerText: {
     color: '#576880',
@@ -490,7 +588,7 @@ const styles = StyleSheet.create({
   socialButtonsContainer: {
     flexDirection: 'row',
     gap: Spacing.three,
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.two,
   },
   socialButton: {
     flex: 1,
@@ -499,26 +597,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.two,
     height: 48,
-    borderRadius: Spacing.two,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderWidth: 1,
-  },
-  googleButton: {
-    backgroundColor: '#181B28',
-    borderColor: '#181B28',
-  },
-  appleButton: {
-    backgroundColor: '#06070B',
-    borderColor: '#181B28',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   socialButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
+    letterSpacing: 0.2,
   },
   toggleModeContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: Spacing.three,
+  },
+  toggleModeContainerKeyboardVisible: {
     marginTop: Spacing.two,
   },
   toggleModeText: {

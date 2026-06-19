@@ -47,7 +47,7 @@ export default function HowItWorksPane({ onPress }: HowItWorksPaneProps) {
             </View>
           </View>
           <View style={styles.headerTextContainer}>
-            <Text style={styles.title}>How CommitLock Works</Text>
+            <Text style={styles.title}>How HabitContract Works</Text>
             <Text style={styles.subtitle}>Four simple steps to verified accountability</Text>
           </View>
         </View>

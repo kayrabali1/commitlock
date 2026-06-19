@@ -483,10 +483,6 @@ export default function CommitScreen() {
         {/* Header (Compact) */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Lock Commitment</Text>
-          <View style={styles.headerBadge}>
-            <MaterialCommunityIcons name="shield-check" size={12} color="#05D38E" />
-            <Text style={styles.headerBadgeText}>SECURED PLEDGE</Text>
-          </View>
         </View>
 
         {/* 1. Select Activity */}
@@ -1335,7 +1331,7 @@ export default function CommitScreen() {
 
                 <View style={styles.payRow}>
                   <Text style={styles.payRowLabel}>MERCHANT</Text>
-                  <Text style={styles.payRowValue}>CommitLock Platform GmbH</Text>
+                  <Text style={styles.payRowValue}>HabitContract Platform GmbH</Text>
                 </View>
 
                 <View style={styles.payDivider} />

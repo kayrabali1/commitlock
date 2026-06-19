@@ -33,7 +33,7 @@ export function VerificationGuideModal({ visible, onClose }: VerificationGuideMo
       iconColor: '#10B981',
       bgColor: 'rgba(16, 185, 129, 0.1)',
       title: '1. Secure Native Sync',
-      desc: `Commitlock syncs with ${Platform.OS === 'ios' ? 'Apple Health' : 'Google Health Connect'} directly on your device. We request read-only access to count specific activity totals (like steps, run/cycling distance, active minutes, and mindfulness).`,
+      desc: `HabitContract syncs with ${Platform.OS === 'ios' ? 'Apple Health' : 'Google Health Connect'} directly on your device. We request read-only access to count specific activity totals (like steps, run/cycling distance, active minutes, and mindfulness).`,
     },
     {
       icon: 'watch-variant',
@@ -94,7 +94,7 @@ export function VerificationGuideModal({ visible, onClose }: VerificationGuideMo
             showsVerticalScrollIndicator={false}
           >
             <Text style={styles.introText}>
-              Commitlock is designed to help you build real, honest discipline. Here is how we verify your commitments officially and fairly:
+              HabitContract is designed to help you build real, honest discipline. Here is how we verify your commitments officially and fairly:
             </Text>
 
             <View style={styles.stepsContainer}>

@@ -1,19 +1,20 @@
 {
   "expo": {
-    "name": "commitlock",
-    "slug": "commitlock",
+    "name": "HabitContract",
+    "slug": "habitcontract",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "commitlock",
+    "scheme": "habitcontract",
     "userInterfaceStyle": "automatic",
+    "newArchEnabled": false,
     "ios": {
       "icon": "./assets/images/icon.png",
-      "bundleIdentifier": "com.commitlock.app",
+      "bundleIdentifier": "com.habitcontract.app",
       "usesAppleSignIn": true,
       "entitlements": {
         "com.apple.security.application-groups": [
-          "group.com.commitlock.app"
+          "group.com.habitcontract.app"
         ],
         "com.apple.developer.healthkit": true
       },
@@ -31,7 +32,8 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.RECORD_AUDIO"
-      ]
+      ],
+      "package": "com.habitcontract.app"
     },
     "web": {
       "output": "static",
@@ -98,15 +100,15 @@
       [
         "react-native-health",
         {
-          "healthSharePermission": "Allow Commitlock to read your health data to verify your goals.",
-          "healthUpdatePermission": "Allow Commitlock to save health and workout data."
+          "healthSharePermission": "Allow HabitContract to read your health data to verify your goals.",
+          "healthUpdatePermission": "Allow HabitContract to save health and workout data."
         }
       ],
       "expo-apple-authentication",
       [
         "@react-native-google-signin/google-signin",
         {
-          "iosUrlScheme": "com.googleusercontent.apps.REPLACE-WITH-YOUR-REVERSED-CLIENT-ID"
+          "iosUrlScheme": "com.googleusercontent.apps.658642477326-718qg3nkpmjn0ccnfl8qhqq27h149prs"
         }
       ],
       [
@@ -131,10 +133,10 @@
               "appExtensions": [
                 {
                   "targetName": "ExpoWidgetsTarget",
-                  "bundleIdentifier": "com.commitlock.app.ExpoWidgetsTarget",
+                  "bundleIdentifier": "com.habitcontract.app.ExpoWidgetsTarget",
                   "entitlements": {
                     "com.apple.security.application-groups": [
-                      "group.com.commitlock.app"
+                      "group.com.habitcontract.app"
                     ]
                   }
                 }

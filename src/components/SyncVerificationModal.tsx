@@ -19,10 +19,10 @@ interface SyncVerificationModalProps {
   visible: boolean;
   onClose: () => void;
   metrics: {
-    steps: number;
-    calories: number;
-    mindfulness: number;
-    distance: number;
+    steps: { value: number; status: 'granted' | 'denied' | 'unsupported' };
+    calories: { value: number; status: 'granted' | 'denied' | 'unsupported' };
+    mindfulness: { value: number; status: 'granted' | 'denied' | 'unsupported' };
+    distance: { value: number; status: 'granted' | 'denied' | 'unsupported' };
   };
 }
 
@@ -32,36 +32,89 @@ export function SyncVerificationModal({ visible, onClose, metrics }: SyncVerific
     onClose();
   };
 
+  const getStatusDetails = (status: 'granted' | 'denied' | 'unsupported') => {
+    switch (status) {
+      case 'granted':
+        return { label: 'Active', icon: 'check-circle', color: '#10B981' };
+      case 'denied':
+        return { label: 'Restricted', icon: 'alert-circle', color: '#EF4444' };
+      case 'unsupported':
+      default:
+        return { label: 'Simulated', icon: 'clock-outline', color: '#8B5CF6' };
+    }
+  };
+
   const metricItems = [
     {
       icon: 'walk',
       label: 'Steps Today',
-      value: `${Math.round(metrics.steps).toLocaleString()} steps`,
+      value: `${Math.round(metrics.steps.value).toLocaleString()} steps`,
+      status: metrics.steps.status,
       color: '#10B981',
       bgColor: 'rgba(16, 185, 129, 0.1)',
     },
     {
       icon: 'fire',
-      label: 'Active Energy Burned',
-      value: `${Math.round(metrics.calories)} kcal`,
+      label: 'Calories Today',
+      value: `${Math.round(metrics.calories.value)} kcal`,
+      status: metrics.calories.status,
       color: '#EF4444',
       bgColor: 'rgba(239, 68, 68, 0.1)',
     },
     {
       icon: 'spa',
-      label: 'Mindful Sessions',
-      value: `${Math.round(metrics.mindfulness)} mins`,
+      label: 'Mindful Minutes Today',
+      value: `${Math.round(metrics.mindfulness.value)} mins`,
+      status: metrics.mindfulness.status,
       color: '#8B5CF6',
       bgColor: 'rgba(139, 92, 246, 0.1)',
     },
     {
       icon: 'run',
-      label: 'Exercise Distance',
-      value: `${metrics.distance.toFixed(2)} km`,
+      label: 'Distance Today',
+      value: `${metrics.distance.value.toFixed(2)} km`,
+      status: metrics.distance.status,
       color: '#3B82F6',
       bgColor: 'rgba(59, 130, 246, 0.1)',
     },
   ];
+
+  // Calculate overall state
+  const allGranted = 
+    metrics.steps.status === 'granted' &&
+    metrics.calories.status === 'granted' &&
+    metrics.mindfulness.status === 'granted' &&
+    metrics.distance.status === 'granted';
+
+  const anyDenied = 
+    metrics.steps.status === 'denied' ||
+    metrics.calories.status === 'denied' ||
+    metrics.mindfulness.status === 'denied' ||
+    metrics.distance.status === 'denied';
+
+  const headerColors = anyDenied 
+    ? ['rgba(239, 68, 68, 0.2)', 'rgba(239, 68, 68, 0.05)'] as const
+    : (!allGranted 
+      ? ['rgba(139, 92, 246, 0.2)', 'rgba(139, 92, 246, 0.05)'] as const
+      : ['rgba(16, 185, 129, 0.2)', 'rgba(16, 185, 129, 0.05)'] as const);
+
+  const headerTitle = anyDenied 
+    ? 'Sync Permission Issue' 
+    : (!allGranted ? 'Sandbox Connection' : 'Sensor Sync Verified');
+
+  const headerSubtitle = anyDenied 
+    ? 'Some permissions are restricted. Please enable them in your Apple Health settings.'
+    : (!allGranted 
+      ? 'Health sensor connection loaded in sandbox simulation mode.' 
+      : `Successfully connected to ${Platform.OS === 'ios' ? 'Apple HealthKit' : 'Google Health Connect'}`);
+
+  const headerIcon = anyDenied 
+    ? 'heart-broken' 
+    : (!allGranted ? 'heart-pulse' : 'heart-flash');
+
+  const headerIconColor = anyDenied 
+    ? '#EF4444' 
+    : (!allGranted ? '#8B5CF6' : '#10B981');
 
   return (
     <Modal
@@ -82,42 +135,52 @@ export function SyncVerificationModal({ visible, onClose, metrics }: SyncVerific
             {/* Header / Success Indicator */}
             <View style={styles.successHeader}>
               <LinearGradient
-                colors={['rgba(16, 185, 129, 0.2)', 'rgba(16, 185, 129, 0.05)']}
+                colors={headerColors}
                 style={styles.iconPulseRing}
               >
-                <View style={styles.iconInnerRing}>
-                  <MaterialCommunityIcons name="heart-flash" size={36} color="#10B981" />
+                <View style={[styles.iconInnerRing, { borderColor: headerIconColor + '40' }]}>
+                  <MaterialCommunityIcons name={headerIcon as any} size={36} color={headerIconColor} />
                 </View>
               </LinearGradient>
               
-              <Text style={styles.successTitle}>Sensor Sync Verified</Text>
-              <Text style={styles.successSubtitle}>
-                Commitlock is successfully connected to {Platform.OS === 'ios' ? 'Apple HealthKit' : 'Google Health Connect'}
-              </Text>
+              <Text style={styles.successTitle}>{headerTitle}</Text>
+              <Text style={styles.successSubtitle}>{headerSubtitle}</Text>
             </View>
 
             {/* Live Data Display Section */}
             <View style={styles.liveDataBox}>
               <View style={styles.liveIndicatorRow}>
-                <View style={styles.pulseGreenCircle} />
-                <Text style={styles.liveIndicatorText}>LIVE READS FROM YOUR SENSORS</Text>
+                <View style={[styles.pulseCircle, { backgroundColor: headerIconColor }]} />
+                <Text style={[styles.liveIndicatorText, { color: headerIconColor }]}>
+                  {anyDenied ? 'READING RESTRICTED SENSORS' : 'LIVE SENSOR READOUTS'}
+                </Text>
               </View>
 
               <View style={styles.metricsContainer}>
-                {metricItems.map((item, idx) => (
-                  <View key={idx} style={styles.metricRow}>
-                    <View style={[styles.metricIconBg, { backgroundColor: item.bgColor }]}>
-                      <MaterialCommunityIcons name={item.icon as any} size={18} color={item.color} />
+                {metricItems.map((item, idx) => {
+                  const statusInfo = getStatusDetails(item.status);
+                  return (
+                    <View key={idx} style={styles.metricRow}>
+                      <View style={[styles.metricIconBg, { backgroundColor: item.bgColor }]}>
+                        <MaterialCommunityIcons name={item.icon as any} size={18} color={item.color} />
+                      </View>
+                      <View style={styles.metricTextContent}>
+                        <Text style={styles.metricLabel}>{item.label}</Text>
+                        <Text style={styles.metricValue}>
+                          {item.status === 'denied' ? 'Restricted' : item.value}
+                        </Text>
+                      </View>
+                      <View style={styles.statusBadgeWrapper}>
+                        <View style={[styles.statusBadge, { backgroundColor: statusInfo.color + '10', borderColor: statusInfo.color + '30' }]}>
+                          <MaterialCommunityIcons name={statusInfo.icon as any} size={12} color={statusInfo.color} />
+                          <Text style={[styles.statusBadgeText, { color: statusInfo.color }]}>
+                            {statusInfo.label}
+                          </Text>
+                        </View>
+                      </View>
                     </View>
-                    <View style={styles.metricTextContent}>
-                      <Text style={styles.metricLabel}>{item.label}</Text>
-                      <Text style={styles.metricValue}>{item.value}</Text>
-                    </View>
-                    <View style={styles.checkmarkWrapper}>
-                      <MaterialCommunityIcons name="check-circle" size={18} color="#10B981" />
-                    </View>
-                  </View>
-                ))}
+                  );
+                })}
               </View>
             </View>
 
@@ -132,7 +195,7 @@ export function SyncVerificationModal({ visible, onClose, metrics }: SyncVerific
               activeOpacity={0.8}
             >
               <LinearGradient
-                colors={['#10B981', '#059669']}
+                colors={anyDenied ? ['#EF4444', '#DC2626'] as const : (allGranted ? ['#10B981', '#059669'] as const : ['#8B5CF6', '#7C3AED'] as const)}
                 style={styles.actionButtonGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
@@ -185,11 +248,10 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
   },
   successTitle: {
     color: '#FFFFFF',
@@ -220,14 +282,12 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: Spacing.three,
   },
-  pulseGreenCircle: {
+  pulseCircle: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#10B981',
   },
   liveIndicatorText: {
-    color: '#10B981',
     fontSize: 10,
     fontWeight: 'bold',
     letterSpacing: 0.5,
@@ -266,8 +326,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: 'bold',
   },
-  checkmarkWrapper: {
-    paddingHorizontal: 4,
+  statusBadgeWrapper: {
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  statusBadgeText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
   },
   disclaimerText: {
     color: '#64748B',

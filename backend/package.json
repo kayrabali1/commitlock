@@ -1,7 +1,7 @@
 {
-  "name": "commitlock-backend",
+  "name": "habitcontract-backend",
   "version": "1.0.0",
-  "description": "Backend API for Commitlock, deployed to GCP Cloud Run with Firestore",
+  "description": "Backend API for HabitContract, deployed to GCP Cloud Run with Firestore",
   "main": "dist/index.js",
   "scripts": {
     "build": "rimraf dist && tsc",

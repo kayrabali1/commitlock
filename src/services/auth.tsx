@@ -1,10 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as FileSystem from 'expo-file-system/legacy';
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Platform } from 'react-native';
-import * as AppleAuthentication from 'expo-apple-authentication';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { Alert, Platform } from 'react-native';
 
 export interface User {
   id: string;
@@ -32,8 +32,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const USER_STORAGE_KEY = '@commitlock_user_profile';
-const TOKEN_STORAGE_KEY = '@commitlock_jwt_token';
+const USER_STORAGE_KEY = '@habitcontract_user_profile';
+const TOKEN_STORAGE_KEY = '@habitcontract_jwt_token';
 
 // Smart backend URL detection
 export const getBaseUrl = (): string => {
@@ -55,11 +55,13 @@ export const getBaseUrl = (): string => {
 
 export const API_URL = getBaseUrl();
 
-// Configure Google Sign-In on mobile platforms
-if (Platform.OS !== 'web') {
+export const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+// Configure Google Sign-In on mobile platforms (only outside of Expo Go)
+if (Platform.OS !== 'web' && !isExpoGo) {
   GoogleSignin.configure({
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB || '853032822187-j5u9r1afl2pnd2qbf23n74geefvmoop7.apps.googleusercontent.com',
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS || '853032822187-j5u9r1afl2pnd2qbf23n74geefvmoop7.apps.googleusercontent.com',
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB || '658642477326-4f1s58o3kiqv0ssggldsnc61j98s6tf4.apps.googleusercontent.com',
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS || '658642477326-718qg3nkpmjn0ccnfl8qhqq27h149prs.apps.googleusercontent.com',
   });
 }
 
@@ -208,8 +210,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Google Sign-In is not supported on web. Please use email or a mobile device.');
       }
 
+      if (isExpoGo) {
+        // Expo Go fallback to mock sign-in to prevent native crashes
+        Alert.alert(
+          'Expo Go Sandbox',
+          'Native Google Sign-In requires a custom development build. We will log you in with a demo athlete profile for testing.',
+          [{ text: 'Continue' }]
+        );
+
+        await signIn('demo@habitcontract.com', 'password');
+        return;
+      }
+
       await GoogleSignin.hasPlayServices();
       const userInfo = await GoogleSignin.signIn();
+
+      if (userInfo.type === 'cancelled') {
+        // User cancelled the sign-in flow, resolve gracefully without throwing/showing errors
+        return;
+      }
+
       const idToken = userInfo.data?.idToken;
 
       if (!idToken) {
@@ -252,6 +272,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       if (Platform.OS === 'web') {
         throw new Error('Apple Sign-In is not supported on web. Please use email or a mobile device.');
+      }
+
+      if (isExpoGo) {
+        // Expo Go fallback to mock sign-in to prevent native crashes
+        Alert.alert(
+          'Expo Go Sandbox',
+          'Native Apple Sign-In requires a custom development build. We will log you in with a demo athlete profile for testing.',
+          [{ text: 'Continue' }]
+        );
+
+        await signIn('demo@habitcontract.com', 'password');
+        return;
       }
 
       const credential = await AppleAuthentication.signInAsync({
@@ -306,10 +338,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     setIsLoading(true);
     try {
-      if (Platform.OS !== 'web') {
+      if (Platform.OS !== 'web' && !isExpoGo) {
         try {
           await GoogleSignin.signOut();
-        } catch {}
+        } catch { }
       }
       await AsyncStorage.multiRemove([TOKEN_STORAGE_KEY, USER_STORAGE_KEY]);
       setUser(null);

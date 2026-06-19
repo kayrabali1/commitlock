@@ -6,7 +6,7 @@ import { db } from '../config/firestore';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'commitlock_secret_key_testing_499812';
+const JWT_SECRET = process.env.JWT_SECRET || 'habitcontract_secret_key_testing_499812';
 
 // Register a new user
 router.post('/register', async (req: any, res: any) => {
@@ -85,9 +85,9 @@ router.post('/login', async (req: any, res: any) => {
     const normEmail = email.toLowerCase().trim();
 
     // Check default demo user if the database is empty or user is requesting it
-    if (normEmail === 'demo@commitlock.com' && password === 'password') {
+    if (normEmail === 'demo@habitcontract.com' && password === 'password') {
       const usersRef = db.collection('users');
-      const demoQuery = await usersRef.where('email', '==', 'demo@commitlock.com').get();
+      const demoQuery = await usersRef.where('email', '==', 'demo@habitcontract.com').get();
       
       let userId: string;
       let userDoc: any;
@@ -98,7 +98,7 @@ router.post('/login', async (req: any, res: any) => {
         const passwordHash = await bcrypt.hash('password', salt);
         userDoc = {
           name: 'Kayra Bali',
-          email: 'demo@commitlock.com',
+          email: 'demo@habitcontract.com',
           passwordHash,
           avatar: 'https://ui-avatars.com/api/?name=Kayra+Bali&background=8B5CF6&color=fff&bold=true',
           tier: 'High Accountability (Tier 3)',
@@ -282,7 +282,7 @@ router.post('/apple', async (req: any, res: any) => {
       return res.status(400).json({ error: 'identityToken is required' });
     }
 
-    const clientID = 'com.commitlock.app';
+    const clientID = 'com.habitcontract.app';
     const appleUserData = await appleSignin.verifyIdToken(identityToken, {
       audience: clientID,
       ignoreExpiration: false,
@@ -290,7 +290,7 @@ router.post('/apple', async (req: any, res: any) => {
 
     const sub = appleUserData.sub;
     const email = appleUserData.email;
-    const normEmail = email ? email.toLowerCase().trim() : `${sub}@apple-user.commitlock.com`;
+    const normEmail = email ? email.toLowerCase().trim() : `${sub}@apple-user.habitcontract.com`;
     const displayName = name?.trim() || 'Apple Champion';
 
     const usersRef = db.collection('users');

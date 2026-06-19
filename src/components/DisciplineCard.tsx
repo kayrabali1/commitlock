@@ -201,17 +201,17 @@ export function DisciplineCard({
     setTimeout(async () => {
       setShareStatus('shared');
       
-      const shareMessage = `🔥 COMMITLOCK DISCIPLINE CARD\n\n` +
+      const shareMessage = `🔥 HABITCONTRACT DISCIPLINE CARD\n\n` +
         `Discipline Score: ${score}/100 (${rank} Rank, Grade ${grade})\n` +
         `Active Streak: ${activeStreak} Weeks\n` +
         `Goal: ${commitment.targetValue.toLocaleString()} ${getMetricUnit(commitment.metricType)}${commitment.targetScope === 'weekly' ? '/wk' : '/day'} (${pctCompleted}% achieved!)\n` +
         `Stake Saved: €${commitment.stakeAmount}.00\n\n` +
-        `Reframing fitness. Pledging money to lock habits. Join the elite at commitlock.app`;
+        `Reframing fitness. Pledging money to lock habits. Join the elite at habitcontract.app`;
 
       try {
         await Share.share({
           message: shareMessage,
-          title: `CommitLock Discipline Card - Score: ${score}`,
+          title: `HabitContract Discipline Card - Score: ${score}`,
         });
       } catch (error) {
         console.log('Error sharing:', error);
@@ -308,7 +308,7 @@ export function DisciplineCard({
             <View style={styles.headerLeft}>
               <MaterialCommunityIcons name="shield-lock" size={16} color={theme.accentColor} />
               <Text style={[styles.headerLogo, { color: theme.accentColor }]}>
-                COMMITLOCK // POW
+                HABITCONTRACT // POW
               </Text>
             </View>
             <View style={[styles.gradeBadge, { backgroundColor: theme.badgeBg }]}>
