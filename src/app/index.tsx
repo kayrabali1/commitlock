@@ -174,26 +174,19 @@ export default function TrackerDashboard() {
     }
   };
 
-  // Find today's daily index (0 = Monday, ..., 6 = Sunday)
-  const getTodayIndex = () => {
-    const day = new Date().getDay(); // 0 is Sunday, 1 is Monday, ...
-    return day === 0 ? 6 : day - 1;
-  };
-  const simulatedTodayIndex = getTodayIndex();
-
   // Calculate stats for active commitment
   const getCommitmentStats = (commitment: Commitment, weeklyDataList: DailyHealthData[]) => {
     if (!commitment || !weeklyDataList || weeklyDataList.length === 0) {
       return { completedDays: 0, failedDays: 0, overallProgress: 0, totalAccumulated: 0 };
     }
 
-    // Only count values up to today's index (inclusive) for current tracking progress
-    const pastAndTodayData = weeklyDataList.slice(0, simulatedTodayIndex + 1);
+    const todayDateStr = HealthDataService.getTodayDateString();
+    // Only count values up to today (inclusive) for current tracking progress
+    const pastAndTodayData = weeklyDataList.filter(d => d.dateString <= todayDateStr);
     const totalAccumulated = pastAndTodayData.reduce((acc, day) => acc + day.value, 0);
 
     const allDays = getCommitmentDaysList(commitment);
     const totalDays = allDays.length || 7;
-    const todayDateStr = weeklyDataList?.[simulatedTodayIndex]?.dateString;
 
     let overallProgress = 0;
 
@@ -203,7 +196,7 @@ export default function TrackerDashboard() {
       let accumulated = 0;
       
       allDays.forEach((dateStr) => {
-        if (todayDateStr && dateStr <= todayDateStr) {
+        if (dateStr <= todayDateStr) {
           const dayData = weeklyDataList.find(d => d.dateString === dateStr);
           if (dayData) {
             accumulated += dayData.value;
@@ -219,7 +212,7 @@ export default function TrackerDashboard() {
       let sumProgress = 0;
       
       allDays.forEach((dateStr) => {
-        if (todayDateStr && dateStr <= todayDateStr) {
+        if (dateStr <= todayDateStr) {
           const dayData = weeklyDataList.find(d => d.dateString === dateStr);
           if (dayData) {
             sumProgress += Math.min(dayData.value / commitment.targetValue, 1);
@@ -235,12 +228,12 @@ export default function TrackerDashboard() {
 
     let completed = 0;
     let failed = 0;
-    pastAndTodayData.forEach((day, index) => {
+    pastAndTodayData.forEach((day) => {
       const dayTarget = commitment.targetScope === 'weekly' ? commitment.targetValue / 7 : commitment.targetValue;
       if (day.value >= dayTarget) {
         completed++;
       } else {
-        if (index < simulatedTodayIndex) {
+        if (day.dateString < todayDateStr) {
           failed++;
         }
       }
@@ -260,21 +253,17 @@ export default function TrackerDashboard() {
     if (commitment.targetScope === 'weekly') {
       return false;
     }
+    const todayDateStr = HealthDataService.getTodayDateString();
     // For tracking loss aversion: check if any resolved day (before today) has failed
-    return weeklyDataList.slice(0, simulatedTodayIndex).some(
-      (day) => day.value < commitment.targetValue
+    return weeklyDataList.some(
+      (day) => day.dateString < todayDateStr && day.value < commitment.targetValue
     );
   };
 
   const getRemainingDays = (commitment: Commitment, weeklyDataList: DailyHealthData[]) => {
     if (!commitment) return '0 Days';
     try {
-      const todayDateStr = weeklyDataList?.[simulatedTodayIndex]?.dateString;
-      const now = new Date();
-      const today = todayDateStr 
-        ? parseLocalDate(todayDateStr, now.getHours(), now.getMinutes(), now.getSeconds())
-        : now;
-      
+      const today = new Date();
       const end = parseLocalDate(commitment.endDate, 23, 59, 59);
       
       const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -450,26 +439,24 @@ export default function TrackerDashboard() {
                       
                       <View style={styles.slicedBarContainer}>
                         {getCommitmentDaysList(commitment).map((dateStr) => {
-                          const todayDateStr = weeklyDataList?.[simulatedTodayIndex]?.dateString;
+                          const todayDateStr = HealthDataService.getTodayDateString();
                           const dayData = weeklyDataList.find(d => d.dateString === dateStr);
                           
                           let sliceColor = '#1E293B'; // Default/Future (Dark slate)
                           
-                          if (todayDateStr) {
-                            if (dateStr > todayDateStr) {
-                              sliceColor = '#1E293B'; // Future/Remaining (Dark Gray/Slate)
-                            } else if (dateStr === todayDateStr) {
-                              sliceColor = 'rgba(5, 211, 142, 0.25)'; // Current Day (Light transparent green)
-                            } else {
-                              // Past Day
-                              const isGoalMet = dayData
-                                ? (commitment.targetScope === 'weekly'
-                                  ? dayData.value > 0
-                                  : dayData.value >= commitment.targetValue)
-                                : true; // Default to true for past weeks outside current weeklyDataList scope
-                              
-                              sliceColor = isGoalMet ? '#05D38E' : '#FF4655'; // Green if achieved, Red if failed
-                            }
+                          if (dateStr > todayDateStr) {
+                            sliceColor = '#1E293B'; // Future/Remaining (Dark Gray/Slate)
+                          } else if (dateStr === todayDateStr) {
+                            sliceColor = 'rgba(5, 211, 142, 0.25)'; // Current Day (Light transparent green)
+                          } else {
+                            // Past Day
+                            const isGoalMet = dayData
+                              ? (commitment.targetScope === 'weekly'
+                                ? dayData.value > 0
+                                : dayData.value >= commitment.targetValue)
+                              : true; // Default to true for past weeks outside current weeklyDataList scope
+                            
+                            sliceColor = isGoalMet ? '#05D38E' : '#FF4655'; // Green if achieved, Red if failed
                           }
                           
                           return (
@@ -514,7 +501,7 @@ export default function TrackerDashboard() {
                           <View style={{ gap: Spacing.two }}>
                             {(() => {
                               const allDaysList = getCommitmentDaysList(commitment);
-                              const todayDateStr = weeklyDataList?.[simulatedTodayIndex]?.dateString;
+                              const todayDateStr = HealthDataService.getTodayDateString();
                               
                               return allDaysList.map((dateStr) => {
                                 // Find day data in current weekly data
@@ -525,7 +512,7 @@ export default function TrackerDashboard() {
                                 const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
                                 
                                 const isToday = todayDateStr === dateStr;
-                                const isFuture = todayDateStr ? dateStr > todayDateStr : false;
+                                const isFuture = dateStr > todayDateStr;
                                 
                                 // Determine value and goal met status
                                 let value = 0;

@@ -491,6 +491,11 @@ export class HealthDataService {
     return new Date(year, month, day, hours, minutes, seconds);
   }
 
+  static getTodayDateString(): string {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  }
+
   /**
    * Gets the dates of the current week (Monday to Sunday)
    */
@@ -538,7 +543,7 @@ export class HealthDataService {
 
       // Fetch from GCP Backend
       const response = await this.authenticatedFetch(
-        `/api/health/range?metricType=${metric}&startDate=${dates[0]}&endDate=${dates[6]}`
+        `/api/health/range?metricType=${metric}&startDate=${dates[0]}&endDate=${dates[dates.length - 1]}`
       );
       
       const backendLogs: any[] = response.ok ? await response.json() : [];
@@ -896,13 +901,12 @@ export class HealthDataService {
       return { completedDays: 0, failedDays: 0, overallProgress: 0, totalAccumulated: 0 };
     }
 
-    const simulatedTodayIndex = this.getTodayIndex();
-    const pastAndTodayData = weeklyDataList.slice(0, simulatedTodayIndex + 1);
+    const todayDateStr = this.getTodayDateString();
+    const pastAndTodayData = weeklyDataList.filter(d => d.dateString <= todayDateStr);
     const totalAccumulated = pastAndTodayData.reduce((acc, day) => acc + day.value, 0);
 
     const allDays = this.getCommitmentDaysList(commitment);
     const totalDays = allDays.length || 7;
-    const todayDateStr = weeklyDataList?.[simulatedTodayIndex]?.dateString;
 
     let overallProgress = 0;
 
@@ -912,7 +916,7 @@ export class HealthDataService {
       let accumulated = 0;
       
       allDays.forEach((dateStr) => {
-        if (todayDateStr && dateStr <= todayDateStr) {
+        if (dateStr <= todayDateStr) {
           const dayData = weeklyDataList.find(d => d.dateString === dateStr);
           if (dayData) {
             accumulated += dayData.value;
@@ -927,7 +931,7 @@ export class HealthDataService {
       let sumProgress = 0;
       
       allDays.forEach((dateStr) => {
-        if (todayDateStr && dateStr <= todayDateStr) {
+        if (dateStr <= todayDateStr) {
           const dayData = weeklyDataList.find(d => d.dateString === dateStr);
           if (dayData) {
             sumProgress += Math.min(dayData.value / commitment.targetValue, 1);
@@ -942,12 +946,12 @@ export class HealthDataService {
 
     let completed = 0;
     let failed = 0;
-    pastAndTodayData.forEach((day, index) => {
+    pastAndTodayData.forEach((day) => {
       const dayTarget = commitment.targetScope === 'weekly' ? commitment.targetValue / 7 : commitment.targetValue;
       if (day.value >= dayTarget) {
         completed++;
       } else {
-        if (index < simulatedTodayIndex) {
+        if (day.dateString < todayDateStr) {
           failed++;
         }
       }
@@ -966,22 +970,16 @@ export class HealthDataService {
     if (commitment.targetScope === 'weekly') {
       return false;
     }
-    const simulatedTodayIndex = this.getTodayIndex();
-    return weeklyDataList.slice(0, simulatedTodayIndex).some(
-      (day) => day.value < commitment.targetValue
+    const todayDateStr = this.getTodayDateString();
+    return weeklyDataList.some(
+      (day) => day.dateString < todayDateStr && day.value < commitment.targetValue
     );
   }
 
   static getRemainingDaysString(commitment: Commitment, weeklyDataList: DailyHealthData[]) {
     if (!commitment) return '0 Days';
     try {
-      const simulatedTodayIndex = this.getTodayIndex();
-      const todayDateStr = weeklyDataList?.[simulatedTodayIndex]?.dateString;
-      const now = new Date();
-      const today = todayDateStr 
-        ? this.parseLocalDate(todayDateStr, now.getHours(), now.getMinutes(), now.getSeconds())
-        : now;
-      
+      const today = new Date();
       const end = this.parseLocalDate(commitment.endDate, 23, 59, 59);
       
       const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -999,28 +997,23 @@ export class HealthDataService {
   static getCommitmentSegments(commitment: Commitment, weeklyDataList: DailyHealthData[]): ('future' | 'success' | 'failed' | 'today')[] {
     const segments: ('future' | 'success' | 'failed' | 'today')[] = [];
     const allDays = this.getCommitmentDaysList(commitment);
-    const simulatedTodayIndex = this.getTodayIndex();
-    const todayDateStr = weeklyDataList?.[simulatedTodayIndex]?.dateString;
+    const todayDateStr = this.getTodayDateString();
 
     allDays.forEach((dateStr) => {
       const dayData = weeklyDataList.find(d => d.dateString === dateStr);
       
-      if (todayDateStr) {
-        if (dateStr > todayDateStr) {
-          segments.push('future');
-        } else if (dateStr === todayDateStr) {
-          segments.push('today');
-        } else {
-          const isGoalMet = dayData
-            ? (commitment.targetScope === 'weekly'
-              ? dayData.value > 0
-              : dayData.value >= commitment.targetValue)
-            : true;
-          
-          segments.push(isGoalMet ? 'success' : 'failed');
-        }
-      } else {
+      if (dateStr > todayDateStr) {
         segments.push('future');
+      } else if (dateStr === todayDateStr) {
+        segments.push('today');
+      } else {
+        const isGoalMet = dayData
+          ? (commitment.targetScope === 'weekly'
+            ? dayData.value > 0
+            : dayData.value >= commitment.targetValue)
+          : true;
+        
+        segments.push(isGoalMet ? 'success' : 'failed');
       }
     });
 
