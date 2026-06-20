@@ -18,6 +18,7 @@ if (Platform.OS === 'ios') {
         getActiveEnergyBurned: nativeModule.getActiveEnergyBurned ? nativeModule.getActiveEnergyBurned.bind(nativeModule) : undefined,
         getAppleExerciseTime: nativeModule.getAppleExerciseTime ? nativeModule.getAppleExerciseTime.bind(nativeModule) : undefined,
         getMindfulSession: nativeModule.getMindfulSession ? nativeModule.getMindfulSession.bind(nativeModule) : undefined,
+        getAnchoredWorkouts: nativeModule.getAnchoredWorkouts ? nativeModule.getAnchoredWorkouts.bind(nativeModule) : undefined,
       });
       console.log('[HealthDataService] Successfully bound raw AppleHealthKit native methods');
     } else {
@@ -149,6 +150,7 @@ export class HealthDataService {
               AppleHealthKit.Constants.Permissions.ActiveEnergyBurned,
               AppleHealthKit.Constants.Permissions.AppleExerciseTime,
               AppleHealthKit.Constants.Permissions.MindfulSession,
+              AppleHealthKit.Constants.Permissions.Workout,
             ],
             write: [],
           },
@@ -238,7 +240,49 @@ export class HealthDataService {
             AppleHealthKit.getDailyStepCountSamples(options, callback);
             break;
           case 'run':
-            AppleHealthKit.getDailyDistanceWalkingRunningSamples({ ...options, unit: 'km' }, callback);
+            if (typeof AppleHealthKit.getAnchoredWorkouts === 'function') {
+              const workoutOptions = {
+                startDate: startDate.toISOString().replace('Z', '+0000'),
+                endDate: endDate.toISOString().replace('Z', '+0000'),
+                type: 'Workout',
+              };
+              AppleHealthKit.getAnchoredWorkouts(workoutOptions, (err: any, results: any) => {
+                if (err) {
+                  reject(err);
+                  return;
+                }
+                const dailyValues: Record<string, number> = {};
+                const data = results?.data || results?.workouts || [];
+                if (Array.isArray(data)) {
+                  data.forEach((workout: any) => {
+                    const activityType = workout.workoutActivityType || workout.activityName || workout.activityId || '';
+                    const isRunning = (
+                      (typeof activityType === 'string' && (
+                        activityType.toLowerCase().includes('running') ||
+                        activityType.toLowerCase() === 'run'
+                      )) ||
+                      activityType === 52 ||
+                      String(activityType) === '52'
+                    );
+
+                    if (isRunning) {
+                      if (!workout.startDate) return;
+                      const dateKey = this.formatLocalYYYYMMDD(workout.startDate);
+                      
+                      let dist = Number(workout.totalDistance || workout.distance || 0);
+                      if (dist > 100) {
+                        dist = dist / 1000;
+                      }
+                      
+                      dailyValues[dateKey] = (dailyValues[dateKey] || 0) + dist;
+                    }
+                  });
+                }
+                resolve(dailyValues);
+              });
+            } else {
+              AppleHealthKit.getDailyDistanceWalkingRunningSamples({ ...options, unit: 'km' }, callback);
+            }
             break;
           case 'cycle':
             AppleHealthKit.getDailyDistanceCyclingSamples({ ...options, unit: 'km' }, callback);
