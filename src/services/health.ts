@@ -181,8 +181,8 @@ export class HealthDataService {
     const endDate = this.parseLocalDate(endDateStr, 23, 59, 59);
 
     const options = {
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString(),
+      startDate: startDate.toISOString().replace('Z', '+0000'),
+      endDate: endDate.toISOString().replace('Z', '+0000'),
       ascending: true,
       includeManuallyAdded: true,
     };
@@ -367,8 +367,8 @@ export class HealthDataService {
         const startDate = this.parseLocalDate(todayStr, 0, 0, 0);
         const endDate = this.parseLocalDate(todayStr, 23, 59, 59);
         const options = {
-          startDate: startDate.toISOString(),
-          endDate: endDate.toISOString(),
+          startDate: startDate.toISOString().replace('Z', '+0000'),
+          endDate: endDate.toISOString().replace('Z', '+0000'),
           ascending: true,
           includeManuallyAdded: true,
         };
