@@ -172,63 +172,67 @@ export class HealthDataService {
   /**
    * Queries daily health data for a specific metric over a date range from native HealthKit
    */
-  static async queryHealthDataDaily(metric: MetricType, startDateStr: string, endDateStr: string): Promise<Record<string, number>> {
+  /**
+   * Helper to format any date input to local YYYY-MM-DD string
+   */
+  static formatLocalYYYYMMDD(dateInput: string | Date | number): string {
+    if (typeof dateInput === 'string' && dateInput.length === 10 && dateInput.includes('-')) {
+      return dateInput;
+    }
+    const d = new Date(dateInput);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  /**
+   * Helper to query a single day's metric from native HealthKit
+   */
+  static async querySingleDayMetric(metric: MetricType, dateStr: string): Promise<number> {
     if (Platform.OS !== 'ios' || !AppleHealthKit || typeof AppleHealthKit.getDailyStepCountSamples !== 'function') {
-      return {};
+      return 0;
     }
 
-    const startDate = this.parseLocalDate(startDateStr, 0, 0, 0);
-    const endDate = this.parseLocalDate(endDateStr, 23, 59, 59);
+    try {
+      const result = await new Promise<Record<string, number>>((resolve, reject) => {
+        const startDate = this.parseLocalDate(dateStr, 0, 0, 0);
+        const endDate = this.parseLocalDate(dateStr, 23, 59, 59);
+        const options = {
+          startDate: startDate.toISOString().replace('Z', '+0000'),
+          endDate: endDate.toISOString().replace('Z', '+0000'),
+          ascending: true,
+          includeManuallyAdded: true,
+        };
 
-    const options = {
-      startDate: startDate.toISOString().replace('Z', '+0000'),
-      endDate: endDate.toISOString().replace('Z', '+0000'),
-      ascending: true,
-      includeManuallyAdded: true,
-    };
-
-    console.log(`[HealthDataService] queryHealthDataDaily options for ${metric}:`, options);
-
-    return new Promise((resolve) => {
-      const callback = (err: any, results: any) => {
-        console.log(`[HealthDataService] queryHealthDataDaily results for ${metric}:`, JSON.stringify(results));
-        if (err) {
-          console.error(`[HealthDataService] Error querying ${metric} from HealthKit:`, err);
-          resolve({});
-          return;
-        }
-
-        const dailyValues: Record<string, number> = {};
-
-        if (Array.isArray(results)) {
-          results.forEach((sample: any) => {
-            if (!sample.startDate) return;
-            const dateStr = typeof sample.startDate === 'string' ? sample.startDate : new Date(sample.startDate).toISOString();
-            const dateKey = dateStr.substring(0, 10);
-            let val = Number(sample.value) || 0;
-            
-            // Adjust units if needed (e.g. distance is stored in meters if not specified, convert meters to km)
+        const callback = (err: any, results: any) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          const dailyValues: Record<string, number> = {};
+          if (Array.isArray(results)) {
+            results.forEach((sample: any) => {
+              if (!sample.startDate) return;
+              const dateKey = this.formatLocalYYYYMMDD(sample.startDate);
+              let val = Number(sample.value) || 0;
+              if (metric === 'run' || metric === 'cycle') {
+                val = val / 1000;
+              }
+              dailyValues[dateKey] = (dailyValues[dateKey] || 0) + val;
+            });
+          } else if (results && typeof results === 'object' && results.value !== undefined) {
+            const rawDate = results.startDate || dateStr;
+            const dateKey = this.formatLocalYYYYMMDD(rawDate);
+            let val = Number(results.value) || 0;
             if (metric === 'run' || metric === 'cycle') {
               val = val / 1000;
             }
-            
-            dailyValues[dateKey] = (dailyValues[dateKey] || 0) + val;
-          });
-        } else if (results && typeof results === 'object' && results.value !== undefined) {
-          const rawDate = results.startDate || startDateStr;
-          const dateStr = typeof rawDate === 'string' ? rawDate : new Date(rawDate).toISOString();
-          const dateKey = dateStr.substring(0, 10);
-          let val = Number(results.value) || 0;
-          if (metric === 'run' || metric === 'cycle') {
-            val = val / 1000;
+            dailyValues[dateKey] = val;
           }
-          dailyValues[dateKey] = val;
-        }
+          resolve(dailyValues);
+        };
 
-        resolve(dailyValues);
-      };
-
-      try {
         switch (metric) {
           case 'steps':
             AppleHealthKit.getDailyStepCountSamples(options, callback);
@@ -248,8 +252,7 @@ export class HealthDataService {
           case 'mindfulness':
             AppleHealthKit.getMindfulSession(options, (err: any, results: any) => {
               if (err) {
-                console.error(`[HealthDataService] Error querying mindfulness from HealthKit:`, err);
-                resolve({});
+                reject(err);
                 return;
               }
               const dailyValues: Record<string, number> = {};
@@ -259,7 +262,6 @@ export class HealthDataService {
                   const start = new Date(sample.startDate).getTime();
                   const end = new Date(sample.endDate).getTime();
                   const durationMins = (end - start) / (1000 * 60);
-                  
                   const d = new Date(sample.startDate);
                   const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                   dailyValues[dateKey] = (dailyValues[dateKey] || 0) + durationMins;
@@ -271,11 +273,52 @@ export class HealthDataService {
           default:
             resolve({});
         }
-      } catch (e) {
-        console.error(`[HealthDataService] Exception querying HealthKit for ${metric}:`, e);
-        resolve({});
+      });
+
+      return result[dateStr] || 0;
+    } catch (error) {
+      console.error(`[HealthDataService] Error querying single day ${metric} for ${dateStr}:`, error);
+      return 0;
+    }
+  }
+
+  /**
+   * Queries daily health data for a specific metric over a date range from native HealthKit
+   */
+  static async queryHealthDataDaily(metric: MetricType, startDateStr: string, endDateStr: string): Promise<Record<string, number>> {
+    if (Platform.OS !== 'ios' || !AppleHealthKit || typeof AppleHealthKit.getDailyStepCountSamples !== 'function') {
+      return {};
+    }
+
+    try {
+      const dailyValues: Record<string, number> = {};
+      
+      // Generate dates list
+      const start = this.parseLocalDate(startDateStr);
+      const end = this.parseLocalDate(endDateStr);
+      const current = new Date(start);
+      const dates: string[] = [];
+      while (current <= end) {
+        const year = current.getFullYear();
+        const month = String(current.getMonth() + 1).padStart(2, '0');
+        const date = String(current.getDate()).padStart(2, '0');
+        dates.push(`${year}-${month}-${date}`);
+        current.setDate(current.getDate() + 1);
       }
-    });
+
+      // Query each day individually in parallel
+      const queries = dates.map(async (dateStr) => {
+        const val = await this.querySingleDayMetric(metric, dateStr);
+        dailyValues[dateStr] = val;
+      });
+      await Promise.all(queries);
+
+      console.log(`[HealthDataService] queryHealthDataDaily accumulated results for ${metric}:`, JSON.stringify(dailyValues));
+      return dailyValues;
+    } catch (e) {
+      console.error(`[HealthDataService] Exception querying HealthKit daily range for ${metric}:`, e);
+      return {};
+    }
   }
 
   /**
@@ -359,106 +402,12 @@ export class HealthDataService {
       };
     }
 
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-    try {
-      const result = await new Promise<Record<string, number>>((resolve, reject) => {
-        const startDate = this.parseLocalDate(todayStr, 0, 0, 0);
-        const endDate = this.parseLocalDate(todayStr, 23, 59, 59);
-        const options = {
-          startDate: startDate.toISOString().replace('Z', '+0000'),
-          endDate: endDate.toISOString().replace('Z', '+0000'),
-          ascending: true,
-          includeManuallyAdded: true,
-        };
-
-        console.log(`[HealthDataService] queryTodayMetricWithStatus options for ${metric}:`, options);
-
-        const callback = (err: any, results: any) => {
-          console.log(`[HealthDataService] queryTodayMetricWithStatus results for ${metric}:`, JSON.stringify(results));
-          if (err) {
-            reject(err);
-            return;
-          }
-          const dailyValues: Record<string, number> = {};
-          if (Array.isArray(results)) {
-            results.forEach((sample: any) => {
-              if (!sample.startDate) return;
-              const dateStr = typeof sample.startDate === 'string' ? sample.startDate : new Date(sample.startDate).toISOString();
-              const dateKey = dateStr.substring(0, 10);
-              let val = Number(sample.value) || 0;
-              if (metric === 'run' || metric === 'cycle') {
-                val = val / 1000;
-              }
-              dailyValues[dateKey] = (dailyValues[dateKey] || 0) + val;
-            });
-          } else if (results && typeof results === 'object' && results.value !== undefined) {
-            const rawDate = results.startDate || todayStr;
-            const dateStr = typeof rawDate === 'string' ? rawDate : new Date(rawDate).toISOString();
-            const dateKey = dateStr.substring(0, 10);
-            let val = Number(results.value) || 0;
-            if (metric === 'run' || metric === 'cycle') {
-              val = val / 1000;
-            }
-            dailyValues[dateKey] = val;
-          }
-          resolve(dailyValues);
-        };
-
-        switch (metric) {
-          case 'steps':
-            AppleHealthKit.getDailyStepCountSamples(options, callback);
-            break;
-          case 'run':
-            AppleHealthKit.getDailyDistanceWalkingRunningSamples({ ...options, unit: 'km' }, callback);
-            break;
-          case 'cycle':
-            AppleHealthKit.getDailyDistanceCyclingSamples({ ...options, unit: 'km' }, callback);
-            break;
-          case 'calories':
-            AppleHealthKit.getActiveEnergyBurned(options, callback);
-            break;
-          case 'activeTime':
-            AppleHealthKit.getAppleExerciseTime(options, callback);
-            break;
-          case 'mindfulness':
-            AppleHealthKit.getMindfulSession(options, (err: any, results: any) => {
-              if (err) {
-                reject(err);
-                return;
-              }
-              const dailyValues: Record<string, number> = {};
-              if (Array.isArray(results)) {
-                results.forEach((sample: any) => {
-                  if (!sample.startDate || !sample.endDate) return;
-                  const start = new Date(sample.startDate).getTime();
-                  const end = new Date(sample.endDate).getTime();
-                  const durationMins = (end - start) / (1000 * 60);
-                  const d = new Date(sample.startDate);
-                  const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                  dailyValues[dateKey] = (dailyValues[dateKey] || 0) + durationMins;
-                });
-              }
-              resolve(dailyValues);
-            });
-            break;
-          default:
-            resolve({});
-        }
-      });
-
-      return {
-        value: result[todayStr] || 0,
-        status: 'granted',
-      };
-    } catch (error) {
-      console.error(`[HealthDataService] Error querying ${metric} today:`, error);
-      return {
-        value: 0,
-        status: 'denied',
-      };
-    }
+    const todayStr = this.getTodayDateString();
+    const value = await this.querySingleDayMetric(metric, todayStr);
+    return {
+      value,
+      status: 'granted',
+    };
   }
 
   /**
