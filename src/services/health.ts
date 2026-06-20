@@ -218,7 +218,7 @@ export class HealthDataService {
               if (!sample.startDate) return;
               const dateKey = this.formatLocalYYYYMMDD(sample.startDate);
               let val = Number(sample.value) || 0;
-              if (metric === 'run' || metric === 'cycle') {
+              if ((metric === 'run' || metric === 'cycle') && val > 100) {
                 val = val / 1000;
               }
               dailyValues[dateKey] = (dailyValues[dateKey] || 0) + val;
@@ -227,7 +227,7 @@ export class HealthDataService {
             const rawDate = results.startDate || dateStr;
             const dateKey = this.formatLocalYYYYMMDD(rawDate);
             let val = Number(results.value) || 0;
-            if (metric === 'run' || metric === 'cycle') {
+            if ((metric === 'run' || metric === 'cycle') && val > 100) {
               val = val / 1000;
             }
             dailyValues[dateKey] = val;
