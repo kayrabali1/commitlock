@@ -71,7 +71,8 @@
               "description": "Track your active commitments progress.",
               "supportedFamilies": [
                 "systemSmall",
-                "systemMedium"
+                "systemMedium",
+                "systemLarge"
               ]
             }
           ]
