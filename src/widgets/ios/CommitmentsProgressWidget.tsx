@@ -32,47 +32,49 @@ export type WidgetEnvironment = {
   family: 'systemSmall' | 'systemMedium' | 'systemLarge';
 };
 
-const getMetricEmoji = (type: string) => {
-  switch (type) {
-    case 'steps': return '👟';
-    case 'run': return '🏃';
-    case 'cycle': return '🚴';
-    case 'calories': return '🔥';
-    case 'activeTime': return '⏱️';
-    case 'mindfulness': return '🧘';
-    default: return '🎯';
-  }
-};
-
-const getSegmentColor = (status: 'future' | 'success' | 'failed' | 'today') => {
-  switch (status) {
-    case 'success': return '#05D38E';
-    case 'failed': return '#FF4655';
-    case 'today': return '#7C3AED'; // Indigo/Purple accent for today
-    default: return '#1E293B'; // Future
-  }
-};
-
-// Sliced progress bar component
-function SlicedProgressBar({ segments }: { segments: ('future' | 'success' | 'failed' | 'today')[] }) {
-  return (
-    <HStack spacing={4}>
-      {(segments || ['future', 'future', 'future', 'future', 'future', 'future', 'future']).map((status, index) => (
-        <Spacer
-          key={index}
-          modifiers={[
-            background(getSegmentColor(status)),
-            cornerRadius(2),
-            padding({ top: 4, bottom: 4 }) // Give it thickness
-          ]}
-        />
-      ))}
-    </HStack>
-  );
-}
-
-export default function CommitmentsProgressWidget(props: WidgetProps, context: any) {
+const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
+  "use no memo";
   'widget';
+
+  const getMetricEmoji = (type: string) => {
+    switch (type) {
+      case 'steps': return '👟';
+      case 'run': return '🏃';
+      case 'cycle': return '🚴';
+      case 'calories': return '🔥';
+      case 'activeTime': return '⏱️';
+      case 'mindfulness': return '🧘';
+      default: return '🎯';
+    }
+  };
+
+  const getSegmentColor = (status: 'future' | 'success' | 'failed' | 'today') => {
+    switch (status) {
+      case 'success': return '#05D38E';
+      case 'failed': return '#FF4655';
+      case 'today': return '#7C3AED'; // Indigo/Purple accent for today
+      default: return '#1E293B'; // Future
+    }
+  };
+
+  // Sliced progress bar component
+  function SlicedProgressBar({ segments }: { segments: ('future' | 'success' | 'failed' | 'today')[] }) {
+    "use no memo";
+    return (
+      <HStack spacing={4}>
+        {(segments || ['future', 'future', 'future', 'future', 'future', 'future', 'future']).map((status, index) => (
+          <Spacer
+            key={index}
+            modifiers={[
+              background(getSegmentColor(status)),
+              cornerRadius(2),
+              padding({ top: 4, bottom: 4 }) // Give it thickness
+            ]}
+          />
+        ))}
+      </HStack>
+    );
+  }
 
   const commitments = props.commitments || [];
   const family = context?.family || 'systemSmall';
@@ -326,4 +328,6 @@ export default function CommitmentsProgressWidget(props: WidgetProps, context: a
       </VStack>
     </Host>
   );
-}
+};
+
+export default CommitmentsProgressWidget;
