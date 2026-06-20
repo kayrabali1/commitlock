@@ -503,30 +503,44 @@ export class HealthDataService {
         dates = this.getWeekDates();
       }
 
-      // Fetch from GCP Backend
+      // 1. Fetch from local HealthKit directly if available on iOS
+      let localHealthData: Record<string, number> = {};
+      if (Platform.OS === 'ios' && AppleHealthKit && typeof AppleHealthKit.getDailyStepCountSamples === 'function') {
+        try {
+          const todayStr = this.getTodayDateString();
+          const startDateStr = dates[0];
+          const endDateStr = dates[dates.length - 1] > todayStr ? todayStr : dates[dates.length - 1];
+          localHealthData = await this.queryHealthDataDaily(metric, startDateStr, endDateStr);
+        } catch (err) {
+          console.error('[HealthDataService] Error querying local HealthKit data inside fetchWeeklyData:', err);
+        }
+      }
+
+      // 2. Fetch from GCP Backend (as backup or for dates that are not local/cached)
       const response = await this.authenticatedFetch(
         `/api/health/range?metricType=${metric}&startDate=${dates[0]}&endDate=${dates[dates.length - 1]}`
       );
       
       const backendLogs: any[] = response.ok ? await response.json() : [];
 
-      // Map response to our daily data layout, falling back to default simulation templates
+      // Map response to our daily data layout, prioritizing live local HealthKit data
       return dates.map((dateStr, index) => {
         const match = backendLogs.find(log => log.dateString === dateStr);
         const dateObj = this.parseLocalDate(dateStr);
         const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' }) as DailyHealthData['dayName'];
 
-        if (match) {
-          return {
-            dayName,
-            value: match.value,
-            dateString: dateStr,
-          };
+        let value = 0;
+        if (localHealthData[dateStr] !== undefined && localHealthData[dateStr] > 0) {
+          value = localHealthData[dateStr];
+        } else if (match) {
+          value = match.value;
+        } else if (localHealthData[dateStr] !== undefined) {
+          value = localHealthData[dateStr];
         }
 
         return {
           dayName,
-          value: 0,
+          value,
           dateString: dateStr,
         };
       });
