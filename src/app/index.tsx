@@ -447,7 +447,12 @@ export default function TrackerDashboard() {
                           if (dateStr > todayDateStr) {
                             sliceColor = '#1E293B'; // Future/Remaining (Dark Gray/Slate)
                           } else if (dateStr === todayDateStr) {
-                            sliceColor = 'rgba(5, 211, 142, 0.25)'; // Current Day (Light transparent green)
+                            const isGoalMet = dayData
+                              ? (commitment.targetScope === 'weekly'
+                                ? dayData.value > 0
+                                : dayData.value >= commitment.targetValue)
+                              : false;
+                            sliceColor = isGoalMet ? '#05D38E' : 'rgba(5, 211, 142, 0.25)'; // Solid green if achieved, faded green if not
                           } else {
                             // Past Day
                             const isGoalMet = dayData
