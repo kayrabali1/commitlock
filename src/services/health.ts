@@ -253,9 +253,11 @@ export class HealthDataService {
                 }
                 const dailyValues: Record<string, number> = {};
                 const data = results?.data || results?.workouts || [];
+                console.log(`[HealthDataService] getAnchoredWorkouts returned ${data.length} workout(s) for range:`, workoutOptions);
                 if (Array.isArray(data)) {
                   data.forEach((workout: any) => {
-                    const activityType = workout.workoutActivityType || workout.activityName || workout.activityId || '';
+                    const activityType = workout.activityType || workout.workoutActivityType || workout.activityName || workout.activityId || '';
+                    console.log(`[HealthDataService] Inspecting workout:`, { activityType, startDate: workout.startDate, distance: workout.distance, totalDistance: workout.totalDistance });
                     const isRunning = (
                       (typeof activityType === 'string' && (
                         activityType.toLowerCase().includes('running') ||
@@ -275,6 +277,7 @@ export class HealthDataService {
                       }
                       
                       dailyValues[dateKey] = (dailyValues[dateKey] || 0) + dist;
+                      console.log(`[HealthDataService] Added running workout distance: ${dist} km for ${dateKey}`);
                     }
                   });
                 }
