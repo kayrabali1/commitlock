@@ -12,6 +12,7 @@ export interface Commitment {
   status: 'active' | 'success' | 'failed';
   createdAt: string;
   targetScope?: 'daily' | 'weekly';
+  sentence?: string;
 }
 
 export interface DailyHealthData {
@@ -386,6 +387,17 @@ export default function AndroidCommitmentsWidget({ commitments = [], weeklyData 
                 }}
               />
             </FlexWidget>
+            {commitment.sentence && (
+              <TextWidget
+                text={commitment.sentence}
+                maxLines={1}
+                style={{
+                  fontSize: 9,
+                  color: '#8F93A3',
+                  marginTop: 2,
+                }}
+              />
+            )}
           </FlexWidget>
         );
       })}

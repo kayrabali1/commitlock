@@ -20,7 +20,8 @@ export interface CommitmentWidgetData {
   isBroken: boolean;
   targetScope: string;
   stakeAmount: number;
-  segments: ('future' | 'success' | 'failed' | 'today')[];
+  segments: ('future' | 'success' | 'failed' | 'today_success' | 'today_pending')[];
+  sentence?: string;
 }
 
 export type WidgetProps = {
@@ -153,10 +154,10 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
       <Host>
         <VStack
           alignment="leading"
-          spacing={5}
+          spacing={2}
           modifiers={[
             containerBackground('#06070B', 'widget'),
-            padding({ all: 14 })
+            padding({ all: 12 })
           ]}
         >
           {/* Header row */}
@@ -175,16 +176,14 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
             {commitment.targetScope === 'weekly' ? 'Weekly' : 'Daily'} Target • {commitment.targetValue.toLocaleString()} {commitment.unit}
           </Text>
           {commitment.sentence && (
-            <Text modifiers={[font({ size: 8 }), foregroundColor('#8F93A3'), opacity(0.8)]} numberOfLines={2}>
+            <Text modifiers={[font({ size: 7 }), foregroundColor('#8F93A3'), opacity(0.8)]} numberOfLines={1}>
               {commitment.sentence}
             </Text>
           )}
 
-          <Spacer />
-
           {/* Progress Section */}
           <HStack alignment="bottom">
-            <Text modifiers={[font({ size: 24, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
+            <Text modifiers={[font({ size: 20, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
               {commitment.overallProgress}%
             </Text>
             <Spacer />
@@ -221,10 +220,10 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
       <Host>
         <VStack
           alignment="leading"
-          spacing={12}
+          spacing={6}
           modifiers={[
             containerBackground('#06070B', 'widget'),
-            padding({ all: 16 })
+            padding({ all: 14 })
           ]}
         >
           {/* Header Title */}
@@ -243,9 +242,9 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
             const emoji = getMetricEmoji(commitment.metricType);
             const statusColor = commitment.isBroken ? '#FF4655' : '#05D38E';
             return (
-              <VStack key={commitment.id || index} alignment="leading" spacing={4}>
+              <VStack key={commitment.id || index} alignment="leading" spacing={3}>
                 <HStack>
-                  <Text modifiers={[font({ size: 13, weight: 'semibold' }), foregroundColor('#FFFFFF')]}>
+                  <Text modifiers={[font({ size: 12, weight: 'semibold' }), foregroundColor('#FFFFFF')]}>
                     {emoji} {commitment.label} ({commitment.overallProgress}%)
                   </Text>
                   <Spacer />
@@ -272,7 +271,7 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
                   </Text>
                 </HStack>
                 {commitment.sentence && (
-                  <Text modifiers={[font({ size: 8 }), foregroundColor('#8F93A3'), opacity(0.8)]} numberOfLines={1}>
+                  <Text modifiers={[font({ size: 7 }), foregroundColor('#8F93A3'), opacity(0.8)]} numberOfLines={1}>
                     {commitment.sentence}
                   </Text>
                 )}

@@ -15,10 +15,14 @@ export async function androidWidgetTaskHandler(props: WidgetTaskHandlerProps) {
         const data = await HealthDataService.fetchWeeklyData(commitment.metricType, commitment);
         weeklyData[commitment.id] = data;
       }
-      
+      const commitmentsWithSentence = commitments.map(c => ({
+        ...c,
+        sentence: HealthDataService.getCommitmentSentence(c)
+      }));
+
       props.renderWidget(
         <AndroidCommitmentsWidget 
-          commitments={commitments} 
+          commitments={commitmentsWithSentence} 
           weeklyData={weeklyData} 
         />
       );
