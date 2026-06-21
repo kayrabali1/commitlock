@@ -1,4 +1,4 @@
-import { Host, VStack, HStack, Text, Spacer, Divider } from '@expo/ui/swift-ui';
+import { Host, VStack, HStack, Text, Spacer, Divider, ProgressView } from '@expo/ui/swift-ui';
 import { 
   background, 
   foregroundColor, 
@@ -6,7 +6,12 @@ import {
   cornerRadius, 
   padding,
   containerBackground,
-  frame
+  frame,
+  foregroundStyle,
+  opacity,
+  shadow,
+  clipShape,
+  tint
 } from '@expo/ui/swift-ui/modifiers';
 
 export interface CommitmentWidgetData {
@@ -61,7 +66,6 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
 
   // Sliced progress bar component
   function SlicedProgressBar({ segments, overallProgress, targetScope }: { segments: ('future' | 'success' | 'failed' | 'today_success' | 'today_pending')[], overallProgress: number, targetScope: string }) {
-    "use no memo";
     if (targetScope === 'weekly') {
       return (
         <HStack spacing={0} modifiers={[
@@ -69,16 +73,20 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
           frame({ height: 7 }),
           clipShape('capsule')
         ]}>
-          {Array.from({ length: 100 }).map((_, i) => (
-            <Rectangle
-              key={i}
-              modifiers={[
-                foregroundStyle(i < overallProgress ? '#05D38E' : '#1E293B'),
-                opacity(i < overallProgress ? 1.0 : 0.06),
-                frame({ height: 7 })
-              ]}
-            />
-          ))}
+          {Array.from({ length: 20 }).map((_, i) => {
+            const segmentValue = i * 5; // each segment represents 5%
+            const isFilled = segmentValue < overallProgress;
+            return (
+              <Rectangle
+                key={i}
+                modifiers={[
+                  foregroundStyle(isFilled ? '#05D38E' : '#FFFFFF'),
+                  opacity(isFilled ? 1.0 : 0.06),
+                  frame({ height: 7 })
+                ]}
+              />
+            );
+          })}
         </HStack>
       );
     }
