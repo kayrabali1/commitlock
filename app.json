@@ -74,11 +74,29 @@
               "name": "CommitmentsProgressWidget",
               "displayName": "Commitments Progress",
               "description": "Track your active commitments progress.",
-              "supportedFamilies": [
-                "systemSmall",
-                "systemMedium",
-                "systemLarge"
-              ]
+              "ios": {
+                "supportedFamilies": [
+                  "systemMedium"
+                ],
+                "configuration": {
+                  "title": "Select Commitment",
+                  "description": "Choose which active commitment to display.",
+                  "parameters": {
+                    "commitmentIndex": {
+                      "title": "Commitment",
+                      "type": "enum",
+                      "values": [
+                        { "name": "1st Active Commitment", "value": "first" },
+                        { "name": "2nd Active Commitment", "value": "second" },
+                        { "name": "3rd Active Commitment", "value": "third" },
+                        { "name": "4th Active Commitment", "value": "fourth" },
+                        { "name": "5th Active Commitment", "value": "fifth" }
+                      ],
+                      "default": "first"
+                    }
+                  }
+                }
+              }
             }
           ]
         }
@@ -124,7 +142,8 @@
             "useFrameworks": "static"
           }
         }
-      ]
+      ],
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true,

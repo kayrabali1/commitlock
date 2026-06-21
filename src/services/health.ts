@@ -14,6 +14,7 @@ if (Platform.OS === 'ios') {
         initHealthKit: nativeModule.initHealthKit ? nativeModule.initHealthKit.bind(nativeModule) : undefined,
         getDailyStepCountSamples: nativeModule.getDailyStepCountSamples ? nativeModule.getDailyStepCountSamples.bind(nativeModule) : undefined,
         getDailyDistanceWalkingRunningSamples: nativeModule.getDailyDistanceWalkingRunningSamples ? nativeModule.getDailyDistanceWalkingRunningSamples.bind(nativeModule) : undefined,
+        getDistanceWalkingRunning: nativeModule.getDistanceWalkingRunning ? nativeModule.getDistanceWalkingRunning.bind(nativeModule) : undefined,
         getDailyDistanceCyclingSamples: nativeModule.getDailyDistanceCyclingSamples ? nativeModule.getDailyDistanceCyclingSamples.bind(nativeModule) : undefined,
         getActiveEnergyBurned: nativeModule.getActiveEnergyBurned ? nativeModule.getActiveEnergyBurned.bind(nativeModule) : undefined,
         getAppleExerciseTime: nativeModule.getAppleExerciseTime ? nativeModule.getAppleExerciseTime.bind(nativeModule) : undefined,
@@ -45,6 +46,7 @@ export interface Commitment {
   createdAt: string;
   targetScope?: 'daily' | 'weekly'; // 'daily' or 'weekly'
   performanceData?: DailyHealthData[];
+  refundMethod?: 'wallet' | 'bank';
 }
 
 export interface DailyHealthData {
@@ -257,7 +259,8 @@ export class HealthDataService {
                 if (Array.isArray(data)) {
                   data.forEach((workout: any) => {
                     const activityType = workout.activityType || workout.workoutActivityType || workout.activityName || workout.activityId || '';
-                    console.log(`[HealthDataService] Inspecting workout:`, { activityType, startDate: workout.startDate, distance: workout.distance, totalDistance: workout.totalDistance });
+                    const startDate = workout.startDate || workout.start;
+                    console.log(`[HealthDataService] Inspecting workout:`, { activityType, startDate, distance: workout.distance, totalDistance: workout.totalDistance });
                     const isRunning = (
                       (typeof activityType === 'string' && (
                         activityType.toLowerCase().includes('running') ||
@@ -268,16 +271,18 @@ export class HealthDataService {
                     );
 
                     if (isRunning) {
-                      if (!workout.startDate) return;
-                      const dateKey = this.formatLocalYYYYMMDD(workout.startDate);
+                      if (!startDate) return;
+                      const dateKey = this.formatLocalYYYYMMDD(startDate);
                       
-                      let dist = Number(workout.totalDistance || workout.distance || 0);
+                      // react-native-health returns workout distance in miles. Convert to km.
+                      let distMiles = Number(workout.totalDistance || workout.distance || 0);
+                      let dist = distMiles * 1.609344;
                       if (dist > 100) {
                         dist = dist / 1000;
                       }
                       
                       dailyValues[dateKey] = (dailyValues[dateKey] || 0) + dist;
-                      console.log(`[HealthDataService] Added running workout distance: ${dist} km for ${dateKey}`);
+                      console.log(`[HealthDataService] Added running workout distance: ${dist} km (from ${distMiles} miles) for ${dateKey}`);
                     }
                   });
                 }
@@ -458,6 +463,56 @@ export class HealthDataService {
   }
 
   /**
+   * Helper to query today's walking + running distance directly
+   */
+  static async queryTodayDistanceWalkingRunning(): Promise<{
+    value: number;
+    status: 'granted' | 'denied' | 'unsupported';
+  }> {
+    if (Platform.OS !== 'ios' || !AppleHealthKit || typeof AppleHealthKit.getDistanceWalkingRunning !== 'function') {
+      return {
+        value: 5.4, // Default mock/fallback value in km
+        status: 'unsupported',
+      };
+    }
+
+    try {
+      const options = {
+        date: new Date().toISOString(),
+        unit: 'meter',
+        includeManuallyAdded: true,
+      };
+
+      const value = await new Promise<number>((resolve, reject) => {
+        AppleHealthKit.getDistanceWalkingRunning(
+          options,
+          (err: any, results: any) => {
+            if (err) {
+              reject(err);
+              return;
+            }
+            const rawVal = results && typeof results === 'object' ? Number(results.value) : 0;
+            // Convert meters to kilometers
+            const kmVal = rawVal / 1000;
+            resolve(kmVal);
+          }
+        );
+      });
+
+      return {
+        value,
+        status: 'granted',
+      };
+    } catch (error) {
+      console.error('[HealthDataService] Error querying today walking + running distance:', error);
+      return {
+        value: 0,
+        status: 'denied',
+      };
+    }
+  }
+
+  /**
    * Queries live HealthKit metrics for today (used in connection check modal)
    */
   static async queryTodayMetrics(): Promise<{
@@ -469,26 +524,13 @@ export class HealthDataService {
     const stepsData = await this.queryTodayMetricWithStatus('steps');
     const caloriesData = await this.queryTodayMetricWithStatus('calories');
     const mindfulnessData = await this.queryTodayMetricWithStatus('mindfulness');
-    
-    // Check both run and cycle distances for combined distance
-    const runData = await this.queryTodayMetricWithStatus('run');
-    const cycleData = await this.queryTodayMetricWithStatus('cycle');
-
-    let distanceStatus: 'granted' | 'denied' | 'unsupported' = 'granted';
-    if (runData.status === 'unsupported' || cycleData.status === 'unsupported') {
-      distanceStatus = 'unsupported';
-    } else if (runData.status === 'denied' && cycleData.status === 'denied') {
-      distanceStatus = 'denied';
-    }
+    const distanceData = await this.queryTodayDistanceWalkingRunning();
 
     return {
       steps: stepsData,
       calories: caloriesData,
       mindfulness: mindfulnessData,
-      distance: {
-        value: runData.value + cycleData.value,
-        status: distanceStatus,
-      },
+      distance: distanceData,
     };
   }
 
@@ -713,14 +755,6 @@ export class HealthDataService {
 
       const data = await response.json();
       await this.setSelectedActiveCommitmentId(data.commitment.id);
-      
-      // Update cached user wallet balance
-      const storedUser = await AsyncStorage.getItem('@habitcontract_user_profile');
-      if (storedUser) {
-        const user = JSON.parse(storedUser);
-        user.walletBalance = data.walletBalance;
-        await AsyncStorage.setItem('@habitcontract_user_profile', JSON.stringify(user));
-      }
 
       await this.syncWidgets();
     } catch (e) {
@@ -743,20 +777,9 @@ export class HealthDataService {
         const isActive = activeCommitments.some((c: any) => c.id === targetId);
         if (isActive) {
           // Send DELETE request to cancel and refund
-          const delResponse = await this.authenticatedFetch(`/api/commitments/${targetId}`, {
+          await this.authenticatedFetch(`/api/commitments/${targetId}`, {
             method: 'DELETE',
           });
-
-          if (delResponse.ok) {
-            const data = await delResponse.json();
-            // Update cached wallet balance
-            const storedUser = await AsyncStorage.getItem('@habitcontract_user_profile');
-            if (storedUser) {
-              const user = JSON.parse(storedUser);
-              user.walletBalance = data.walletBalance;
-              await AsyncStorage.setItem('@habitcontract_user_profile', JSON.stringify(user));
-            }
-          }
         }
         
         const selectedId = await AsyncStorage.getItem(STORAGE_KEYS.SELECTED_COMMITMENT_ID);
@@ -800,6 +823,7 @@ export class HealthDataService {
         body: JSON.stringify({
           status: commitment.status,
           performanceData: commitment.performanceData || [],
+          refundMethod: commitment.refundMethod || 'wallet',
         }),
       });
 
@@ -807,69 +831,11 @@ export class HealthDataService {
         throw new Error('Failed to resolve commitment on backend');
       }
 
-      const data = await response.json();
+      await response.json();
       
-      // Update cached wallet balance
-      const storedUser = await AsyncStorage.getItem('@habitcontract_user_profile');
-      if (storedUser) {
-        const user = JSON.parse(storedUser);
-        user.walletBalance = data.walletBalance;
-        await AsyncStorage.setItem('@habitcontract_user_profile', JSON.stringify(user));
-      }
     } catch (e) {
       console.error('Error resolving commitment on backend', e);
     }
-  }
-
-  static async getWalletBalance(): Promise<number> {
-    try {
-      const response = await this.authenticatedFetch('/api/user/profile');
-      if (response.ok) {
-        const data = await response.json();
-        // Update cached profile
-        await AsyncStorage.setItem('@habitcontract_user_profile', JSON.stringify(data));
-        return data.walletBalance;
-      }
-    } catch (e) {
-      console.error('Failed to get wallet balance from backend', e);
-    }
-
-    try {
-      const stored = await AsyncStorage.getItem('@habitcontract_user_profile');
-      if (stored) {
-        const user = JSON.parse(stored);
-        return user.walletBalance || 100.0;
-      }
-    } catch {}
-    return 100.0;
-  }
-
-  static async updateWalletBalance(amount: number): Promise<number> {
-    try {
-      const response = await this.authenticatedFetch('/api/user/wallet', {
-        method: 'PUT',
-        body: JSON.stringify({ amount }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        // Update cached profile
-        const storedUser = await AsyncStorage.getItem('@habitcontract_user_profile');
-        if (storedUser) {
-          const user = JSON.parse(storedUser);
-          user.walletBalance = data.walletBalance;
-          await AsyncStorage.setItem('@habitcontract_user_profile', JSON.stringify(user));
-        }
-        return data.walletBalance;
-      }
-    } catch (e) {
-      console.error('Failed to update wallet balance on backend', e);
-    }
-
-    // Fallback to local offline addition
-    const current = await this.getWalletBalance();
-    const updated = Math.max(0, current + amount);
-    return updated;
   }
 
   static getMetricLabel(type: string): string {
@@ -999,7 +965,52 @@ export class HealthDataService {
     );
   }
 
-  static getRemainingDaysString(commitment: Commitment, weeklyDataList: DailyHealthData[]) {
+  static getCommitmentSentence(commitment: Commitment): string {
+    const isWeekly = commitment.targetScope === 'weekly';
+    const periodLabel = commitment.period === 'week' ? 'week' : 'month';
+    const targetValue = commitment.targetValue;
+    const metric = commitment.metricType;
+    
+    const formattedValue = metric === 'steps' || metric === 'calories' ? targetValue.toLocaleString() : targetValue;
+
+    if (isWeekly) {
+      switch (metric) {
+        case 'steps':
+          return `I commit to walk more than total ${formattedValue} steps in the ${periodLabel}.`;
+        case 'run':
+          return `I commit to run more than total ${formattedValue} km in the ${periodLabel}.`;
+        case 'mindfulness':
+          return `I commit to practice mindfulness for more than total ${formattedValue} mins in the ${periodLabel}.`;
+        case 'cycle':
+          return `I commit to cycle more than total ${formattedValue} km in the ${periodLabel}.`;
+        case 'calories':
+          return `I commit to burn more than total ${formattedValue} active kcal in the ${periodLabel}.`;
+        case 'activeTime':
+          return `I commit to exercise for more than total ${formattedValue} mins in the ${periodLabel}.`;
+        default:
+          return `I commit to achieve more than total ${formattedValue} in the ${periodLabel}.`;
+      }
+    } else {
+      switch (metric) {
+        case 'steps':
+          return `I commit to walk more than ${formattedValue} steps everyday for a ${periodLabel}.`;
+        case 'run':
+          return `I commit to run more than ${formattedValue} km everyday for a ${periodLabel}.`;
+        case 'mindfulness':
+          return `I commit to practice mindfulness for more than ${formattedValue} mins everyday for a ${periodLabel}.`;
+        case 'cycle':
+          return `I commit to cycle more than ${formattedValue} km everyday for a ${periodLabel}.`;
+        case 'calories':
+          return `I commit to burn more than ${formattedValue} active kcal everyday for a ${periodLabel}.`;
+        case 'activeTime':
+          return `I commit to exercise for more than ${formattedValue} mins everyday for a ${periodLabel}.`;
+        default:
+          return `I commit to achieve more than ${formattedValue} everyday for a ${periodLabel}.`;
+      }
+    }
+  }
+
+  static getRemainingDaysString(commitment: Commitment, weeklyDataList: DailyHealthData[]): string {
     if (!commitment) return '0 Days';
     try {
       const today = new Date();
@@ -1017,8 +1028,8 @@ export class HealthDataService {
     }
   }
 
-  static getCommitmentSegments(commitment: Commitment, weeklyDataList: DailyHealthData[]): ('future' | 'success' | 'failed' | 'today')[] {
-    const segments: ('future' | 'success' | 'failed' | 'today')[] = [];
+  static getCommitmentSegments(commitment: Commitment, weeklyDataList: DailyHealthData[]): ('future' | 'success' | 'failed' | 'today_success' | 'today_pending')[] {
+    const segments: ('future' | 'success' | 'failed' | 'today_success' | 'today_pending')[] = [];
     const allDays = this.getCommitmentDaysList(commitment);
     const todayDateStr = this.getTodayDateString();
 
@@ -1028,7 +1039,12 @@ export class HealthDataService {
       if (dateStr > todayDateStr) {
         segments.push('future');
       } else if (dateStr === todayDateStr) {
-        segments.push('today');
+        const isGoalMet = dayData
+          ? (commitment.targetScope === 'weekly'
+            ? dayData.value > 0
+            : dayData.value >= commitment.targetValue)
+          : false;
+        segments.push(isGoalMet ? 'today_success' : 'today_pending');
       } else {
         const isGoalMet = dayData
           ? (commitment.targetScope === 'weekly'
@@ -1081,11 +1097,15 @@ export class HealthDataService {
               targetScope: commitment.targetScope || 'daily',
               stakeAmount: commitment.stakeAmount,
               segments,
+              sentence: this.getCommitmentSentence(commitment),
             });
           }
 
+          const selectedIdx = await this.getWidgetSelectedIndex();
+
           CommitmentsProgressWidget.updateSnapshot({
             commitments: statsList,
+            selectedIndex: selectedIdx,
           });
         } catch (e) {
           console.error('Failed to update iOS widget', e);
@@ -1094,5 +1114,36 @@ export class HealthDataService {
     } catch (e) {
       console.error('Error in syncWidgets', e);
     }
+  }
+
+  static async getWidgetSelectedIndex(): Promise<number> {
+    try {
+      if (Platform.OS === 'ios') {
+        const CommitmentsProgressWidget = require('@/widgets/ios').default;
+        const timeline = await CommitmentsProgressWidget.getTimeline();
+        if (timeline && timeline.length > 0) {
+          const firstEntry = timeline[0];
+          if (firstEntry && firstEntry.props && typeof firstEntry.props.selectedIndex === 'number') {
+            const idx = firstEntry.props.selectedIndex;
+            await AsyncStorage.setItem('__widget_selected_index', idx.toString());
+            return idx;
+          }
+        }
+      }
+    } catch (e) {
+      console.log('[HealthDataService] Error syncing index from native widget:', e);
+    }
+    try {
+      const val = await AsyncStorage.getItem('__widget_selected_index');
+      return val ? parseInt(val, 10) : 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  static async setWidgetSelectedIndex(index: number): Promise<void> {
+    try {
+      await AsyncStorage.setItem('__widget_selected_index', index.toString());
+    } catch {}
   }
 }

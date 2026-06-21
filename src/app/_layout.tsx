@@ -1,18 +1,68 @@
+import React, { useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import { useColorScheme, StyleSheet, Platform, View, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
+import * as Notifications from 'expo-notifications';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { Colors } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/services/auth';
 import AuthScreen from '@/components/AuthScreen';
+import { NotificationService } from '@/services/notifications';
+import { addUserInteractionListener } from 'expo-widgets';
+import { HealthDataService } from '@/services/health';
+
+// Configure foreground notifications
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 function TabLayoutContent() {
   const { user, isLoading } = useAuth();
   const colorScheme = useColorScheme() ?? 'dark';
   const colors = Colors[colorScheme === 'light' ? 'light' : 'dark'];
+
+  useEffect(() => {
+    // Listen for widget page cycles (interactive chevron/arrow taps)
+    const sub = addUserInteractionListener(async (event) => {
+      if (event.source === 'CommitmentsProgressWidget' && event.target === 'next') {
+        try {
+          const commitments = await HealthDataService.getActiveCommitments();
+          if (commitments.length > 1) {
+            const currentIdx = await HealthDataService.getWidgetSelectedIndex();
+            const nextIdx = (currentIdx + 1) % commitments.length;
+            await HealthDataService.setWidgetSelectedIndex(nextIdx);
+            // Native Swift AppIntent handles updating index and reloading timelines per-widget instance,
+            // so we do not call syncWidgets() here to avoid overwriting configuration-specific states.
+          }
+        } catch (err) {
+          console.error('[Layout] Failed to cycle widget commitment:', err);
+        }
+      }
+    });
+
+    if (user) {
+      const initNotifications = async () => {
+        const granted = await NotificationService.requestPermissions();
+        if (granted) {
+          await NotificationService.scheduleAllNotifications();
+        }
+      };
+      initNotifications();
+    }
+
+    return () => {
+      sub.remove();
+    };
+  }, [user]);
 
   if (isLoading) {
     return (

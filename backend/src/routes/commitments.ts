@@ -22,21 +22,22 @@ router.get('/', authenticateToken as any, async (req: AuthenticatedRequest, res:
       .get();
 
     const commitments: any[] = [];
-    const expiredIdsToUpdate: string[] = [];
-    const resolvedAt = new Date().toISOString();
+    const restoreIdsToUpdate: string[] = [];
 
     commitmentsSnapshot.forEach((doc) => {
       const data = doc.data();
       const id = doc.id;
       
-      if (data.status === 'active' && isGracePeriodExpired(data.endDate)) {
-        expiredIdsToUpdate.push(id);
+      // Auto-restore previously auto-failed commitments due to grace period
+      // so the user can manually archive them from the Active tab
+      if (data.status === 'failed' && data.failureReason === 'grace_period_expired') {
+        restoreIdsToUpdate.push(id);
         commitments.push({
           id,
           ...data,
-          status: 'failed',
-          resolvedAt,
-          failureReason: 'grace_period_expired',
+          status: 'active',
+          failureReason: null,
+          resolvedAt: null,
         });
       } else {
         commitments.push({
@@ -46,19 +47,19 @@ router.get('/', authenticateToken as any, async (req: AuthenticatedRequest, res:
       }
     });
 
-    // Lazy resolve in batch
-    if (expiredIdsToUpdate.length > 0) {
+    // Lazy restore in batch
+    if (restoreIdsToUpdate.length > 0) {
       const batch = db.batch();
-      expiredIdsToUpdate.forEach((id) => {
+      restoreIdsToUpdate.forEach((id) => {
         const ref = db.collection('commitments').doc(id);
         batch.update(ref, {
-          status: 'failed',
-          resolvedAt,
-          failureReason: 'grace_period_expired',
+          status: 'active',
+          failureReason: null,
+          resolvedAt: null,
         });
       });
       await batch.commit();
-      console.log(`Lazy-resolved ${expiredIdsToUpdate.length} expired commitments to failed.`);
+      console.log(`Lazy-restored ${restoreIdsToUpdate.length} expired commitments to active.`);
     }
 
     // Sort commitments by createdAt descending in-memory to avoid requiring a composite Firestore index
@@ -93,66 +94,42 @@ router.post('/', authenticateToken as any, async (req: AuthenticatedRequest, res
       return res.status(400).json({ error: 'Missing required commitment parameters' });
     }
 
-    const userRef = db.collection('users').doc(userId);
     const commitmentsRef = db.collection('commitments');
+    const newCommitmentRef = commitmentsRef.doc();
+    const newCommitment = {
+      userId,
+      metricType,
+      targetValue: Number(targetValue),
+      period,
+      stakeAmount: Number(stakeAmount),
+      startDate,
+      endDate,
+      targetScope: targetScope || 'daily',
+      status: 'active',
+      createdAt: new Date().toISOString(),
+    };
 
-    // Run transaction to check/deduct wallet balance and create commitment
-    const result = await db.runTransaction(async (transaction) => {
-      const userDoc = await transaction.get(userRef);
-      if (!userDoc.exists) {
-        throw new Error('User not found');
+    await newCommitmentRef.set(newCommitment);
+
+    return res.status(201).json({
+      commitment: {
+        id: newCommitmentRef.id,
+        ...newCommitment,
       }
-
-      const balance = userDoc.data()?.walletBalance || 0;
-      if (balance < stakeAmount) {
-        throw new Error('Insufficient wallet balance to stake this commitment');
-      }
-
-      // Deduct balance
-      const newBalance = balance - stakeAmount;
-      transaction.update(userRef, { walletBalance: newBalance });
-
-      // Create commitment document reference
-      const newCommitmentRef = commitmentsRef.doc();
-      const newCommitment = {
-        userId,
-        metricType,
-        targetValue: Number(targetValue),
-        period,
-        stakeAmount: Number(stakeAmount),
-        startDate,
-        endDate,
-        targetScope: targetScope || 'daily',
-        status: 'active',
-        createdAt: new Date().toISOString(),
-      };
-
-      transaction.set(newCommitmentRef, newCommitment);
-
-      return {
-        commitment: {
-          id: newCommitmentRef.id,
-          ...newCommitment,
-        },
-        walletBalance: newBalance,
-      };
     });
-
-    return res.status(201).json(result);
   } catch (err: any) {
     console.error('Error creating commitment:', err);
     return res.status(400).json({ error: err.message || 'Internal server error' });
   }
 });
 
-// Delete/Cancel an active commitment (refunds stake)
+// Delete/Cancel an active commitment (refunds stake to original payment method)
 router.delete('/:id', authenticateToken as any, async (req: AuthenticatedRequest, res: any) => {
   try {
     const userId = req.userId!;
     const commitmentId = req.params.id;
 
     const commitmentRef = db.collection('commitments').doc(commitmentId);
-    const userRef = db.collection('users').doc(userId);
 
     const result = await db.runTransaction(async (transaction) => {
       const commitmentDoc = await transaction.get(commitmentRef);
@@ -165,20 +142,11 @@ router.delete('/:id', authenticateToken as any, async (req: AuthenticatedRequest
         throw new Error('Unauthorized');
       }
 
-      let updatedBalance = 0;
-      if (commitment.status === 'active') {
-        const userDoc = await transaction.get(userRef);
-        const currentBalance = userDoc.data()?.walletBalance || 0;
-        updatedBalance = currentBalance + commitment.stakeAmount;
-        transaction.update(userRef, { walletBalance: updatedBalance });
-      }
-
       transaction.delete(commitmentRef);
 
       return {
         refunded: commitment.status === 'active',
         refundAmount: commitment.stakeAmount,
-        walletBalance: updatedBalance,
       };
     });
 
@@ -194,14 +162,13 @@ router.post('/:id/resolve', authenticateToken as any, async (req: AuthenticatedR
   try {
     const userId = req.userId!;
     const commitmentId = req.params.id;
-    const { status, performanceData } = req.body;
+    const { status, performanceData, refundMethod } = req.body;
 
     if (!status || !['success', 'failed'].includes(status)) {
       return res.status(400).json({ error: 'Valid resolution status ("success" or "failed") is required' });
     }
 
     const commitmentRef = db.collection('commitments').doc(commitmentId);
-    const userRef = db.collection('users').doc(userId);
 
     const updatedCommitment = await db.runTransaction(async (transaction) => {
       const commitmentDoc = await transaction.get(commitmentRef);
@@ -222,23 +189,12 @@ router.post('/:id/resolve', authenticateToken as any, async (req: AuthenticatedR
         throw new Error('Grace period (48 hours) for this commitment has expired');
       }
 
-      // If success, refund the stake
-      let userBalance = 0;
-      if (status === 'success') {
-        const userDoc = await transaction.get(userRef);
-        const currentBalance = userDoc.data()?.walletBalance || 0;
-        userBalance = currentBalance + commitment.stakeAmount;
-        transaction.update(userRef, { walletBalance: userBalance });
-      } else {
-        const userDoc = await transaction.get(userRef);
-        userBalance = userDoc.data()?.walletBalance || 0;
-      }
-
       // Update commitment status
       const updates = {
         status,
         performanceData: performanceData || [],
         resolvedAt: new Date().toISOString(),
+        refundMethod: refundMethod || 'bank',
       };
 
       transaction.update(commitmentRef, updates);
@@ -247,7 +203,6 @@ router.post('/:id/resolve', authenticateToken as any, async (req: AuthenticatedR
         id: commitmentId,
         ...commitment,
         ...updates,
-        walletBalance: userBalance,
       };
     });
 

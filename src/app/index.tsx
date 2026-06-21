@@ -8,6 +8,8 @@ import {
   RefreshControl,
   Platform,
   AppState,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -20,6 +22,11 @@ import { HealthDataService, Commitment, DailyHealthData } from '@/services/healt
 import HowItWorksPane from '@/components/HowItWorksPane';
 import { VerificationGuideModal } from '@/components/VerificationGuideModal';
 import AppHeader, { BASE_HEADER_HEIGHT } from '@/components/AppHeader';
+import { NotificationService } from '@/services/notifications';
+
+function generateRandomId() {
+  return Math.random().toString(36).substring(2, 11);
+}
 
 export default function TrackerDashboard() {
   const router = useRouter();
@@ -31,6 +38,9 @@ export default function TrackerDashboard() {
   const [expandedLogs, setExpandedLogs] = useState<Record<string, boolean>>({});
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isVerificationGuideVisible, setIsVerificationGuideVisible] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [logsLoading, setLogsLoading] = useState<Record<string, boolean>>({});
+  const [isResolving, setIsResolving] = useState<Record<string, boolean>>({});
   
   // Simulator Panel Visibility & Target Commitment
   const [simulatingCommitment, setSimulatingCommitment] = useState<Commitment | null>(null);
@@ -41,6 +51,15 @@ export default function TrackerDashboard() {
       const commitments = await HealthDataService.getActiveCommitments();
       setActiveCommitments(commitments);
 
+      // Mark active commitments as loading logs
+      setLogsLoading((prev) => {
+        const next = { ...prev };
+        commitments.forEach((c) => {
+          next[c.id] = true;
+        });
+        return next;
+      });
+
       // Real HealthKit sync
       if (Platform.OS === 'ios') {
         try {
@@ -50,14 +69,38 @@ export default function TrackerDashboard() {
         }
       }
 
-      const weeklyDataMap: Record<string, DailyHealthData[]> = {};
-      for (const commitment of commitments) {
-        const data = await HealthDataService.fetchWeeklyData(commitment.metricType, commitment);
-        weeklyDataMap[commitment.id] = data;
-      }
-      setCommitmentsWeeklyData(weeklyDataMap);
+      await Promise.all(
+        commitments.map(async (commitment) => {
+          try {
+            const data = await HealthDataService.fetchWeeklyData(commitment.metricType, commitment);
+            setCommitmentsWeeklyData((prev) => ({
+              ...prev,
+              [commitment.id]: data,
+            }));
+
+            // Check for goal completion and trigger immediate achievement notifications
+            const todayStr = HealthDataService.getTodayDateString();
+            const todayEntry = data.find(d => d.dateString === todayStr);
+            if (todayEntry) {
+              await NotificationService.checkAndTriggerCompletionNotification(commitment, todayEntry.value);
+            }
+          } catch (e) {
+            console.error(`Failed to fetch weekly data for ${commitment.id}:`, e);
+          } finally {
+            setLogsLoading((prev) => ({
+              ...prev,
+              [commitment.id]: false,
+            }));
+          }
+        })
+      );
+
+      // Re-schedule all local reminders based on achievements and current active commitments
+      await NotificationService.scheduleAllNotifications();
     } catch (error) {
       console.error('Failed to load tracking data', error);
+    } finally {
+      setIsInitialLoading(false);
     }
   };
 
@@ -292,6 +335,154 @@ export default function TrackerDashboard() {
     }
   };
 
+  const handleProlong = async (commitment: Commitment, weeklyDataList: DailyHealthData[]) => {
+    try {
+      setIsResolving(prev => ({ ...prev, [commitment.id]: true }));
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      
+      // 1. Resolve old commitment as success
+      const resolvedCommitment: Commitment = {
+        ...commitment,
+        status: 'success',
+        performanceData: weeklyDataList,
+      };
+      await HealthDataService.addHistoryEntry(resolvedCommitment);
+      
+      // 2. Clear active commitment slot
+      await HealthDataService.clearActiveCommitment(commitment.id);
+      
+      // 3. Calculate new dates for prolonging
+      const [year, month, day] = commitment.endDate.split('-').map(Number);
+      const endDateObj = new Date(year, month - 1, day, 12, 0, 0);
+      const newStartDateObj = new Date(endDateObj);
+      newStartDateObj.setDate(endDateObj.getDate() + 1); // starts next day (Monday)
+      
+      const newEndDateObj = new Date(newStartDateObj);
+      if (commitment.period === 'month') {
+        newEndDateObj.setMonth(newStartDateObj.getMonth() + 1);
+        newEndDateObj.setDate(newEndDateObj.getDate() - 1);
+      } else {
+        newEndDateObj.setDate(newStartDateObj.getDate() + 6);
+      }
+      
+      const formatLocalDate = (d: Date) => {
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      };
+      
+      // 4. Create new commitment
+      const newCommitment = {
+        id: generateRandomId(),
+        metricType: commitment.metricType,
+        targetValue: commitment.targetValue,
+        period: commitment.period,
+        stakeAmount: commitment.stakeAmount,
+        startDate: formatLocalDate(newStartDateObj),
+        endDate: formatLocalDate(newEndDateObj),
+        status: 'active' as const,
+        createdAt: new Date().toISOString(),
+        targetScope: commitment.targetScope,
+      };
+      
+      await HealthDataService.saveActiveCommitment(newCommitment);
+      await HealthDataService.resetSimulatedData();
+      
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        'Goal Prolonged!',
+        `Your €${commitment.stakeAmount} pledge has been rolled over to next week (${newCommitment.startDate} to ${newCommitment.endDate}).`
+      );
+      
+      await loadData();
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Error', 'Failed to prolong commitment. Please try again.');
+    } finally {
+      setIsResolving(prev => ({ ...prev, [commitment.id]: false }));
+    }
+  };
+
+  const handleRollover = (commitment: Commitment) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push({
+      pathname: '/commit',
+      params: {
+        rolloverFrom: commitment.id,
+        rolloverStake: commitment.stakeAmount.toString(),
+      }
+    });
+  };
+
+  const handleBankRefund = async (commitment: Commitment, weeklyDataList: DailyHealthData[]) => {
+    try {
+      setIsResolving(prev => ({ ...prev, [commitment.id]: true }));
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      
+      // 1. Resolve old commitment as success with refundMethod: 'bank'
+      const resolvedCommitment: Commitment = {
+        ...commitment,
+        status: 'success',
+        performanceData: weeklyDataList,
+        refundMethod: 'bank',
+      };
+      await HealthDataService.addHistoryEntry(resolvedCommitment);
+      
+      // 2. Clear active commitment slot
+      await HealthDataService.clearActiveCommitment(commitment.id);
+      
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        'Refund Process Started',
+        `Your pledge of €${commitment.stakeAmount} will be returned to your bank account. Please allow 3-5 business days for processing.`
+      );
+      
+      await loadData();
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Error', 'Failed to process bank refund. Please try again.');
+    } finally {
+      setIsResolving(prev => ({ ...prev, [commitment.id]: false }));
+    }
+  };
+
+  const handleAcknowledgeForfeiture = async (commitment: Commitment, weeklyDataList: DailyHealthData[]) => {
+    try {
+      setIsResolving(prev => ({ ...prev, [commitment.id]: true }));
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      
+      // 1. Resolve old commitment as failed
+      const resolvedCommitment: Commitment = {
+        ...commitment,
+        status: 'failed',
+        performanceData: weeklyDataList,
+      };
+      await HealthDataService.addHistoryEntry(resolvedCommitment);
+      
+      // 2. Clear active commitment slot
+      await HealthDataService.clearActiveCommitment(commitment.id);
+      
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      Alert.alert(
+        'Forfeiture Acknowledged',
+        `€${commitment.stakeAmount} has been processed as platform revenue. Keep trying!`
+      );
+      
+      await loadData();
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Error', 'Failed to acknowledge forfeiture. Please try again.');
+    } finally {
+      setIsResolving(prev => ({ ...prev, [commitment.id]: false }));
+    }
+  };
+
+  if (isInitialLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#06070B', justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#7C3AED" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={{ flex: 1 }}>
@@ -368,6 +559,29 @@ export default function TrackerDashboard() {
               const isBroken = hasFailedSoFar(commitment, weeklyDataList);
               const isExpanded = !!expandedLogs[commitment.id];
 
+              // Grace Period & Completed status calculation
+              const end = parseLocalDate(commitment.endDate, 23, 59, 59);
+              const today = new Date();
+              const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+              const endMidnight = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+              const diffMs = endMidnight.getTime() - todayMidnight.getTime();
+              const isCompleted = diffMs < 0;
+
+              const isSuccess = commitment.targetScope === 'weekly'
+                ? totalAccumulated >= commitment.targetValue
+                : weeklyDataList.length === 7 && weeklyDataList.every((d) => d.value >= commitment.targetValue);
+
+              let graceDiffHours = 0;
+              if (isCompleted) {
+                const [year, month, day] = commitment.endDate.split('-').map(Number);
+                const gracePeriodEnd = new Date(year, month - 1, day + 3, 0, 0, 0, 0);
+                const graceDiffMs = gracePeriodEnd.getTime() - today.getTime();
+                graceDiffHours = Math.max(0, Math.ceil(graceDiffMs / (1000 * 60 * 60)));
+              }
+
+              const isLogLoading = logsLoading[commitment.id] !== false && 
+                (commitmentsWeeklyData[commitment.id] === undefined || logsLoading[commitment.id] === true);
+
               return (
                 <View key={commitment.id} style={styles.commitmentCardContainer}>
                   <LinearGradient
@@ -393,6 +607,9 @@ export default function TrackerDashboard() {
                         </View>
                         <Text style={styles.commitmentPeriodSubtitle}>
                           {commitment.targetScope === 'weekly' ? 'Weekly' : 'Daily'} Target • {commitment.targetValue.toLocaleString()} {getMetricUnit(commitment.metricType)}
+                        </Text>
+                        <Text style={[styles.commitmentPeriodSubtitle, { opacity: 0.8, marginTop: 4, fontStyle: 'italic' }]} numberOfLines={2}>
+                          {HealthDataService.getCommitmentSentence(commitment)}
                         </Text>
                       </View>
 
@@ -452,7 +669,7 @@ export default function TrackerDashboard() {
                                 ? dayData.value > 0
                                 : dayData.value >= commitment.targetValue)
                               : false;
-                            sliceColor = isGoalMet ? '#05D38E' : 'rgba(5, 211, 142, 0.25)'; // Solid green if achieved, faded green if not
+                            sliceColor = isGoalMet ? '#05D38E' : '#FFB74D'; // Solid green if achieved, soft amber if not
                           } else {
                             // Past Day
                             const isGoalMet = dayData
@@ -604,6 +821,100 @@ export default function TrackerDashboard() {
                             })()}
                           </View>
                         </ScrollView>
+                      </View>
+                    )}
+
+                    {/* Grace Period or Early Failure Decision Panel */}
+                    {(isCompleted || isBroken) && (
+                      <View style={styles.decisionPanelContainer}>
+                        {isLogLoading ? (
+                          <ActivityIndicator size="small" color="#7C3AED" style={{ marginVertical: 12 }} />
+                        ) : isCompleted && isSuccess && graceDiffHours > 0 ? (
+                          <LinearGradient
+                            colors={['rgba(124, 58, 237, 0.15)', 'rgba(79, 70, 229, 0.05)']}
+                            style={styles.decisionSuccessCard}
+                          >
+                            <View style={styles.decisionHeaderRow}>
+                              <MaterialCommunityIcons name="trophy-outline" size={20} color="#05D38E" />
+                              <Text style={styles.decisionTitle}>Goal Achieved! Refund Available</Text>
+                            </View>
+                            <Text style={styles.decisionSubtitle}>
+                              You have a {graceDiffHours}h grace period to decide:
+                            </Text>
+
+                            {isResolving[commitment.id] ? (
+                              <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+                                <ActivityIndicator size="small" color="#7C3AED" />
+                                <Text style={styles.loadingText}>Processing decision...</Text>
+                              </View>
+                            ) : (
+                              <View style={styles.decisionActionsCol}>
+                                <TouchableOpacity
+                                  style={styles.prolongButton}
+                                  onPress={() => handleProlong(commitment, weeklyDataList)}
+                                  activeOpacity={0.8}
+                                >
+                                  <LinearGradient
+                                    colors={['#7C3AED', '#4F46E5']}
+                                    style={styles.prolongGradient}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                  >
+                                    <MaterialCommunityIcons name="sync" size={16} color="#FFFFFF" />
+                                    <Text style={styles.prolongText}>Prolong Goal (+1 Week)</Text>
+                                  </LinearGradient>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                  style={styles.rolloverButton}
+                                  onPress={() => handleRollover(commitment)}
+                                  activeOpacity={0.8}
+                                >
+                                  <MaterialCommunityIcons name="swap-horizontal" size={16} color="#FFFFFF" />
+                                  <Text style={styles.rolloverText}>Rollover Stake to New Goal</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                  style={styles.refundButton}
+                                  onPress={() => handleBankRefund(commitment, weeklyDataList)}
+                                  activeOpacity={0.8}
+                                >
+                                  <MaterialCommunityIcons name="cash-refund" size={16} color="#94A3B8" />
+                                  <Text style={styles.refundText}>Send Refund to Bank Account</Text>
+                                </TouchableOpacity>
+                              </View>
+                            )}
+                          </LinearGradient>
+                        ) : (
+                          <LinearGradient
+                            colors={['rgba(255, 70, 85, 0.15)', 'rgba(210, 0, 59, 0.05)']}
+                            style={styles.decisionFailedCard}
+                          >
+                            <View style={styles.decisionHeaderRow}>
+                              <MaterialCommunityIcons name="alert-circle-outline" size={20} color="#FF4655" />
+                              <Text style={[styles.decisionTitle, { color: '#FF4655' }]}>Goal Failed: Pledge Forfeited</Text>
+                            </View>
+                            <Text style={styles.decisionSubtitle}>
+                              {isCompleted 
+                                ? 'Please archive and send to history.' 
+                                : 'You missed a daily target. You can archive and send it to history now.'}
+                            </Text>
+
+                            {isResolving[commitment.id] ? (
+                              <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+                                <ActivityIndicator size="small" color="#FF4655" />
+                              </View>
+                            ) : (
+                              <TouchableOpacity
+                                style={styles.forfeitAcknowledgeButton}
+                                onPress={() => handleAcknowledgeForfeiture(commitment, weeklyDataList)}
+                                activeOpacity={0.8}
+                              >
+                                <Text style={styles.forfeitAcknowledgeText}>Archive & Send to History</Text>
+                              </TouchableOpacity>
+                            )}
+                          </LinearGradient>
+                        )}
                       </View>
                     )}
 
@@ -976,6 +1287,106 @@ const styles = StyleSheet.create({
   statusLabelText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  decisionPanelContainer: {
+    marginTop: Spacing.four,
+    borderTopWidth: 1,
+    borderTopColor: '#181B28',
+    paddingTop: Spacing.three,
+  },
+  decisionSuccessCard: {
+    borderRadius: 12,
+    padding: Spacing.three,
+    borderWidth: 1,
+    borderColor: 'rgba(124, 58, 237, 0.25)',
+  },
+  decisionFailedCard: {
+    borderRadius: 12,
+    padding: Spacing.three,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 70, 85, 0.25)',
+  },
+  decisionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  decisionTitle: {
+    color: '#05D38E',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  decisionSubtitle: {
+    color: '#94A3B8',
+    fontSize: 12,
+    marginBottom: Spacing.three,
+  },
+  decisionActionsCol: {
+    gap: 8,
+  },
+  prolongButton: {
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  prolongGradient: {
+    height: 38,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+  },
+  prolongText: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: 'bold',
+  },
+  rolloverButton: {
+    height: 38,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#7C3AED',
+    borderRadius: 8,
+    backgroundColor: 'rgba(124, 58, 237, 0.08)',
+  },
+  rolloverText: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: 'bold',
+  },
+  refundButton: {
+    height: 38,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 8,
+    backgroundColor: '#1E293B',
+  },
+  refundText: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  forfeitAcknowledgeButton: {
+    height: 38,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+    backgroundColor: '#FF4655',
+  },
+  forfeitAcknowledgeText: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: 'bold',
+  },
+  loadingText: {
+    color: '#94A3B8',
+    fontSize: 11,
+    marginTop: 4,
   },
 });
 

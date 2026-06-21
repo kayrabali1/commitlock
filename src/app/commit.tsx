@@ -10,13 +10,14 @@ import {
   Modal,
   ActivityIndicator,
   Platform,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, { 
   FadeInDown, 
   FadeOutUp, 
@@ -37,6 +38,8 @@ const { width } = Dimensions.get('window');
 export default function CommitScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  
+  const { rolloverFrom, rolloverStake } = useLocalSearchParams<{ rolloverFrom?: string; rolloverStake?: string }>();
   
   // Accordion Step State
   const [activeStep, setActiveStep] = useState<number>(0);
@@ -65,7 +68,7 @@ export default function CommitScreen() {
   const [isMetricSelected, setIsMetricSelected] = useState<boolean>(false);
   const [isTargetSelected, setIsTargetSelected] = useState<boolean>(false);
   const [isDurationSelected, setIsDurationSelected] = useState<boolean>(false);
-  const [isStakeSelected, setIsStakeSelected] = useState<boolean>(false);
+  const [isStakeSelected, setIsStakeSelected] = useState<boolean>(!!rolloverStake);
 
   const allStepsReady = isMetricSelected && isTargetSelected && isDurationSelected && isStakeSelected;
   
@@ -81,7 +84,7 @@ export default function CommitScreen() {
     return new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2, 12, 0, 0);
   });
   const [isDatePickerVisible, setIsDatePickerVisible] = useState(false);
-  const [stake, setStake] = useState<number>(10); // Default €10
+  const [stake, setStake] = useState<number>(() => rolloverStake ? Number(rolloverStake) : 10); // Default €10
   const [customStake, setCustomStake] = useState<string>('');
 
   const getStartDateOptions = () => {
@@ -175,11 +178,11 @@ export default function CommitScreen() {
   
   // Custom Stake Sheet States & Ref
   const [isCustomSheetVisible, setIsCustomSheetVisible] = useState(false);
-  const [tempStake, setTempStake] = useState<number>(25);
+  const [tempStake, setTempStake] = useState<number>(30);
   const pickerScrollRef = useRef<ScrollView>(null);
   
-  // Custom Stake options: 25 to 250 in increments of 5
-  const customStakeOptions = Array.from({ length: 46 }, (_, i) => 25 + i * 5);
+  // Custom Stake options
+  const customStakeOptions = [30, 40, 50, 100, 250];
 
   const toggleStep = (stepNumber: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -187,7 +190,7 @@ export default function CommitScreen() {
   };
 
   const handleOpenCustomSheet = () => {
-    const activeVal = stake >= 25 ? stake : 25;
+    const activeVal = customStakeOptions.includes(stake) ? stake : customStakeOptions[0];
     setTempStake(activeVal);
     setIsCustomSheetVisible(true);
     
@@ -361,7 +364,7 @@ export default function CommitScreen() {
     setStake(10);
     setCustomStake('');
     setIsCustomSheetVisible(false);
-    setTempStake(25);
+    setTempStake(30);
     setPaymentStep('idle');
     setHasAcceptedDisclaimer(false);
     setIsVerificationGuideVisible(false);
@@ -395,6 +398,25 @@ export default function CommitScreen() {
           targetScope,
         };
 
+        // If rollover from completed commitment
+        if (rolloverFrom) {
+          try {
+            const oldCommitment = await HealthDataService.getActiveCommitment(rolloverFrom);
+            if (oldCommitment) {
+              const oldWeeklyData = await HealthDataService.fetchWeeklyData(oldCommitment.metricType, oldCommitment);
+              const resolvedOldCommitment = {
+                ...oldCommitment,
+                status: 'success' as const,
+                performanceData: oldWeeklyData,
+              };
+              await HealthDataService.addHistoryEntry(resolvedOldCommitment);
+              await HealthDataService.clearActiveCommitment(oldCommitment.id);
+            }
+          } catch (e) {
+            console.error('Error resolving old commitment in rollover flow:', e);
+          }
+        }
+
         // Save to active commitment storage
         await HealthDataService.saveActiveCommitment(newCommitment);
 
@@ -415,9 +437,13 @@ export default function CommitScreen() {
           }, 300);
         }, 1500);
 
-      } catch (error) {
+      } catch (error: any) {
         console.error(error);
         setPaymentStep('idle');
+        Alert.alert(
+          'Pledge Failed',
+          error.message || 'An error occurred while locking your commitment. Please try again.'
+        );
       }
     }, 2000);
   };
@@ -442,6 +468,48 @@ export default function CommitScreen() {
       case 'cycle': return `km${suffix}`;
       case 'calories': return `active kcal${suffix}`;
       case 'activeTime': return `mins${suffix}`;
+    }
+  };
+
+  const getCommitmentStatement = () => {
+    const formattedValue = metric === 'steps' || metric === 'calories' ? targetValue.toLocaleString() : targetValue;
+    const periodLabel = period === 'week' ? 'week' : 'month';
+    const isWeekly = targetScope === 'weekly';
+
+    if (isWeekly) {
+      switch (metric) {
+        case 'steps':
+          return `I commit to walk more than total ${formattedValue} steps in the ${periodLabel}.`;
+        case 'run':
+          return `I commit to run more than total ${formattedValue} km in the ${periodLabel}.`;
+        case 'mindfulness':
+          return `I commit to practice mindfulness for more than total ${formattedValue} mins in the ${periodLabel}.`;
+        case 'cycle':
+          return `I commit to cycle more than total ${formattedValue} km in the ${periodLabel}.`;
+        case 'calories':
+          return `I commit to burn more than total ${formattedValue} active kcal in the ${periodLabel}.`;
+        case 'activeTime':
+          return `I commit to exercise for more than total ${formattedValue} mins in the ${periodLabel}.`;
+        default:
+          return `I commit to achieve more than total ${formattedValue} in the ${periodLabel}.`;
+      }
+    } else {
+      switch (metric) {
+        case 'steps':
+          return `I commit to walk more than ${formattedValue} steps everyday for a ${periodLabel}.`;
+        case 'run':
+          return `I commit to run more than ${formattedValue} km everyday for a ${periodLabel}.`;
+        case 'mindfulness':
+          return `I commit to practice mindfulness for more than ${formattedValue} mins everyday for a ${periodLabel}.`;
+        case 'cycle':
+          return `I commit to cycle more than ${formattedValue} km everyday for a ${periodLabel}.`;
+        case 'calories':
+          return `I commit to burn more than ${formattedValue} active kcal everyday for a ${periodLabel}.`;
+        case 'activeTime':
+          return `I commit to exercise for more than ${formattedValue} mins everyday for a ${periodLabel}.`;
+        default:
+          return `I commit to achieve more than ${formattedValue} everyday for a ${periodLabel}.`;
+      }
     }
   };
 
@@ -480,6 +548,19 @@ export default function CommitScreen() {
           showsVerticalScrollIndicator={false}
         >
         
+        {/* Rollover Active Banner */}
+        {rolloverFrom && rolloverStake && (
+          <LinearGradient
+            colors={['rgba(124, 58, 237, 0.15)', 'rgba(79, 70, 229, 0.05)']}
+            style={styles.rolloverBanner}
+          >
+            <MaterialCommunityIcons name="swap-horizontal" size={18} color="#7C3AED" />
+            <Text style={styles.rolloverBannerText}>
+              Rollover Active: Re-pledging €{rolloverStake} from completed commitment.
+            </Text>
+          </LinearGradient>
+        )}
+
         {/* Header (Compact) */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Lock Commitment</Text>
@@ -536,7 +617,7 @@ export default function CommitScreen() {
                 contentContainerStyle={styles.metricScrollContent}
               >
                 {(['steps', 'run', 'mindfulness', 'cycle', 'calories', 'activeTime'] as MetricType[]).map((type) => {
-                  const isActive = metric === type;
+                  const isActive = isMetricSelected && metric === type;
                   const gradient = getMetricColor(type);
                   
                   const CardContent = (
@@ -679,17 +760,12 @@ export default function CommitScreen() {
 
               <View style={styles.syncNoticeRow}>
                 <MaterialCommunityIcons 
-                  name={metric === 'calories' ? 'information-outline' : 'shield-check'} 
+                  name="checkbox-marked-circle-outline" 
                   size={12} 
-                  color={metric === 'calories' ? '#FF7B00' : '#05D38E'} 
+                  color="#05D38E" 
                 />
-                <Text style={[styles.syncNoticeText, { flexShrink: 1 }]}>
-                  {metric === 'calories'
-                    ? 'Tracks Active Calories burned (excludes resting / BMR calories)'
-                    : metric === 'mindfulness'
-                    ? `Verified via native ${Platform.OS === 'ios' ? 'Apple Health (Mindful Sessions)' : 'Google Health Connect'} sensors`
-                    : `Verified via native ${Platform.OS === 'ios' ? 'Apple HealthKit' : 'Google Health Connect'} sensors`
-                  }
+                <Text style={[styles.syncNoticeText, { flexShrink: 1, color: '#94A3B8' }]}>
+                  {getCommitmentStatement()}
                 </Text>
               </View>
 
@@ -1390,7 +1466,7 @@ export default function CommitScreen() {
                   <MaterialCommunityIcons name="check" size={48} color="#FFFFFF" />
                 </View>
                 <Text style={styles.successText}>Pledge Locked!</Text>
-                <Text style={styles.successSubtext}>Pledge balance €{stake}.00 successfully credited</Text>
+                <Text style={styles.successSubtext}>€{stake}.00 successfully charged & locked</Text>
               </View>
             )}
 
@@ -1420,6 +1496,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#06070B',
+  },
+  rolloverBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(124, 58, 237, 0.25)',
+    padding: Spacing.three,
+    marginBottom: Spacing.three,
+    marginTop: 10,
+  },
+  rolloverBannerText: {
+    color: '#E2E8F0',
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
   },
   scrollView: {
     flex: 1,

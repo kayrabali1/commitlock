@@ -12,7 +12,6 @@ export interface User {
   name: string;
   avatar: string;
   tier: string;
-  walletBalance: number;
   provider: 'email' | 'google' | 'apple';
 }
 
@@ -50,7 +49,7 @@ export const getBaseUrl = (): string => {
     return Platform.OS === 'android' ? 'http://10.0.2.2:8080' : 'http://localhost:8080';
   }
 
-  return 'https://commitlock-backend-yigcukfpnq-ey.a.run.app';
+  return 'https://habitcontract-backend-658642477326.europe-west3.run.app';
 };
 
 export const API_URL = getBaseUrl();

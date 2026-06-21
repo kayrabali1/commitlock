@@ -52,26 +52,60 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
     switch (status) {
       case 'success': return '#05D38E';
       case 'failed': return '#FF4655';
-      case 'today': return '#7C3AED'; // Indigo/Purple accent for today
-      default: return '#1E293B'; // Future
+      case 'today_success': return '#7C3AED';
+      case 'today_pending': return '#7C3AED';
+      default: return '#1E293B';
     }
   };
 
   // Sliced progress bar component
-  function SlicedProgressBar({ segments }: { segments: ('future' | 'success' | 'failed' | 'today')[] }) {
+  function SlicedProgressBar({ segments, overallProgress, targetScope }: { segments: ('future' | 'success' | 'failed' | 'today_success' | 'today_pending')[], overallProgress: number, targetScope: string }) {
     "use no memo";
+    if (targetScope === 'weekly') {
+      return (
+        <HStack spacing={0} modifiers={[
+          cornerRadius(3),
+          frame({ height: 7 }),
+          clipShape('capsule')
+        ]}>
+          {Array.from({ length: 100 }).map((_, i) => (
+            <Rectangle
+              key={i}
+              modifiers={[
+                foregroundStyle(i < overallProgress ? '#05D38E' : '#1E293B'),
+                opacity(i < overallProgress ? 1.0 : 0.06),
+                frame({ height: 7 })
+              ]}
+            />
+          ))}
+        </HStack>
+      );
+    }
     return (
       <HStack spacing={4}>
-        {(segments || ['future', 'future', 'future', 'future', 'future', 'future', 'future']).map((status, index) => (
-          <Spacer
-            key={index}
-            modifiers={[
-              background(getSegmentColor(status)),
-              cornerRadius(2),
-              padding({ top: 4, bottom: 4 }) // Give it thickness
-            ]}
-          />
-        ))}
+        {(segments || ['future', 'future', 'future', 'future', 'future', 'future', 'future']).map((status, index) => {
+          const isFuture = status === 'future';
+          const baseColor = isFuture ? '#FFFFFF' : getSegmentColor(status);
+          const segmentOpacity = isFuture ? 0.06 : 1.0;
+          
+          const mods = [
+            foregroundStyle(baseColor),
+            opacity(segmentOpacity),
+            cornerRadius(3),
+            frame({ height: 7 })
+          ];
+          
+          if (!isFuture) {
+            mods.push(shadow({ radius: 3, color: baseColor }));
+          }
+          
+          return (
+            <Rectangle
+              key={index}
+              modifiers={mods}
+            />
+          );
+        })}
       </HStack>
     );
   }
@@ -140,6 +174,11 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
           <Text modifiers={[font({ size: 9 }), foregroundColor('#8F93A3')]}>
             {commitment.targetScope === 'weekly' ? 'Weekly' : 'Daily'} Target • {commitment.targetValue.toLocaleString()} {commitment.unit}
           </Text>
+          {commitment.sentence && (
+            <Text modifiers={[font({ size: 8 }), foregroundColor('#8F93A3'), opacity(0.8)]} numberOfLines={2}>
+              {commitment.sentence}
+            </Text>
+          )}
 
           <Spacer />
 
@@ -166,8 +205,8 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
             </Text>
           </HStack>
 
-          {/* Sliced Progress Bar */}
-          <SlicedProgressBar segments={commitment.segments} />
+          {/* Sliced Progress Bar Centerpiece */}
+          <SlicedProgressBar segments={commitment.segments} overallProgress={commitment.overallProgress} targetScope={commitment.targetScope} />
         </VStack>
       </Host>
     );
@@ -221,7 +260,7 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
                 </HStack>
 
                 {/* Sliced Progress Bar */}
-                <SlicedProgressBar segments={commitment.segments} />
+                <SlicedProgressBar segments={commitment.segments} overallProgress={commitment.overallProgress} targetScope={commitment.targetScope} />
 
                 <HStack>
                   <Text modifiers={[font({ size: 9 }), foregroundColor('#8F93A3')]}>
@@ -232,6 +271,11 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
                     {commitment.remainingDays}
                   </Text>
                 </HStack>
+                {commitment.sentence && (
+                  <Text modifiers={[font({ size: 8 }), foregroundColor('#8F93A3'), opacity(0.8)]} numberOfLines={1}>
+                    {commitment.sentence}
+                  </Text>
+                )}
               </VStack>
             );
           })}
@@ -290,6 +334,11 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
                   <Text modifiers={[font({ size: 10 }), foregroundColor('#8F93A3')]}>
                     {commitment.targetScope === 'weekly' ? 'Weekly' : 'Daily'} • {commitment.targetValue.toLocaleString()} {commitment.unit}
                   </Text>
+                  {commitment.sentence && (
+                    <Text modifiers={[font({ size: 9 }), foregroundColor('#8F93A3'), opacity(0.8)]} numberOfLines={1}>
+                      {commitment.sentence}
+                    </Text>
+                  )}
                 </VStack>
 
                 <Spacer />

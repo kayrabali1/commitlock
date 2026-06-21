@@ -287,7 +287,7 @@ export default function AndroidCommitmentsWidget({ commitments = [], weeklyData 
               />
             </FlexWidget>
 
-            {/* Sliced progress bar */}
+            {/* Sliced or Continuous progress bar */}
             <FlexWidget
               style={{
                 flexDirection: 'row',
@@ -297,41 +297,70 @@ export default function AndroidCommitmentsWidget({ commitments = [], weeklyData 
                 marginBottom: 4,
               }}
             >
-              {getCommitmentDaysList(commitment).map((dateStr, segmentIdx) => {
-                const todayDateStr = weeklyDataList?.[simulatedTodayIndex]?.dateString;
-                const dayData = weeklyDataList.find(d => d.dateString === dateStr);
-                
-                let segmentColor = '#1E293B'; // Default future slate
-                
-                if (todayDateStr) {
-                  if (dateStr > todayDateStr) {
-                    segmentColor = '#1E293B';
-                  } else if (dateStr === todayDateStr) {
-                    segmentColor = '#7C3AED'; // Purple highlight for today
-                  } else {
-                    const isGoalMet = dayData
-                      ? (commitment.targetScope === 'weekly'
-                        ? dayData.value > 0
-                        : dayData.value >= commitment.targetValue)
-                      : true;
-                    
-                    segmentColor = isGoalMet ? '#05D38E' : '#FF4655';
-                  }
-                }
-
-                return (
+              {commitment.targetScope === 'weekly' ? (
+                <FlexWidget
+                  style={{
+                    flex: 1,
+                    height: 'match_parent',
+                    backgroundColor: '#1E293B',
+                    borderRadius: 2,
+                    flexDirection: 'row',
+                    overflow: 'hidden',
+                  }}
+                >
                   <FlexWidget
-                    key={dateStr}
                     style={{
-                      flex: 1,
+                      flex: overallProgress,
                       height: 'match_parent',
-                      backgroundColor: segmentColor as any,
+                      backgroundColor: '#05D38E',
                       borderRadius: 2,
-                      marginLeft: segmentIdx > 0 ? 3 : 0,
                     }}
                   />
-                );
-              })}
+                  <FlexWidget
+                    style={{
+                      flex: 100 - overallProgress,
+                      height: 'match_parent',
+                      backgroundColor: 'transparent',
+                    }}
+                  />
+                </FlexWidget>
+              ) : (
+                getCommitmentDaysList(commitment).map((dateStr, segmentIdx) => {
+                  const todayDateStr = weeklyDataList?.[simulatedTodayIndex]?.dateString;
+                  const dayData = weeklyDataList.find(d => d.dateString === dateStr);
+                  
+                  let segmentColor = '#1E293B'; // Default future slate
+                  
+                  if (todayDateStr) {
+                    if (dateStr > todayDateStr) {
+                      segmentColor = '#1E293B';
+                    } else if (dateStr === todayDateStr) {
+                      segmentColor = '#7C3AED'; // Purple highlight for today
+                    } else {
+                      const isGoalMet = dayData
+                        ? (commitment.targetScope === 'weekly'
+                          ? dayData.value > 0
+                          : dayData.value >= commitment.targetValue)
+                        : true;
+                      
+                      segmentColor = isGoalMet ? '#05D38E' : '#FF4655';
+                    }
+                  }
+
+                  return (
+                    <FlexWidget
+                      key={dateStr}
+                      style={{
+                        flex: 1,
+                        height: 'match_parent',
+                        backgroundColor: segmentColor as any,
+                        borderRadius: 2,
+                        marginLeft: segmentIdx > 0 ? 3 : 0,
+                      }}
+                    />
+                  );
+                })
+              )}
             </FlexWidget>
 
             {/* Target details */}

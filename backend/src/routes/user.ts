@@ -21,7 +21,6 @@ router.get('/profile', authenticateToken as any, async (req: AuthenticatedReques
       email: userData.email,
       avatar: userData.avatar,
       tier: userData.tier,
-      walletBalance: userData.walletBalance,
       notificationSettings: userData.notificationSettings || {
         dailyReminder: true,
         statusUpdates: true,
@@ -82,37 +81,6 @@ router.put('/avatar', authenticateToken as any, async (req: AuthenticatedRequest
   }
 });
 
-// Update user wallet balance (for deposits/withdrawals)
-router.put('/wallet', authenticateToken as any, async (req: AuthenticatedRequest, res: any) => {
-  try {
-    const userId = req.userId!;
-    const { amount } = req.body; // Amount to add (can be negative to subtract)
 
-    if (amount === undefined || typeof amount !== 'number') {
-      return res.status(400).json({ error: 'Valid numeric amount is required' });
-    }
-
-    const userRef = db.collection('users').doc(userId);
-    
-    // Perform transactional update to prevent race conditions
-    const newBalance = await db.runTransaction(async (transaction) => {
-      const userDoc = await transaction.get(userRef);
-      if (!userDoc.exists) {
-        throw new Error('User not found');
-      }
-
-      const currentBalance = userDoc.data()?.walletBalance || 0;
-      const updatedBalance = Math.max(0, currentBalance + amount);
-      
-      transaction.update(userRef, { walletBalance: updatedBalance });
-      return updatedBalance;
-    });
-
-    return res.status(200).json({ message: 'Wallet balance updated', walletBalance: newBalance });
-  } catch (err: any) {
-    console.error('Error updating wallet balance:', err);
-    return res.status(500).json({ error: err.message || 'Internal server error' });
-  }
-});
 
 export default router;

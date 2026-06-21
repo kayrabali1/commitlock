@@ -30,13 +30,14 @@ import { useAuth, API_URL } from '@/services/auth';
 import { VerificationGuideModal } from '@/components/VerificationGuideModal';
 import { SyncVerificationModal } from '@/components/SyncVerificationModal';
 import AppHeader, { BASE_HEADER_HEIGHT } from '@/components/AppHeader';
+import { NotificationService } from '@/services/notifications';
 
-type NotificationKeys = 'dailyReminder' | 'statusUpdates' | 'stakeAlerts' | 'weeklyReport' | 'gracePeriodSync';
+type NotificationKeys = 'dailyReminder' | 'statusUpdates' | 'stakeAlerts' | 'weeklyReport' | 'gracePeriodSync' | 'achievementAlerts';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user, signOut, updateAvatar, refreshUser } = useAuth();
+  const { user, signOut, updateAvatar } = useAuth();
   const { width: screenWidth } = useWindowDimensions();
 
   // State controls
@@ -64,6 +65,7 @@ export default function SettingsScreen() {
     stakeAlerts: true,
     weeklyReport: false,
     gracePeriodSync: true,
+    achievementAlerts: true,
   });
 
   // Animated sliding positions (start off-screen to the right)
@@ -88,8 +90,17 @@ export default function SettingsScreen() {
           if (response.ok) {
             const data = await response.json();
             if (data.notificationSettings) {
-              setNotifications(data.notificationSettings);
-              await AsyncStorage.setItem('user_notification_settings', JSON.stringify(data.notificationSettings));
+              const merged = {
+                dailyReminder: true,
+                statusUpdates: true,
+                stakeAlerts: true,
+                weeklyReport: false,
+                gracePeriodSync: true,
+                achievementAlerts: true,
+                ...data.notificationSettings
+              };
+              setNotifications(merged);
+              await AsyncStorage.setItem('user_notification_settings', JSON.stringify(merged));
               return;
             }
           }
@@ -97,7 +108,16 @@ export default function SettingsScreen() {
 
         const stored = await AsyncStorage.getItem('user_notification_settings');
         if (stored) {
-          setNotifications(JSON.parse(stored));
+          const merged = {
+            dailyReminder: true,
+            statusUpdates: true,
+            stakeAlerts: true,
+            weeklyReport: false,
+            gracePeriodSync: true,
+            achievementAlerts: true,
+            ...JSON.parse(stored)
+          };
+          setNotifications(merged);
         }
       } catch (error) {
         console.error('Failed to load notification settings:', error);
@@ -158,10 +178,14 @@ export default function SettingsScreen() {
           body: JSON.stringify({ notificationSettings: updated }),
         });
       }
+      
+      // Update the scheduled notifications based on the new settings
+      await NotificationService.scheduleAllNotifications();
     } catch (error) {
       console.error('Failed to save notification settings:', error);
     }
   };
+
 
   const handleAvatarPress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -346,7 +370,6 @@ export default function SettingsScreen() {
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Settings</Text>
-            <Text style={styles.headerSubtitle}>PREFERENCES & CONTROLS</Text>
           </View>
 
           {/* Premium Account Profile Card */}
@@ -554,6 +577,25 @@ export default function SettingsScreen() {
               <Switch
                 value={notifications.dailyReminder}
                 onValueChange={() => toggleNotification('dailyReminder')}
+                trackColor={{ false: 'rgba(255, 255, 255, 0.08)', true: '#7C3AED' }}
+                thumbColor={Platform.OS === 'ios' ? undefined : '#FFFFFF'}
+                ios_backgroundColor="rgba(255, 255, 255, 0.08)"
+              />
+            </View>
+
+            <View style={styles.settingItemSwitch}>
+              <View style={styles.settingItemLeft}>
+                <View style={[styles.iconBg, { backgroundColor: 'rgba(5, 211, 142, 0.1)' }]}>
+                  <MaterialCommunityIcons name="check-decagram-outline" size={20} color="#05D38E" />
+                </View>
+                <View style={{ flex: 1, paddingRight: Spacing.two }}>
+                  <Text style={styles.itemTitle}>Goal Achievements</Text>
+                  <Text style={styles.itemSubtitle}>Get notified immediately once your active daily commitment target is met.</Text>
+                </View>
+              </View>
+              <Switch
+                value={notifications.achievementAlerts}
+                onValueChange={() => toggleNotification('achievementAlerts')}
                 trackColor={{ false: 'rgba(255, 255, 255, 0.08)', true: '#7C3AED' }}
                 thumbColor={Platform.OS === 'ios' ? undefined : '#FFFFFF'}
                 ios_backgroundColor="rgba(255, 255, 255, 0.08)"
@@ -825,12 +867,6 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     fontSize: 12,
     marginTop: 2,
-  },
-  profileWallet: {
-    color: '#10B981',
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 4,
   },
   editProfileButton: {
     marginTop: 6,

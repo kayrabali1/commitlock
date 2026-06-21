@@ -45,7 +45,6 @@ router.post('/register', async (req: any, res: any) => {
       passwordHash,
       avatar,
       tier: 'High Accountability (Tier 3)',
-      walletBalance: 100.0, // Default signup credit
       createdAt: new Date().toISOString(),
     };
 
@@ -63,7 +62,6 @@ router.post('/register', async (req: any, res: any) => {
         email: normEmail,
         avatar,
         tier: newUser.tier,
-        walletBalance: newUser.walletBalance,
         provider: 'email',
       },
     });
@@ -102,7 +100,6 @@ router.post('/login', async (req: any, res: any) => {
           passwordHash,
           avatar: 'https://ui-avatars.com/api/?name=Kayra+Bali&background=8B5CF6&color=fff&bold=true',
           tier: 'High Accountability (Tier 3)',
-          walletBalance: 100.0,
           createdAt: new Date().toISOString(),
         };
         const docRef = await usersRef.add(userDoc);
@@ -122,7 +119,6 @@ router.post('/login', async (req: any, res: any) => {
           email: userDoc.email,
           avatar: userDoc.avatar,
           tier: userDoc.tier,
-          walletBalance: userDoc.walletBalance,
           provider: 'email',
         },
       });
@@ -154,7 +150,6 @@ router.post('/login', async (req: any, res: any) => {
         email: user.email,
         avatar: user.avatar,
         tier: user.tier,
-        walletBalance: user.walletBalance,
         provider: 'email',
       },
     });
@@ -185,7 +180,6 @@ router.get('/validate', authenticateToken as any, async (req: AuthenticatedReque
         email: user.email,
         avatar: user.avatar,
         tier: user.tier,
-        walletBalance: user.walletBalance,
         provider: 'email',
       },
     });
@@ -241,7 +235,6 @@ router.post('/google', async (req: any, res: any) => {
           googleId: sub,
           avatar,
           tier: 'High Accountability (Tier 3)',
-          walletBalance: 100.0,
           createdAt: new Date().toISOString(),
           provider: 'google',
         };
@@ -264,7 +257,6 @@ router.post('/google', async (req: any, res: any) => {
         email: userData.email,
         avatar: userData.avatar,
         tier: userData.tier,
-        walletBalance: userData.walletBalance,
         provider: 'google',
       },
     });
@@ -315,7 +307,6 @@ router.post('/apple', async (req: any, res: any) => {
           appleId: sub,
           avatar,
           tier: 'High Accountability (Tier 3)',
-          walletBalance: 100.0,
           createdAt: new Date().toISOString(),
           provider: 'apple',
         };
@@ -338,7 +329,6 @@ router.post('/apple', async (req: any, res: any) => {
         email: userData.email,
         avatar: userData.avatar,
         tier: userData.tier,
-        walletBalance: userData.walletBalance,
         provider: 'apple',
       },
     });
