@@ -91,16 +91,6 @@ export default function HistoryScreen() {
     }
   };
 
-  const formatShortValue = (val: number, type: string) => {
-    if (type === 'steps') {
-      return val >= 1000 ? `${(val / 1000).toFixed(1)}k` : `${Math.round(val)}`;
-    }
-    if (type === 'calories') {
-      return `${Math.round(val)}`;
-    }
-    return `${val.toFixed(1)}`;
-  };
-
   const loadHistory = async () => {
     try {
       const logs = await HealthDataService.getHistory();
@@ -174,9 +164,16 @@ export default function HistoryScreen() {
               const isSuccess = item.status === 'success';
               const isExpanded = expandedId === item.id;
               
-              const performance = getOrGeneratePerformanceData(item);
+              let performance = getOrGeneratePerformanceData(item);
+              if (item.resolvedAt) {
+                const resolvedDateStr = item.resolvedAt.substring(0, 10);
+                performance = performance.filter(d => d.dateString <= resolvedDateStr);
+                if (performance.length === 0) {
+                  performance = getOrGeneratePerformanceData(item).slice(0, 1);
+                }
+              }
               const totalAchieved = performance.reduce((acc, d) => acc + d.value, 0);
-              const dailyAvg = totalAchieved / 7;
+              const dailyAvg = totalAchieved / performance.length;
               
               let bestDay = performance[0];
               performance.forEach(d => {
@@ -190,9 +187,6 @@ export default function HistoryScreen() {
               );
               const failedDaysCount = failedDays.length;
               const failedDayNames = failedDays.map(d => d.dayName).join(' & ');
-
-              const maxVal = Math.max(dailyTargetVal, ...performance.map(d => d.value));
-              const maxChartValue = maxVal * 1.15; // 15% padding on top
 
               return (
                 <TouchableOpacity
@@ -220,6 +214,7 @@ export default function HistoryScreen() {
                         </Text>
                         <Text style={styles.logDates}>
                           {item.startDate} to {item.endDate}
+                          {item.resolvedAt ? ` • Archived ${item.resolvedAt.substring(0, 10)}` : ''}
                         </Text>
                       </View>
                     </View>
@@ -294,44 +289,6 @@ export default function HistoryScreen() {
                             <Text style={styles.expandedStatsUnit}>({bestDay.dayName})</Text>
                           </Text>
                         </View>
-                      </View>
-
-                      {/* Weekly Bar Chart */}
-                      <View style={styles.chartContainer}>
-                        {/* Target Threshold Line */}
-                        <View style={[styles.targetLine, { bottom: 20 + (dailyTargetVal / maxChartValue) * 70 }]}>
-                          <Text style={styles.targetLineText}>
-                            {item.targetScope === 'weekly' ? 'Avg: ' : 'Goal: '}{formatShortValue(dailyTargetVal, item.metricType)}
-                          </Text>
-                        </View>
-                        
-                        {performance.map((dayData) => {
-                          const isDayGoalMet = dayData.value >= dailyTargetVal;
-                          
-                          const barHeightPercent = (dayData.value / maxChartValue) * 100;
-                          const barHeight = Math.max(8, Math.min(100, barHeightPercent));
-                          
-                          let barColor = '#7C3AED'; // Default weekly color (purple)
-                          if (item.targetScope !== 'weekly') {
-                            barColor = isDayGoalMet ? '#05D38E' : '#FF4655';
-                          }
-
-                          return (
-                            <View key={dayData.dayName} style={styles.chartBarCol}>
-                              <View style={styles.chartBarValContainer}>
-                                <Text style={styles.chartBarVal}>
-                                  {formatShortValue(dayData.value, item.metricType)}
-                                </Text>
-                              </View>
-                              <View style={styles.chartBarTrack}>
-                                <View style={[styles.chartBarFill, { height: `${barHeight}%`, backgroundColor: barColor }]} />
-                              </View>
-                              <View style={styles.chartBarLabelContainer}>
-                                <Text style={styles.chartBarLabel}>{dayData.dayName}</Text>
-                              </View>
-                            </View>
-                          );
-                        })}
                       </View>
 
                       {/* Daily Breakdown List */}

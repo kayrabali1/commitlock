@@ -39,7 +39,42 @@ export default function CommitScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   
-  const { rolloverFrom, rolloverStake } = useLocalSearchParams<{ rolloverFrom?: string; rolloverStake?: string }>();
+  const { rolloverFrom, rolloverStake, debug_auto_commit, debug_targetScope, debug_targetValue, debug_metricType } = useLocalSearchParams<{
+    rolloverFrom?: string;
+    rolloverStake?: string;
+    debug_auto_commit?: string;
+    debug_targetScope?: string;
+    debug_targetValue?: string;
+    debug_metricType?: string;
+  }>();
+  
+  useEffect(() => {
+    if (debug_auto_commit === 'true') {
+      console.log('[Commit] Debug auto-commit triggered with targetScope:', debug_targetScope, 'targetValue:', debug_targetValue, 'metricType:', debug_metricType);
+      if (debug_targetScope) {
+        setTargetScope(debug_targetScope as any);
+      }
+      if (debug_targetValue) {
+        setTargetValue(Number(debug_targetValue));
+      }
+      if (debug_metricType) {
+        setMetric(debug_metricType as any);
+      }
+      setIsMetricSelected(true);
+      setIsTargetSelected(true);
+      setIsDurationSelected(true);
+      setIsStakeSelected(true);
+      
+      const timer = setTimeout(() => {
+        confirmPayment({
+          targetScope: debug_targetScope as any,
+          targetValue: debug_targetValue ? Number(debug_targetValue) : undefined,
+          metricType: debug_metricType as any,
+        });
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [debug_auto_commit, debug_targetScope, debug_targetValue, debug_metricType]);
   
   // Accordion Step State
   const [activeStep, setActiveStep] = useState<number>(0);
@@ -371,7 +406,7 @@ export default function CommitScreen() {
     scrollViewRef.current?.scrollTo({ y: 0, animated: false });
   };
 
-  const confirmPayment = async () => {
+  const confirmPayment = async (overrides?: { targetScope?: 'daily' | 'weekly'; targetValue?: number; metricType?: MetricType }) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setPaymentStep('processing');
 
@@ -385,17 +420,21 @@ export default function CommitScreen() {
           return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         };
 
+        const finalTargetScope = overrides?.targetScope ?? targetScope;
+        const finalTargetValue = overrides?.targetValue ?? targetValue;
+        const finalMetric = overrides?.metricType ?? metric;
+
         const newCommitment = {
           id: Math.random().toString(36).substr(2, 9),
-          metricType: metric,
-          targetValue,
+          metricType: finalMetric,
+          targetValue: finalTargetValue,
           period,
           stakeAmount: stake,
           startDate: formatLocalDate(startDate),
           endDate: formatLocalDate(endDate),
           status: 'active' as const,
           createdAt: new Date().toISOString(),
-          targetScope,
+          targetScope: finalTargetScope,
         };
 
         // If rollover from completed commitment

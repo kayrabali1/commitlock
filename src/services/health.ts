@@ -47,6 +47,7 @@ export interface Commitment {
   targetScope?: 'daily' | 'weekly'; // 'daily' or 'weekly'
   performanceData?: DailyHealthData[];
   refundMethod?: 'wallet' | 'bank';
+  resolvedAt?: string;
 }
 
 export interface DailyHealthData {
@@ -65,7 +66,7 @@ const DEFAULT_SIMULATED_DATA: Record<MetricType, DailyHealthData[]> = {
   steps: [
     { dayName: 'Mon', value: 11200, dateString: '' },
     { dayName: 'Tue', value: 10450, dateString: '' },
-    { dayName: 'Wed', value: 9200, dateString: '' }, // Slightly below 10k by default to trigger decision making
+    { dayName: 'Wed', value: 10200, dateString: '' }, // Successful daily target
     { dayName: 'Thu', value: 12100, dateString: '' },
     { dayName: 'Fri', value: 10800, dateString: '' },
     { dayName: 'Sat', value: 13400, dateString: '' },
@@ -138,6 +139,10 @@ export class HealthDataService {
    */
   static async requestPermissions(): Promise<boolean> {
     try {
+      if (__DEV__) {
+        console.log('[HealthDataService] Dev mock: Auto-granting health permissions');
+        return true;
+      }
       if (Platform.OS !== 'ios' || !AppleHealthKit || typeof AppleHealthKit.initHealthKit !== 'function') {
         console.log('[HealthDataService] Mocking permission request on non-iOS or native module not loaded');
         return true;
@@ -194,6 +199,14 @@ export class HealthDataService {
    * Helper to query a single day's metric from native HealthKit
    */
   static async querySingleDayMetric(metric: MetricType, dateStr: string): Promise<number> {
+    if (__DEV__) {
+      const dateObj = this.parseLocalDate(dateStr);
+      const days: ('Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun')[] = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const dayName = days[dateObj.getDay()];
+      const mockList = DEFAULT_SIMULATED_DATA[metric];
+      const match = mockList.find(d => d.dayName === dayName);
+      return match ? match.value : 0;
+    }
     if (Platform.OS !== 'ios' || !AppleHealthKit || typeof AppleHealthKit.getDailyStepCountSamples !== 'function') {
       return 0;
     }
@@ -469,6 +482,12 @@ export class HealthDataService {
     value: number;
     status: 'granted' | 'denied' | 'unsupported';
   }> {
+    if (__DEV__) {
+      return {
+        value: 5.4,
+        status: 'granted',
+      };
+    }
     if (Platform.OS !== 'ios' || !AppleHealthKit || typeof AppleHealthKit.getDistanceWalkingRunning !== 'function') {
       return {
         value: 5.4, // Default mock/fallback value in km

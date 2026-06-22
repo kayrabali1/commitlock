@@ -73,6 +73,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const loadStoredUser = async () => {
       try {
+        if (__DEV__) {
+          console.log('[Auth] Dev Auto-Login triggered for demo@habitcontract.com');
+          try {
+            await signIn('demo@habitcontract.com', 'password');
+            setIsLoading(false);
+            return;
+          } catch (err) {
+            console.error('[Auth] Dev Auto-Login failed:', err);
+          }
+        }
         const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
         if (token) {
           // Validate token with backend

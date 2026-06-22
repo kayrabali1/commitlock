@@ -655,42 +655,44 @@ export default function TrackerDashboard() {
                       </View>
                       
                       <View style={styles.slicedBarContainer}>
-                        {getCommitmentDaysList(commitment).map((dateStr) => {
-                          const todayDateStr = HealthDataService.getTodayDateString();
-                          const dayData = weeklyDataList.find(d => d.dateString === dateStr);
-                          
-                          let sliceColor = '#1E293B'; // Default/Future (Dark slate)
-                          
-                          if (dateStr > todayDateStr) {
-                            sliceColor = '#1E293B'; // Future/Remaining (Dark Gray/Slate)
-                          } else if (dateStr === todayDateStr) {
-                            const isGoalMet = dayData
-                              ? (commitment.targetScope === 'weekly'
-                                ? dayData.value > 0
-                                : dayData.value >= commitment.targetValue)
-                              : false;
-                            sliceColor = isGoalMet ? '#05D38E' : '#FFB74D'; // Solid green if achieved, soft amber if not
-                          } else {
-                            // Past Day
-                            const isGoalMet = dayData
-                              ? (commitment.targetScope === 'weekly'
-                                ? dayData.value > 0
-                                : dayData.value >= commitment.targetValue)
-                              : true; // Default to true for past weeks outside current weeklyDataList scope
+                        {commitment.targetScope === 'weekly' ? (
+                          <View style={{ flex: 1, height: '100%', backgroundColor: '#1E293B', borderRadius: 3.5, overflow: 'hidden', flexDirection: 'row' }}>
+                            <View style={{ width: `${overallProgress}%`, height: '100%', backgroundColor: '#05D38E', borderRadius: 3.5 }} />
+                          </View>
+                        ) : (
+                          getCommitmentDaysList(commitment).map((dateStr) => {
+                            const todayDateStr = HealthDataService.getTodayDateString();
+                            const dayData = weeklyDataList.find(d => d.dateString === dateStr);
                             
-                            sliceColor = isGoalMet ? '#05D38E' : '#FF4655'; // Green if achieved, Red if failed
-                          }
-                          
-                          return (
-                            <View
-                              key={dateStr}
-                              style={[
-                                styles.slicedBarSegment,
-                                { backgroundColor: sliceColor }
-                              ]}
-                            />
-                          );
-                        })}
+                            let sliceColor = '#1E293B'; // Default/Future (Dark slate)
+                            
+                            if (dateStr > todayDateStr) {
+                              sliceColor = '#1E293B'; // Future/Remaining (Dark Gray/Slate)
+                            } else if (dateStr === todayDateStr) {
+                              const isGoalMet = dayData
+                                ? dayData.value >= commitment.targetValue
+                                : false;
+                              sliceColor = isGoalMet ? '#05D38E' : '#FFB74D'; // Solid green if achieved, soft amber if not
+                            } else {
+                              // Past Day
+                              const isGoalMet = dayData
+                                ? dayData.value >= commitment.targetValue
+                                : true; // Default to true for past weeks outside current weeklyDataList scope
+                              
+                              sliceColor = isGoalMet ? '#05D38E' : '#FF4655'; // Green if achieved, Red if failed
+                            }
+                            
+                            return (
+                              <View
+                                key={dateStr}
+                                style={[
+                                  styles.slicedBarSegment,
+                                  { backgroundColor: sliceColor }
+                                ]}
+                              />
+                            );
+                          })
+                        )}
                       </View>
                     </View>
 

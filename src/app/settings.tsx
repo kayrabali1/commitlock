@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -39,6 +39,24 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { user, signOut, updateAvatar } = useAuth();
   const { width: screenWidth } = useWindowDimensions();
+  const { debug_auto_reset } = useLocalSearchParams<{ debug_auto_reset?: string }>();
+
+  // Dev auto-reset handler
+  useEffect(() => {
+    if (debug_auto_reset === 'true' && __DEV__) {
+      console.log('[Settings] Debug auto-reset triggered');
+      const performReset = async () => {
+        try {
+          await HealthDataService.resetAllData();
+          console.log('[Settings] Sandbox database reset successfully.');
+          router.replace('/');
+        } catch (error) {
+          console.error('Failed to reset sandbox', error);
+        }
+      };
+      performReset();
+    }
+  }, [debug_auto_reset]);
 
   // State controls
   const [showPhotoModal, setShowPhotoModal] = useState(false);

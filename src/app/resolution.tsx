@@ -21,7 +21,7 @@ import { DisciplineCard } from '@/components/DisciplineCard';
 
 export default function ResolutionScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, debug_auto_resolve } = useLocalSearchParams<{ id?: string; debug_auto_resolve?: string }>();
 
   // States
   const [activeCommitment, setActiveCommitment] = useState<Commitment | null>(null);
@@ -161,6 +161,16 @@ export default function ResolutionScreen() {
       }
     }
   }, [phase, currentCheckingIndex, weeklyData, activeCommitment, isSuccess, fadeAnim]);
+
+  // Dev auto-resolve helper
+  useEffect(() => {
+    if (phase === 'resolved' && __DEV__ && debug_auto_resolve === 'true') {
+      const timer = setTimeout(() => {
+        handleResolveAction();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [phase, debug_auto_resolve, activeCommitment, isSuccess, weeklyData]);
 
   const handleResolveAction = async () => {
     if (!activeCommitment) return;
