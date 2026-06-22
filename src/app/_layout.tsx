@@ -40,8 +40,9 @@ function TabLayoutContent() {
             const currentIdx = await HealthDataService.getWidgetSelectedIndex();
             const nextIdx = (currentIdx + 1) % commitments.length;
             await HealthDataService.setWidgetSelectedIndex(nextIdx);
-            // Native Swift AppIntent handles updating index and reloading timelines per-widget instance,
-            // so we do not call syncWidgets() here to avoid overwriting configuration-specific states.
+            
+            // Sync widgets so the new timeline with the new selectedIndex is sent to iOS!
+            await HealthDataService.syncWidgets();
           }
         } catch (err) {
           console.error('[Layout] Failed to cycle widget commitment:', err);
