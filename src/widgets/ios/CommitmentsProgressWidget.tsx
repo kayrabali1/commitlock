@@ -12,7 +12,8 @@ import {
   shadow,
   clipShape,
   tint,
-  lineLimit
+  lineLimit,
+  buttonStyle
 } from '@expo/ui/swift-ui/modifiers';
 
 export interface CommitmentWidgetData {
@@ -166,10 +167,10 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
       <Host>
         <VStack
           alignment="leading"
-          spacing={2}
+          spacing={5}
           modifiers={[
             containerBackground('#06070B', 'widget'),
-            padding({ all: 12 })
+            padding({ all: 16 })
           ]}
         >
           {/* Header row */}
@@ -179,7 +180,7 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
             </Text>
             <Spacer />
             {commitments.length > 1 ? (
-              <Button target="next" systemImage="chevron.right" modifiers={[foregroundStyle('#8F93A3')]} />
+              <Button target="next" systemImage="chevron.right" modifiers={[buttonStyle('plain'), foregroundStyle('#8F93A3')]} />
             ) : null}
             <Spacer />
             <Text modifiers={[font({ size: 13, weight: 'bold' }), foregroundColor('#3B82F6')]}>
@@ -197,9 +198,11 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
             </Text>
           )}
 
+          <Spacer />
+
           {/* Progress Section */}
           <HStack alignment="bottom">
-            <Text modifiers={[font({ size: 20, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
+            <Text modifiers={[font({ size: 24, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
               {commitment.overallProgress}%
             </Text>
             <Spacer />
