@@ -1,4 +1,4 @@
-import { Host, VStack, HStack, Text, Spacer, Divider, ProgressView, Rectangle, Button } from '@expo/ui/swift-ui';
+import { Host, VStack, HStack, Text, Spacer, Divider, Rectangle, Button } from '@expo/ui/swift-ui';
 import { 
   background, 
   foregroundColor, 
@@ -11,7 +11,6 @@ import {
   opacity,
   shadow,
   clipShape,
-  tint,
   lineLimit,
   buttonStyle
 } from '@expo/ui/swift-ui/modifiers';
@@ -41,40 +40,38 @@ export type WidgetEnvironment = {
   family: 'systemSmall' | 'systemMedium' | 'systemLarge';
 };
 
-
-
 const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
   "use no memo";
   'widget';
 
-  const getSegmentColor = (status: 'future' | 'success' | 'failed' | 'today') => {
+  const getSegmentColor = (status: string) => {
     switch (status) {
       case 'success': return '#05D38E';
       case 'failed': return '#FF4655';
-      case 'today_success': return '#05D38E';
-      case 'today_pending': return '#3B82F6';
-      default: return '#1E293B';
+      case 'today_success': return '#F5A623';
+      case 'today_pending': return '#F5A623';
+      default: return '#2A2D3A';
     }
   };
 
-  const renderSlicedProgressBar = (segments: ('future' | 'success' | 'failed' | 'today_success' | 'today_pending')[], overallProgress: number, targetScope: string) => {
+  const renderSlicedProgressBar = (segments: string[], overallProgress: number, targetScope: string) => {
     if (targetScope === 'weekly') {
       return (
         <HStack spacing={0} modifiers={[
-          cornerRadius(3),
-          frame({ height: 7 }),
+          cornerRadius(4),
+          frame({ height: 8 }),
           clipShape('capsule')
         ]}>
           {Array.from({ length: 20 }).map((_, i) => {
-            const segmentValue = i * 5; // each segment represents 5%
+            const segmentValue = i * 5;
             const isFilled = segmentValue < overallProgress;
             return (
               <Rectangle
                 key={i}
                 modifiers={[
-                  foregroundStyle(isFilled ? '#05D38E' : '#FFFFFF'),
-                  opacity(isFilled ? 1.0 : 0.06),
-                  frame({ height: 7 })
+                  foregroundStyle(isFilled ? '#05D38E' : '#2A2D3A'),
+                  opacity(isFilled ? 1.0 : 0.4),
+                  frame({ height: 8 })
                 ]}
               />
             );
@@ -83,23 +80,23 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
       );
     }
     return (
-      <HStack spacing={4}>
+      <HStack spacing={6}>
         {(segments || ['future', 'future', 'future', 'future', 'future', 'future', 'future']).map((status, index) => {
           const isFuture = status === 'future';
-          const baseColor = isFuture ? '#FFFFFF' : getSegmentColor(status as any);
-          const segmentOpacity = isFuture ? 0.06 : 1.0;
-          
+          const baseColor = isFuture ? '#2A2D3A' : getSegmentColor(status);
+          const segmentOpacity = isFuture ? 0.4 : 1.0;
+
           const mods = [
             foregroundStyle(baseColor),
             opacity(segmentOpacity),
-            cornerRadius(3),
-            frame({ height: 7 })
+            cornerRadius(4),
+            frame({ height: 8 })
           ];
-          
+
           if (!isFuture) {
-            mods.push(shadow({ radius: 3, color: baseColor }));
+            mods.push(shadow({ radius: 4, color: baseColor }));
           }
-          
+
           return (
             <Rectangle
               key={index}
@@ -159,81 +156,81 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
     const selectedIdx = props.selectedIndex || 0;
     const commitment = commitments[selectedIdx] || commitments[0];
     const emoji = getMetricEmoji(commitment.metricType);
-    const statusColor = commitment.isBroken 
-      ? '#FF4655' 
-      : '#05D38E';
+    const statusColor = commitment.isBroken ? '#FF4655' : '#05D38E';
+    const statusText = commitment.isBroken
+      ? '⚠️ BROKEN'
+      : (commitment.targetScope === 'weekly' ? '🛡️ SAFE' : '● ON TRACK');
 
     return (
       <Host>
         <VStack
           alignment="leading"
-          spacing={5}
+          spacing={4}
           modifiers={[
             containerBackground('#06070B', 'widget'),
-            padding({ all: 16 })
+            padding({ all: 14 })
           ]}
         >
-          {/* Header row */}
-          <HStack>
-            <Text modifiers={[font({ size: 13, weight: 'semibold' }), foregroundColor('#FFFFFF')]}>
+          {/* Header row: emoji + label + chevron */}
+          <HStack spacing={4}>
+            <Text modifiers={[font({ size: 14, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
               {emoji} {commitment.label}
             </Text>
-            <Spacer />
             {commitments.length > 1 ? (
               <Button target="next" systemImage="chevron.right" modifiers={[buttonStyle('plain'), foregroundStyle('#8F93A3')]} />
             ) : null}
             <Spacer />
-            <Text modifiers={[font({ size: 13, weight: 'bold' }), foregroundColor('#3B82F6')]}>
+            <Text modifiers={[font({ size: 11, weight: 'bold' }), foregroundColor('#F5A623')]}>
               €{commitment.stakeAmount}
             </Text>
           </HStack>
 
-          {/* Subtitle */}
-          <Text modifiers={[font({ size: 9 }), foregroundColor('#8F93A3')]}>
-            {commitment.targetScope === 'weekly' ? 'Weekly' : 'Daily'} Target • {commitment.targetValue.toLocaleString()} {commitment.unit}
+          {/* Subtitle: DAILY PLEDGE */}
+          <Text modifiers={[font({ size: 9, weight: 'semibold' }), foregroundColor('#8F93A3')]}>
+            {commitment.targetScope === 'weekly' ? 'WEEKLY' : 'DAILY'} PLEDGE
           </Text>
+
+          {/* Commitment sentence */}
           {commitment.sentence && (
-            <Text modifiers={[font({ size: 7 }), foregroundColor('#8F93A3'), opacity(0.8), lineLimit(1)]}>
+            <Text modifiers={[font({ size: 7 }), foregroundColor('#6B7280'), lineLimit(1)]}>
               {commitment.sentence}
             </Text>
           )}
 
           <Spacer />
 
-          {/* Progress Section */}
-          <HStack alignment="bottom">
-            <Text modifiers={[font({ size: 24, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
-              {commitment.overallProgress}%
-            </Text>
-            <Spacer />
-            <Text modifiers={[font({ size: 10, weight: 'semibold' }), foregroundColor(statusColor)]}>
-              {commitment.isBroken 
-                ? '⚠️ Broken' 
-                : (commitment.targetScope === 'weekly' ? '🛡️ Safe' : '✅ On Track')}
-            </Text>
-          </HStack>
-
-          <HStack>
-            <Text modifiers={[font({ size: 10 }), foregroundColor('#8F93A3')]}>
-              Goal Progress
-            </Text>
-            <Spacer />
-            <Text modifiers={[font({ size: 10 }), foregroundColor('#8F93A3')]}>
-              {commitment.remainingDays}
-            </Text>
-          </HStack>
-
-          {/* Sliced Progress Bar Centerpiece */}
+          {/* Progress bar */}
           {renderSlicedProgressBar(commitment.segments, commitment.overallProgress, commitment.targetScope)}
+
+          {/* Bottom stats */}
+          <HStack alignment="bottom">
+            <HStack spacing={3}>
+              <Text modifiers={[font({ size: 22, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
+                {commitment.overallProgress}%
+              </Text>
+              <Text modifiers={[font({ size: 9 }), foregroundColor('#8F93A3')]}>
+                completed
+              </Text>
+            </HStack>
+            <Spacer />
+            <Text modifiers={[font({ size: 9, weight: 'semibold' }), foregroundColor(statusColor)]}>
+              {statusText}
+            </Text>
+          </HStack>
         </VStack>
       </Host>
     );
   }
 
   // --- MEDIUM WIDGET ---
-  // Show up to 2 active commitments in a vertical list
   if (family === 'systemMedium') {
-    const listItems = commitments.slice(0, 2);
+    const selectedIdx = props.selectedIndex || 0;
+    const commitment = commitments[selectedIdx] || commitments[0];
+    const emoji = getMetricEmoji(commitment.metricType);
+    const statusColor = commitment.isBroken ? '#FF4655' : '#05D38E';
+    const statusText = commitment.isBroken
+      ? '⚠️ BROKEN'
+      : (commitment.targetScope === 'weekly' ? '🛡️ SAFE' : '● ON TRACK');
 
     return (
       <Host>
@@ -242,68 +239,87 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
           spacing={6}
           modifiers={[
             containerBackground('#06070B', 'widget'),
-            padding({ all: 14 })
+            padding({ all: 16 })
           ]}
         >
-          {/* Header Title */}
-          <HStack>
-            <Text modifiers={[font({ size: 11, weight: 'bold' }), foregroundColor('#8F93A3')]}>
-              ACTIVE COMMITMENTS
+          {/* Row 1: emoji + label + chevron ... ON TRACK badge + €amount badge */}
+          <HStack spacing={6}>
+            <Text modifiers={[font({ size: 16, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
+              {emoji} {commitment.label}
             </Text>
+            {commitments.length > 1 ? (
+              <Button target="next" systemImage="chevron.right" modifiers={[buttonStyle('plain'), foregroundStyle('#8F93A3')]} />
+            ) : null}
             <Spacer />
-            <Text modifiers={[font({ size: 10, weight: 'bold' }), foregroundColor('#3B82F6')]}>
-              🔒 PLEDGED
+            <Text modifiers={[
+              font({ size: 11, weight: 'bold' }),
+              foregroundColor(statusColor),
+              padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
+              background(commitment.isBroken ? '#1A0A0C' : '#0A1F15'),
+              cornerRadius(6)
+            ]}>
+              {statusText}
+            </Text>
+            <Text modifiers={[
+              font({ size: 11, weight: 'bold' }),
+              foregroundColor('#F5A623'),
+              padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
+              background('#1F1A0A'),
+              cornerRadius(6)
+            ]}>
+              €{commitment.stakeAmount}
             </Text>
           </HStack>
 
-          {/* Commitments List */}
-          {listItems.map((commitment, index) => {
-            const emoji = getMetricEmoji(commitment.metricType);
-            const statusColor = commitment.isBroken ? '#FF4655' : '#05D38E';
-            return (
-              <VStack key={commitment.id || index} alignment="leading" spacing={3}>
-                <HStack>
-                  <Text modifiers={[font({ size: 12, weight: 'semibold' }), foregroundColor('#FFFFFF')]}>
-                    {emoji} {commitment.label} ({commitment.overallProgress}%)
-                  </Text>
-                  <Spacer />
-                  <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundColor(statusColor)]}>
-                    {commitment.isBroken 
-                      ? '⚠️ Broken' 
-                      : (commitment.targetScope === 'weekly' ? '🛡️ Safe' : '✅ On Track')}
-                  </Text>
-                  <Text modifiers={[font({ size: 11, weight: 'bold' }), foregroundColor('#3B82F6'), padding({ leading: 6 })]}>
-                    €{commitment.stakeAmount}
-                  </Text>
-                </HStack>
+          {/* Row 2: DAILY PLEDGE subtitle */}
+          <Text modifiers={[font({ size: 10, weight: 'semibold' }), foregroundColor('#8F93A3')]}>
+            {commitment.targetScope === 'weekly' ? 'WEEKLY' : 'DAILY'} PLEDGE
+          </Text>
 
-                {/* Sliced Progress Bar */}
-                {renderSlicedProgressBar(commitment.segments, commitment.overallProgress, commitment.targetScope)}
+          {/* Commitment sentence */}
+          {commitment.sentence && (
+            <Text modifiers={[font({ size: 8 }), foregroundColor('#6B7280'), lineLimit(1)]}>
+              {commitment.sentence}
+            </Text>
+          )}
 
-                <HStack>
-                  <Text modifiers={[font({ size: 9 }), foregroundColor('#8F93A3')]}>
-                    {commitment.targetScope === 'weekly' ? 'Weekly' : 'Daily'} Target • {commitment.targetValue.toLocaleString()} {commitment.unit}
-                  </Text>
-                  <Spacer />
-                  <Text modifiers={[font({ size: 9 }), foregroundColor('#8F93A3')]}>
-                    {commitment.remainingDays}
-                  </Text>
-                </HStack>
-                {commitment.sentence && (
-                  <Text modifiers={[font({ size: 7 }), foregroundColor('#8F93A3'), opacity(0.8), lineLimit(1)]}>
-                    {commitment.sentence}
-                  </Text>
-                )}
-              </VStack>
-            );
-          })}
+          {/* Progress bar */}
+          {renderSlicedProgressBar(commitment.segments, commitment.overallProgress, commitment.targetScope)}
+
+          {/* Bottom stats row */}
+          <HStack>
+            <HStack spacing={4}>
+              <Text modifiers={[font({ size: 28, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
+                {commitment.overallProgress}%
+              </Text>
+              <Text modifiers={[font({ size: 11 }), foregroundColor('#8F93A3')]}>
+                completed
+              </Text>
+            </HStack>
+            <Spacer />
+            <VStack alignment="trailing" spacing={1}>
+              <Text modifiers={[font({ size: 8, weight: 'bold' }), foregroundColor('#8F93A3')]}>
+                TARGET GOAL
+              </Text>
+              <Text modifiers={[font({ size: 13, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
+                {commitment.targetValue.toLocaleString()} {commitment.unit}
+              </Text>
+            </VStack>
+            <VStack alignment="trailing" spacing={1} modifiers={[padding({ leading: 12 })]}>
+              <Text modifiers={[font({ size: 8, weight: 'bold' }), foregroundColor('#8F93A3')]}>
+                REMAINING
+              </Text>
+              <Text modifiers={[font({ size: 13, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
+                {commitment.remainingDays}
+              </Text>
+            </VStack>
+          </HStack>
         </VStack>
       </Host>
     );
   }
 
   // --- LARGE WIDGET ---
-  // Show all active commitments and their statuses only, without progress bar or progress percentage
   const largeListItems = commitments.slice(0, 5);
 
   return (
@@ -322,8 +338,8 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
             ALL ACTIVE COMMITMENTS
           </Text>
           <Spacer />
-          <Text modifiers={[font({ size: 10, weight: 'bold' }), foregroundColor('#3B82F6')]}>
-            🔒 STATUSES ONLY
+          <Text modifiers={[font({ size: 10, weight: 'bold' }), foregroundColor('#F5A623')]}>
+            🔒 PLEDGED
           </Text>
         </HStack>
 
@@ -333,15 +349,15 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
         {largeListItems.map((commitment, index) => {
           const emoji = getMetricEmoji(commitment.metricType);
           const statusColor = commitment.isBroken ? '#FF4655' : '#05D38E';
-          const statusText = commitment.isBroken 
-            ? '⚠️ Broken' 
-            : (commitment.targetScope === 'weekly' ? '🛡️ Safe' : '✅ On Track');
+          const statusText = commitment.isBroken
+            ? '⚠️ Broken'
+            : (commitment.targetScope === 'weekly' ? '🛡️ Safe' : '● On Track');
 
           return (
-            <VStack 
-              key={commitment.id || index} 
-              alignment="leading" 
-              spacing={4} 
+            <VStack
+              key={commitment.id || index}
+              alignment="leading"
+              spacing={4}
               modifiers={[padding({ bottom: index < largeListItems.length - 1 ? 6 : 0 })]}
             >
               <HStack>
@@ -353,7 +369,7 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
                     {commitment.targetScope === 'weekly' ? 'Weekly' : 'Daily'} • {commitment.targetValue.toLocaleString()} {commitment.unit}
                   </Text>
                   {commitment.sentence && (
-                    <Text modifiers={[font({ size: 9 }), foregroundColor('#8F93A3'), opacity(0.8), lineLimit(1)]}>
+                    <Text modifiers={[font({ size: 9 }), foregroundColor('#6B7280'), lineLimit(1)]}>
                       {commitment.sentence}
                     </Text>
                   )}
@@ -366,7 +382,7 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
                     <Text modifiers={[font({ size: 11, weight: 'bold' }), foregroundColor(statusColor)]}>
                       {statusText}
                     </Text>
-                    <Text modifiers={[font({ size: 11, weight: 'bold' }), foregroundColor('#3B82F6')]}>
+                    <Text modifiers={[font({ size: 11, weight: 'bold' }), foregroundColor('#F5A623')]}>
                       €{commitment.stakeAmount}
                     </Text>
                   </HStack>
