@@ -178,7 +178,7 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
             </Text>
             <Spacer />
             <Text modifiers={[
-              font({ size: 11, weight: 'bold' }),
+              font({ size: 9, weight: 'bold' }),
               foregroundColor(statusColor),
               padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
               background(commitment.isBroken ? '#1A0A0C' : '#0A1F15'),
@@ -187,7 +187,7 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
               {statusText}
             </Text>
             <Text modifiers={[
-              font({ size: 11, weight: 'bold' }),
+              font({ size: 9, weight: 'bold' }),
               foregroundColor('#F5A623'),
               padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
               background('#1F1A0A'),
@@ -218,14 +218,14 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
 
           {/* Bottom stats */}
           <HStack alignment="bottom">
-            <HStack spacing={3}>
-              <Text modifiers={[font({ size: 22, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
+            <VStack alignment="leading" spacing={1}>
+              <Text modifiers={[font({ size: 8, weight: 'bold' }), foregroundColor('#8F93A3')]}>
+                COMPLETED
+              </Text>
+              <Text modifiers={[font({ size: 13, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
                 {commitment.overallProgress}%
               </Text>
-              <Text modifiers={[font({ size: 9 }), foregroundColor('#8F93A3')]}>
-                completed
-              </Text>
-            </HStack>
+            </VStack>
             <Spacer />
             {commitments.length > 1 ? (
               <Button target="next" modifiers={[buttonStyle('plain')]}>
@@ -265,7 +265,7 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
             </Text>
             <Spacer />
             <Text modifiers={[
-              font({ size: 11, weight: 'bold' }),
+              font({ size: 9, weight: 'bold' }),
               foregroundColor(statusColor),
               padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
               background(commitment.isBroken ? '#1A0A0C' : '#0A1F15'),
@@ -274,7 +274,7 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
               {statusText}
             </Text>
             <Text modifiers={[
-              font({ size: 11, weight: 'bold' }),
+              font({ size: 9, weight: 'bold' }),
               foregroundColor('#F5A623'),
               padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
               background('#1F1A0A'),
@@ -305,14 +305,14 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
 
           {/* Bottom stats row */}
           <HStack>
-            <HStack spacing={4}>
-              <Text modifiers={[font({ size: 24, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
+            <VStack alignment="leading" spacing={1}>
+              <Text modifiers={[font({ size: 8, weight: 'bold' }), foregroundColor('#8F93A3')]}>
+                COMPLETED
+              </Text>
+              <Text modifiers={[font({ size: 13, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
                 {commitment.overallProgress}%
               </Text>
-              <Text modifiers={[font({ size: 11 }), foregroundColor('#8F93A3')]}>
-                completed
-              </Text>
-            </HStack>
+            </VStack>
             <Spacer />
             <VStack alignment="trailing" spacing={1}>
               <Text modifiers={[font({ size: 8, weight: 'bold' }), foregroundColor('#8F93A3')]}>
