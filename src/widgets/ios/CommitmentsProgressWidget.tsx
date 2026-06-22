@@ -267,18 +267,18 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
             <Text modifiers={[
               font({ size: 11, weight: 'bold' }),
               foregroundColor(statusColor),
-              padding({ leading: 10, trailing: 10, top: 4, bottom: 4 }),
+              padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
               background(commitment.isBroken ? '#1A0A0C' : '#0A1F15'),
-              cornerRadius(8)
+              cornerRadius(6)
             ]}>
               {statusText}
             </Text>
             <Text modifiers={[
               font({ size: 11, weight: 'bold' }),
               foregroundColor('#F5A623'),
-              padding({ leading: 10, trailing: 10, top: 4, bottom: 4 }),
+              padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
               background('#1F1A0A'),
-              cornerRadius(8)
+              cornerRadius(6)
             ]}>
               €{commitment.stakeAmount}
             </Text>
@@ -306,7 +306,7 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
           {/* Bottom stats row */}
           <HStack>
             <HStack spacing={4}>
-              <Text modifiers={[font({ size: 28, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
+              <Text modifiers={[font({ size: 24, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
                 {commitment.overallProgress}%
               </Text>
               <Text modifiers={[font({ size: 11 }), foregroundColor('#8F93A3')]}>
