@@ -167,17 +167,19 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
           alignment="leading"
           spacing={4}
           modifiers={[
-            containerBackground('#06070B', 'widget'),
+            containerBackground('#0D0F18', 'widget'),
             padding({ all: 14 })
           ]}
         >
-          {/* Header row: emoji + label + chevron */}
+          {/* Header row: emoji + label + arrow */}
           <HStack spacing={4}>
             <Text modifiers={[font({ size: 14, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
               {emoji} {commitment.label}
             </Text>
             {commitments.length > 1 ? (
-              <Button target="next" systemImage="chevron.right" modifiers={[buttonStyle('plain'), foregroundStyle('#8F93A3')]} />
+              <Button target="next" modifiers={[buttonStyle('plain')]}>
+                <Text modifiers={[font({ size: 16, weight: 'bold' }), foregroundColor('#8F93A3')]}>›</Text>
+              </Button>
             ) : null}
             <Spacer />
             <Text modifiers={[font({ size: 11, weight: 'bold' }), foregroundColor('#F5A623')]}>
@@ -192,15 +194,17 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
 
           {/* Commitment sentence */}
           {commitment.sentence && (
-            <Text modifiers={[font({ size: 7 }), foregroundColor('#6B7280'), lineLimit(1)]}>
+            <Text modifiers={[font({ size: 9 }), foregroundColor('#8F93A3'), lineLimit(2)]}>
               {commitment.sentence}
             </Text>
           )}
 
           <Spacer />
 
-          {/* Progress bar */}
+          {/* Progress bar - centered */}
           {renderSlicedProgressBar(commitment.segments, commitment.overallProgress, commitment.targetScope)}
+
+          <Spacer />
 
           {/* Bottom stats */}
           <HStack alignment="bottom">
@@ -238,34 +242,36 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
           alignment="leading"
           spacing={6}
           modifiers={[
-            containerBackground('#06070B', 'widget'),
+            containerBackground('#0D0F18', 'widget'),
             padding({ all: 16 })
           ]}
         >
-          {/* Row 1: emoji + label + chevron ... ON TRACK badge + €amount badge */}
+          {/* Row 1: emoji + label + arrow ... ON TRACK pill + €amount pill */}
           <HStack spacing={6}>
             <Text modifiers={[font({ size: 16, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
               {emoji} {commitment.label}
             </Text>
             {commitments.length > 1 ? (
-              <Button target="next" systemImage="chevron.right" modifiers={[buttonStyle('plain'), foregroundStyle('#8F93A3')]} />
+              <Button target="next" modifiers={[buttonStyle('plain')]}>
+                <Text modifiers={[font({ size: 18, weight: 'bold' }), foregroundColor('#8F93A3')]}>›</Text>
+              </Button>
             ) : null}
             <Spacer />
             <Text modifiers={[
               font({ size: 11, weight: 'bold' }),
               foregroundColor(statusColor),
-              padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
+              padding({ leading: 10, trailing: 10, top: 4, bottom: 4 }),
               background(commitment.isBroken ? '#1A0A0C' : '#0A1F15'),
-              cornerRadius(6)
+              cornerRadius(8)
             ]}>
               {statusText}
             </Text>
             <Text modifiers={[
               font({ size: 11, weight: 'bold' }),
               foregroundColor('#F5A623'),
-              padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
+              padding({ leading: 10, trailing: 10, top: 4, bottom: 4 }),
               background('#1F1A0A'),
-              cornerRadius(6)
+              cornerRadius(8)
             ]}>
               €{commitment.stakeAmount}
             </Text>
@@ -278,13 +284,17 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
 
           {/* Commitment sentence */}
           {commitment.sentence && (
-            <Text modifiers={[font({ size: 8 }), foregroundColor('#6B7280'), lineLimit(1)]}>
+            <Text modifiers={[font({ size: 11 }), foregroundColor('#8F93A3'), lineLimit(1)]}>
               {commitment.sentence}
             </Text>
           )}
 
-          {/* Progress bar */}
+          <Spacer />
+
+          {/* Progress bar - centered vertically */}
           {renderSlicedProgressBar(commitment.segments, commitment.overallProgress, commitment.targetScope)}
+
+          <Spacer />
 
           {/* Bottom stats row */}
           <HStack>
