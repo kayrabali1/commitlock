@@ -121,7 +121,7 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
   };
 
   const commitments = props.commitments || [];
-  const family = context?.family || 'systemSmall';
+  const family = context?.widgetFamily || context?.family || 'systemSmall';
 
   // Render empty state if there are no active commitments
   if (commitments.length === 0) {
@@ -171,18 +171,28 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
             padding({ all: 14 })
           ]}
         >
-          {/* Header row: emoji + label + arrow */}
+          {/* Header row: emoji + label ... ON TRACK + €amount */}
           <HStack spacing={4}>
             <Text modifiers={[font({ size: 14, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
               {emoji} {commitment.label}
             </Text>
-            {commitments.length > 1 ? (
-              <Button target="next" modifiers={[buttonStyle('plain')]}>
-                <Text modifiers={[font({ size: 16, weight: 'bold' }), foregroundColor('#8F93A3')]}>›</Text>
-              </Button>
-            ) : null}
             <Spacer />
-            <Text modifiers={[font({ size: 11, weight: 'bold' }), foregroundColor('#F5A623')]}>
+            <Text modifiers={[
+              font({ size: 11, weight: 'bold' }),
+              foregroundColor(statusColor),
+              padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
+              background(commitment.isBroken ? '#1A0A0C' : '#0A1F15'),
+              cornerRadius(6)
+            ]}>
+              {statusText}
+            </Text>
+            <Text modifiers={[
+              font({ size: 11, weight: 'bold' }),
+              foregroundColor('#F5A623'),
+              padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
+              background('#1F1A0A'),
+              cornerRadius(6)
+            ]}>
               €{commitment.stakeAmount}
             </Text>
           </HStack>
@@ -217,9 +227,11 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
               </Text>
             </HStack>
             <Spacer />
-            <Text modifiers={[font({ size: 9, weight: 'semibold' }), foregroundColor(statusColor)]}>
-              {statusText}
-            </Text>
+            {commitments.length > 1 ? (
+              <Button target="next" modifiers={[buttonStyle('plain')]}>
+                <Text modifiers={[font({ size: 24, weight: 'bold' }), foregroundColor('#8F93A3')]}>›</Text>
+              </Button>
+            ) : null}
           </HStack>
         </VStack>
       </Host>
