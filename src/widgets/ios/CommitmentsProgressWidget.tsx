@@ -246,16 +246,11 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
             padding({ all: 16 })
           ]}
         >
-          {/* Row 1: emoji + label + arrow ... ON TRACK pill + €amount pill */}
+          {/* Row 1: emoji + label ... ON TRACK pill + €amount pill */}
           <HStack spacing={6}>
             <Text modifiers={[font({ size: 16, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
               {emoji} {commitment.label}
             </Text>
-            {commitments.length > 1 ? (
-              <Button target="next" modifiers={[buttonStyle('plain')]}>
-                <Text modifiers={[font({ size: 18, weight: 'bold' }), foregroundColor('#8F93A3')]}>›</Text>
-              </Button>
-            ) : null}
             <Spacer />
             <Text modifiers={[
               font({ size: 11, weight: 'bold' }),
@@ -323,6 +318,11 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
                 {commitment.remainingDays}
               </Text>
             </VStack>
+            {commitments.length > 1 ? (
+              <Button target="next" modifiers={[buttonStyle('plain'), padding({ leading: 8 })]}>
+                <Text modifiers={[font({ size: 24, weight: 'bold' }), foregroundColor('#8F93A3')]}>›</Text>
+              </Button>
+            ) : null}
           </HStack>
         </VStack>
       </Host>
