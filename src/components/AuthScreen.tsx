@@ -15,6 +15,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
+import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '@/services/auth';
 import { Spacing } from '@/constants/theme';
@@ -28,6 +29,8 @@ export default function AuthScreen() {
     error: authError,
     clearError,
   } = useAuth();
+  
+  const { t, i18n } = useTranslation();
 
   const [isSignUp, setIsSignUp] = useState(false);
   const [name, setName] = useState('');
@@ -73,20 +76,20 @@ export default function AuthScreen() {
 
   const validateForm = () => {
     if (!email || !email.includes('@')) {
-      setValidationError('Please enter a valid email address.');
+      setValidationError(t('auth.errorInvalidEmail'));
       return false;
     }
     if (password.length < 6) {
-      setValidationError('Password must be at least 6 characters.');
+      setValidationError(t('auth.errorPasswordLength'));
       return false;
     }
     if (isSignUp) {
       if (!name.trim()) {
-        setValidationError('Please enter your name.');
+        setValidationError(t('auth.errorNameRequired'));
         return false;
       }
       if (password !== confirmPassword) {
-        setValidationError('Passwords do not match.');
+        setValidationError(t('auth.errorPasswordMismatch'));
         return false;
       }
     }
@@ -141,6 +144,11 @@ export default function AuthScreen() {
 
   const displayError = validationError || authError;
 
+  const changeLanguage = (lang: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    i18n.changeLanguage(lang);
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -160,6 +168,21 @@ export default function AuthScreen() {
       />
 
       <View style={styles.innerContainer}>
+        {/* Language Selector */}
+        <View style={styles.languageSelector}>
+          <TouchableOpacity onPress={() => changeLanguage('en')}>
+            <Text style={[styles.langText, i18n.language.startsWith('en') && styles.langTextActive]}>EN</Text>
+          </TouchableOpacity>
+          <Text style={styles.langDivider}>|</Text>
+          <TouchableOpacity onPress={() => changeLanguage('de')}>
+            <Text style={[styles.langText, i18n.language.startsWith('de') && styles.langTextActive]}>DE</Text>
+          </TouchableOpacity>
+          <Text style={styles.langDivider}>|</Text>
+          <TouchableOpacity onPress={() => changeLanguage('tr')}>
+            <Text style={[styles.langText, i18n.language.startsWith('tr') && styles.langTextActive]}>TR</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Header Hero Area */}
         {!isKeyboardVisible && (
           <View style={styles.heroSection}>
@@ -168,8 +191,8 @@ export default function AuthScreen() {
                 source={require('@/assets/images/icon.png')} 
                 style={styles.logoImage} 
               />
-              <Text style={styles.appName}>HabitContract</Text>
-              <Text style={styles.appTagline}>Verify workouts. Protect stakes. Build discipline.</Text>
+              <Text style={styles.appName}>{t('auth.appName')}</Text>
+              <Text style={styles.appTagline}>{t('auth.appTagline')}</Text>
             </View>
           </View>
         )}
@@ -177,11 +200,11 @@ export default function AuthScreen() {
         {/* Input Card Container */}
         <View style={[styles.authCard, isKeyboardVisible && styles.authCardKeyboardVisible]}>
           <Text style={styles.cardHeaderTitle}>
-            {isSignUp ? 'Create Account' : 'Welcome Back'}
+            {isSignUp ? t('auth.createAccount') : t('auth.welcomeBack')}
           </Text>
           {!isKeyboardVisible && (
             <Text style={styles.cardHeaderSubtitle}>
-              {isSignUp ? 'Sign up to lock in your commitments.' : 'Sign in to track your active commitments.'}
+              {isSignUp ? t('auth.signUpSubtitle') : t('auth.signInSubtitle')}
             </Text>
           )}
 
@@ -205,7 +228,7 @@ export default function AuthScreen() {
                 />
                 <TextInput
                   style={styles.textInput}
-                  placeholder="Full Name"
+                  placeholder={t('auth.fullName')}
                   placeholderTextColor="#576880"
                   value={name}
                   onChangeText={(val) => {
@@ -228,7 +251,7 @@ export default function AuthScreen() {
               />
               <TextInput
                 style={styles.textInput}
-                placeholder="Email Address"
+                placeholder={t('auth.emailAddress')}
                 placeholderTextColor="#576880"
                 value={email}
                 onChangeText={(val) => {
@@ -251,7 +274,7 @@ export default function AuthScreen() {
               />
               <TextInput
                 style={styles.textInput}
-                placeholder={isSignUp ? "Password (min. 6 chars)" : "Password"}
+                placeholder={isSignUp ? t('auth.passwordMinChars') : t('auth.password')}
                 placeholderTextColor="#576880"
                 secureTextEntry
                 value={password}
@@ -275,7 +298,7 @@ export default function AuthScreen() {
                 />
                 <TextInput
                   style={styles.textInput}
-                  placeholder="Confirm Password"
+                  placeholder={t('auth.confirmPassword')}
                   placeholderTextColor="#576880"
                   secureTextEntry
                   value={confirmPassword}
@@ -293,7 +316,7 @@ export default function AuthScreen() {
             {/* Forgot Password Link */}
             {!isSignUp && (
               <TouchableOpacity style={styles.forgotPasswordContainer} activeOpacity={0.7}>
-                <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+                <Text style={styles.forgotPasswordText}>{t('auth.forgotPassword')}</Text>
               </TouchableOpacity>
             )}
 
@@ -315,7 +338,7 @@ export default function AuthScreen() {
                 ) : (
                   <View style={styles.primaryButtonContent}>
                     <Text style={styles.primaryButtonText}>
-                      {isSignUp ? 'Create Account' : 'Sign In'}
+                      {isSignUp ? t('auth.createAccount') : t('auth.signIn')}
                     </Text>
                     <MaterialCommunityIcons name="arrow-right" size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
                   </View>
@@ -328,7 +351,7 @@ export default function AuthScreen() {
               <View style={styles.demoHintBox}>
                 <MaterialCommunityIcons name="information" size={14} color="#8B5CF6" />
                 <Text style={styles.demoHintText}>
-                  Testing: Use <Text style={styles.boldText}>demo@habitcontract.com</Text> / <Text style={styles.boldText}>password</Text>
+                  {t('auth.demoHintPrefix')}<Text style={styles.boldText}>demo@habitcontract.com</Text>{t('auth.demoHintSuffix')}<Text style={styles.boldText}>password</Text>
                 </Text>
               </View>
             )}
@@ -339,7 +362,7 @@ export default function AuthScreen() {
             <>
               <View style={styles.dividerRow}>
                 <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OR CONTINUE WITH</Text>
+                <Text style={styles.dividerText}>{t('auth.orContinueWith')}</Text>
                 <View style={styles.dividerLine} />
               </View>
 
@@ -351,7 +374,7 @@ export default function AuthScreen() {
                   activeOpacity={0.8}
                 >
                   <MaterialCommunityIcons name="apple" size={20} color="#FFFFFF" />
-                  <Text style={styles.socialButtonText}>Apple</Text>
+                  <Text style={styles.socialButtonText}>{t('auth.apple')}</Text>
                 </TouchableOpacity>
 
                 {/* Google Sign In Button */}
@@ -361,7 +384,7 @@ export default function AuthScreen() {
                   activeOpacity={0.8}
                 >
                   <MaterialCommunityIcons name="google" size={18} color="#FFFFFF" />
-                  <Text style={styles.socialButtonText}>Google</Text>
+                  <Text style={styles.socialButtonText}>{t('auth.google')}</Text>
                 </TouchableOpacity>
               </View>
             </>
@@ -370,11 +393,11 @@ export default function AuthScreen() {
           {/* Toggle Auth Mode Button */}
           <View style={[styles.toggleModeContainer, isKeyboardVisible && styles.toggleModeContainerKeyboardVisible]}>
             <Text style={styles.toggleModeText}>
-              {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
+              {isSignUp ? t('auth.alreadyHaveAccount') : t('auth.dontHaveAccount')}
             </Text>
             <TouchableOpacity onPress={toggleAuthMode} activeOpacity={0.7}>
               <Text style={styles.toggleModeLink}>
-                {isSignUp ? 'Sign In' : 'Sign Up'}
+                {isSignUp ? t('auth.signIn') : t('auth.signUp')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -394,6 +417,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: Spacing.four,
     paddingVertical: Platform.OS === 'ios' ? Spacing.five : Spacing.four,
+  },
+  languageSelector: {
+    flexDirection: 'row',
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 60 : 40,
+    right: Spacing.four,
+    zIndex: 10,
+    backgroundColor: 'rgba(17, 19, 30, 0.75)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  langText: {
+    color: '#576880',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  langTextActive: {
+    color: '#7C3AED',
+  },
+  langDivider: {
+    color: '#576880',
+    fontSize: 12,
+    marginHorizontal: 8,
   },
   topGlow: {
     position: 'absolute',

@@ -18,10 +18,12 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Spacing } from '@/constants/theme';
 import { HealthDataService, Commitment, DailyHealthData } from '@/services/health';
 import { DisciplineCard } from '@/components/DisciplineCard';
+import { useTranslation } from 'react-i18next';
 
 export default function ResolutionScreen() {
   const router = useRouter();
   const { id, debug_auto_resolve } = useLocalSearchParams<{ id?: string; debug_auto_resolve?: string }>();
+  const { t } = useTranslation();
 
   // States
   const [activeCommitment, setActiveCommitment] = useState<Commitment | null>(null);
@@ -172,7 +174,7 @@ export default function ResolutionScreen() {
     }
   }, [phase, debug_auto_resolve, activeCommitment, isSuccess, weeklyData]);
 
-  const handleResolveAction = async () => {
+  async function handleResolveAction() {
     if (!activeCommitment) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -197,12 +199,12 @@ export default function ResolutionScreen() {
   const getMetricLabel = () => {
     if (!activeCommitment) return '';
     switch (activeCommitment.metricType) {
-      case 'steps': return 'steps';
-      case 'run': return 'km';
-      case 'cycle': return 'km';
-      case 'calories': return 'kcal';
-      case 'activeTime': return 'mins';
-      case 'mindfulness': return 'mins';
+      case 'steps': return t('metrics.steps_unit');
+      case 'run': return t('metrics.run_unit');
+      case 'cycle': return t('metrics.cycle_unit');
+      case 'calories': return t('metrics.calories_unit');
+      case 'activeTime': return t('metrics.activeTime_unit');
+      case 'mindfulness': return t('metrics.mindfulness_unit');
     }
   };
 
@@ -231,12 +233,12 @@ export default function ResolutionScreen() {
               <MaterialCommunityIcons name="shield-sync" size={48} color="#7C3AED" />
             </View>
           </View>
-          <Text style={styles.syncTitle}>Retrieving Encrypted Sensors</Text>
+          <Text style={styles.syncTitle}>{t('resolution.syncingTitle')}</Text>
           <Text style={styles.syncSubtitle}>
-            Syncing data for {activeCommitment?.startDate} - {activeCommitment?.endDate}
+            {t('resolution.syncingSubtitle', { start: activeCommitment?.startDate, end: activeCommitment?.endDate })}
           </Text>
           <Text style={styles.sensorSourceText}>
-            Direct Handshake with {Platform.OS === 'ios' ? 'Apple HealthKit' : 'Google Health Connect'}
+            {t('resolution.sensorSource', { source: Platform.OS === 'ios' ? 'Apple HealthKit' : 'Google Health Connect' })}
           </Text>
           <ActivityIndicator size="small" color="#7C3AED" style={{ marginTop: Spacing.four }} />
         </View>
@@ -247,13 +249,13 @@ export default function ResolutionScreen() {
         <View style={styles.checkingContainer}>
           <Text style={styles.checkingTitle}>
             {activeCommitment?.targetScope === 'weekly' 
-              ? 'Aggregating Weekly Log totals...' 
-              : 'Analyzing Weekly Targets...'}
+              ? t('resolution.checkingWeekly') 
+              : t('resolution.checkingDaily')}
           </Text>
           
           {activeCommitment?.targetScope === 'weekly' && (
             <View style={styles.weeklyRunningTotalCard}>
-              <Text style={styles.runningTotalLabel}>RUNNING TOTAL</Text>
+              <Text style={styles.runningTotalLabel}>{t('resolution.runningTotal')}</Text>
               <Text style={styles.runningTotalValue}>
                 {activeCommitment?.metricType === 'steps' || activeCommitment?.metricType === 'calories'
                   ? Math.round(getRunningTotal(currentCheckingIndex)).toLocaleString()
@@ -329,7 +331,7 @@ export default function ResolutionScreen() {
             {isSuccess ? (
               /* SUCCESS / REFUND LAYOUT WITH DISCIPLINE CARD */
               <View style={styles.outcomeWrapper}>
-                <Text style={styles.outcomeTitle}>Goal Achieved!</Text>
+                <Text style={styles.outcomeTitle}>{t('resolution.goalAchieved')}</Text>
                 
                 {activeCommitment && (
                   <DisciplineCard
@@ -339,7 +341,7 @@ export default function ResolutionScreen() {
                     }}
                     activeStreak={activeStreak}
                     onClaim={handleResolveAction}
-                    claimLabel="Claim Refund & Return"
+                    claimLabel={t('resolution.claimRefund')}
                   />
                 )}
               </View>
@@ -352,17 +354,17 @@ export default function ResolutionScreen() {
                   </LinearGradient>
                 </View>
 
-                <Text style={styles.failedOutcomeTitle}>Pledge Forfeited</Text>
+                <Text style={styles.failedOutcomeTitle}>{t('resolution.pledgeForfeited')}</Text>
                 <Text style={styles.failedOutcomeDesc}>
                   {activeCommitment?.targetScope === 'weekly'
-                    ? `You only achieved a total of ${weeklyData.reduce((acc, d) => acc + d.value, 0).toLocaleString()} ${getMetricLabel()} (Goal: ${activeCommitment?.targetValue.toLocaleString()}). According to the loss aversion agreement, your pledge funds are forfeited.`
-                    : 'You missed your daily target on at least one day. According to the loss aversion agreement, your pledge funds are forfeited.'}
+                    ? t('resolution.weeklyFailureDesc', { achieved: weeklyData.reduce((acc, d) => acc + d.value, 0).toLocaleString(), unit: getMetricLabel(), target: activeCommitment?.targetValue.toLocaleString() })
+                    : t('resolution.dailyFailureDesc')}
                 </Text>
 
                 <LinearGradient colors={['#11131E', '#0B0C14']} style={[styles.outcomeDetailsCard, { borderColor: 'rgba(255, 70, 85, 0.15)' }]}>
-                  <Text style={[styles.refundLabel, { color: '#FF4655' }]}>STAKE FORFEITED</Text>
+                  <Text style={[styles.refundLabel, { color: '#FF4655' }]}>{t('resolution.stakeForfeited')}</Text>
                   <Text style={[styles.refundAmount, { color: '#FF4655' }]}>€{activeCommitment?.stakeAmount}.00</Text>
-                  <Text style={styles.refundSubtext}>Processed as platform revenue</Text>
+                  <Text style={styles.refundSubtext}>{t('resolution.platformRevenue')}</Text>
 
                 </LinearGradient>
 
@@ -372,7 +374,7 @@ export default function ResolutionScreen() {
                   activeOpacity={0.9}
                 >
                   <LinearGradient colors={['#FF4655', '#D2003B']} style={styles.btnGradient}>
-                    <Text style={styles.actionBtnText}>Acknowledge & Accept</Text>
+                    <Text style={styles.actionBtnText}>{t('resolution.acknowledgeAccept')}</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>

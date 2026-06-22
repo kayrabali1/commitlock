@@ -31,6 +31,7 @@ import { VerificationGuideModal } from '@/components/VerificationGuideModal';
 import { SyncVerificationModal } from '@/components/SyncVerificationModal';
 import AppHeader, { BASE_HEADER_HEIGHT } from '@/components/AppHeader';
 import { NotificationService } from '@/services/notifications';
+import { useTranslation } from 'react-i18next';
 
 type NotificationKeys = 'dailyReminder' | 'statusUpdates' | 'stakeAlerts' | 'weeklyReport' | 'gracePeriodSync' | 'achievementAlerts';
 
@@ -38,6 +39,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, signOut, updateAvatar } = useAuth();
+  const { t, i18n } = useTranslation();
   const { width: screenWidth } = useWindowDimensions();
   const { debug_auto_reset } = useLocalSearchParams<{ debug_auto_reset?: string }>();
 
@@ -60,6 +62,7 @@ export default function SettingsScreen() {
 
   // State controls
   const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [syncMetrics, setSyncMetrics] = useState<{
@@ -387,7 +390,7 @@ export default function SettingsScreen() {
         >
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>Settings</Text>
+            <Text style={styles.headerTitle}>{t('settings.headerTitle')}</Text>
           </View>
 
           {/* Premium Account Profile Card */}
@@ -427,7 +430,7 @@ export default function SettingsScreen() {
                   activeOpacity={0.7}
                   style={styles.editProfileButton}
                 >
-                  <Text style={styles.editProfileText}>Change photo</Text>
+                  <Text style={styles.editProfileText}>{t('settings.changePhoto')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -435,11 +438,11 @@ export default function SettingsScreen() {
 
           {/* Section: Preferences */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Preferences</Text>
+            <Text style={styles.sectionTitle}>{t('settings.sectionPreferences')}</Text>
             <View style={styles.cardList}>
               <TouchableOpacity 
                 onPress={() => navigateToPane('notifications')} 
-                style={[styles.settingItemClickable, { borderBottomWidth: 0 }]}
+                style={styles.settingItemClickable}
                 activeOpacity={0.6}
               >
                 <View style={styles.settingItemLeft}>
@@ -447,8 +450,25 @@ export default function SettingsScreen() {
                     <MaterialCommunityIcons name="bell-outline" size={20} color="#8B5CF6" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.itemTitle}>Notifications</Text>
-                    <Text style={styles.itemSubtitle}>Alerts, daily reminders & stake warnings</Text>
+                    <Text style={styles.itemTitle}>{t('settings.notifications')}</Text>
+                    <Text style={styles.itemSubtitle}>{t('settings.notificationsSubtitle')}</Text>
+                  </View>
+                </View>
+                <MaterialCommunityIcons name="chevron-right" size={20} color="#576880" />
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                onPress={() => setShowLanguageModal(true)} 
+                style={[styles.settingItemClickable, { borderBottomWidth: 0 }]}
+                activeOpacity={0.6}
+              >
+                <View style={styles.settingItemLeft}>
+                  <View style={[styles.iconBg, { backgroundColor: 'rgba(236, 72, 153, 0.1)' }]}>
+                    <MaterialCommunityIcons name="translate" size={20} color="#EC4899" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.itemTitle}>{t('settings.language')}</Text>
+                    <Text style={styles.itemSubtitle}>{t('settings.languageSubtitle')}</Text>
                   </View>
                 </View>
                 <MaterialCommunityIcons name="chevron-right" size={20} color="#576880" />
@@ -458,7 +478,7 @@ export default function SettingsScreen() {
 
           {/* Section: Health & Verification */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Services & Sync</Text>
+            <Text style={styles.sectionTitle}>{t('settings.sectionServices')}</Text>
             <View style={styles.cardList}>
               <TouchableOpacity 
                 onPress={handleRequestPermissions} 
@@ -473,7 +493,7 @@ export default function SettingsScreen() {
                     <Text style={styles.itemTitle}>
                       {Platform.OS === 'ios' ? 'Apple HealthKit' : 'Google Health Connect'}
                     </Text>
-                    <Text style={styles.itemSubtitle}>Connected • Tap to verify sensor sync</Text>
+                    <Text style={styles.itemSubtitle}>{t('settings.healthConnectConnected')}</Text>
                   </View>
                 </View>
                 {isSyncing ? (
@@ -496,8 +516,8 @@ export default function SettingsScreen() {
                     <MaterialCommunityIcons name="shield-check-outline" size={20} color="#3B82F6" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.itemTitle}>How Verification Works</Text>
-                    <Text style={styles.itemSubtitle}>Learn how we keep goals secure and honest</Text>
+                    <Text style={styles.itemTitle}>{t('settings.howVerificationWorks')}</Text>
+                    <Text style={styles.itemSubtitle}>{t('settings.howVerificationWorksSubtitle')}</Text>
                   </View>
                 </View>
                 <MaterialCommunityIcons name="chevron-right" size={20} color="#576880" />
@@ -507,7 +527,7 @@ export default function SettingsScreen() {
 
           {/* Section: System */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>System</Text>
+            <Text style={styles.sectionTitle}>{t('settings.sectionSystem')}</Text>
             <View style={styles.cardList}>
               <TouchableOpacity 
                 onPress={handleResetSandbox} 
@@ -519,8 +539,8 @@ export default function SettingsScreen() {
                     <MaterialCommunityIcons name="alert-octagon-outline" size={20} color="#EF4444" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.itemTitle, { color: '#EF4444' }]}>Reset Sandbox Pledges & Logs</Text>
-                    <Text style={styles.itemSubtitle}>Clear active pledges, histories, and simulated values</Text>
+                    <Text style={[styles.itemTitle, { color: '#EF4444' }]}>{t('settings.resetSandbox')}</Text>
+                    <Text style={styles.itemSubtitle}>{t('settings.resetSandboxSubtitle')}</Text>
                   </View>
                 </View>
                 <MaterialCommunityIcons name="chevron-right" size={20} color="#EF4444" />
@@ -536,8 +556,8 @@ export default function SettingsScreen() {
                     <MaterialCommunityIcons name="logout" size={20} color="#94A3B8" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.itemTitle}>Sign Out</Text>
-                    <Text style={styles.itemSubtitle}>End active session and clear local cache</Text>
+                    <Text style={styles.itemTitle}>{t('settings.signOut')}</Text>
+                    <Text style={styles.itemSubtitle}>{t('settings.signOutSubtitle')}</Text>
                   </View>
                 </View>
                 <MaterialCommunityIcons name="chevron-right" size={20} color="#576880" />
@@ -569,7 +589,7 @@ export default function SettingsScreen() {
           >
             <MaterialCommunityIcons name="chevron-left" size={28} color="#FFFFFF" />
           </TouchableOpacity>
-          <Text style={styles.subPaneTitle}>Notifications</Text>
+          <Text style={styles.subPaneTitle}>{t('settings.notificationsPaneTitle')}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -578,7 +598,7 @@ export default function SettingsScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Text style={styles.subPaneIntro}>
-            Customize your check-in triggers and warning alerts to support your routine and safeguard your stakes.
+            {t('settings.notificationsIntro')}
           </Text>
 
           <View style={styles.cardList}>
@@ -588,8 +608,8 @@ export default function SettingsScreen() {
                   <MaterialCommunityIcons name="alarm" size={20} color="#8B5CF6" />
                 </View>
                 <View style={{ flex: 1, paddingRight: Spacing.two }}>
-                  <Text style={styles.itemTitle}>Daily Reminders</Text>
-                  <Text style={styles.itemSubtitle}>Get reminded to complete active commitments.</Text>
+                  <Text style={styles.itemTitle}>{t('settings.dailyReminders')}</Text>
+                  <Text style={styles.itemSubtitle}>{t('settings.dailyRemindersSub')}</Text>
                 </View>
               </View>
               <Switch
@@ -607,8 +627,8 @@ export default function SettingsScreen() {
                   <MaterialCommunityIcons name="check-decagram-outline" size={20} color="#05D38E" />
                 </View>
                 <View style={{ flex: 1, paddingRight: Spacing.two }}>
-                  <Text style={styles.itemTitle}>Goal Achievements</Text>
-                  <Text style={styles.itemSubtitle}>Get notified immediately once your active daily commitment target is met.</Text>
+                  <Text style={styles.itemTitle}>{t('settings.goalAchievements')}</Text>
+                  <Text style={styles.itemSubtitle}>{t('settings.goalAchievementsSub')}</Text>
                 </View>
               </View>
               <Switch
@@ -626,8 +646,8 @@ export default function SettingsScreen() {
                   <MaterialCommunityIcons name="bell-badge-outline" size={20} color="#3B82F6" />
                 </View>
                 <View style={{ flex: 1, paddingRight: Spacing.two }}>
-                  <Text style={styles.itemTitle}>Commitment Updates</Text>
-                  <Text style={styles.itemSubtitle}>Alerts when commitments change status (locked, active, completed).</Text>
+                  <Text style={styles.itemTitle}>{t('settings.commitmentUpdates')}</Text>
+                  <Text style={styles.itemSubtitle}>{t('settings.commitmentUpdatesSub')}</Text>
                 </View>
               </View>
               <Switch
@@ -645,8 +665,8 @@ export default function SettingsScreen() {
                   <MaterialCommunityIcons name="alert-decagram-outline" size={20} color="#EF4444" />
                 </View>
                 <View style={{ flex: 1, paddingRight: Spacing.two }}>
-                  <Text style={styles.itemTitle}>Stake Alerts</Text>
-                  <Text style={styles.itemSubtitle}>Crucial warnings before your stake is at risk of forfeit.</Text>
+                  <Text style={styles.itemTitle}>{t('settings.stakeAlerts')}</Text>
+                  <Text style={styles.itemSubtitle}>{t('settings.stakeAlertsSub')}</Text>
                 </View>
               </View>
               <Switch
@@ -664,8 +684,8 @@ export default function SettingsScreen() {
                   <MaterialCommunityIcons name="clock-alert-outline" size={20} color="#3B82F6" />
                 </View>
                 <View style={{ flex: 1, paddingRight: Spacing.two }}>
-                  <Text style={styles.itemTitle}>Grace Period Reminders</Text>
-                  <Text style={styles.itemSubtitle}>{"Daily alerts on the last day and during the 48h grace period if you haven't synced yet."}</Text>
+                  <Text style={styles.itemTitle}>{t('settings.gracePeriod')}</Text>
+                  <Text style={styles.itemSubtitle}>{t('settings.gracePeriodSub')}</Text>
                 </View>
               </View>
               <Switch
@@ -683,8 +703,8 @@ export default function SettingsScreen() {
                   <MaterialCommunityIcons name="chart-bar" size={20} color="#10B981" />
                 </View>
                 <View style={{ flex: 1, paddingRight: Spacing.two }}>
-                  <Text style={styles.itemTitle}>Weekly Progress Report</Text>
-                  <Text style={styles.itemSubtitle}>Receive a weekly summary of your discipline rate and stakes.</Text>
+                  <Text style={styles.itemTitle}>{t('settings.weeklyReport')}</Text>
+                  <Text style={styles.itemSubtitle}>{t('settings.weeklyReportSub')}</Text>
                 </View>
               </View>
               <Switch
@@ -714,7 +734,7 @@ export default function SettingsScreen() {
         >
           <View style={styles.modalContent}>
             <View style={styles.modalDragIndicator} />
-            <Text style={styles.modalTitle}>Profile Picture</Text>
+            <Text style={styles.modalTitle}>{t('settings.profilePicture')}</Text>
 
             <View style={styles.modalBody}>
               <TouchableOpacity 
@@ -725,7 +745,7 @@ export default function SettingsScreen() {
                 <View style={[styles.modalOptionIconBg, { backgroundColor: 'rgba(139, 92, 246, 0.12)' }]}>
                   <MaterialCommunityIcons name="image-multiple" size={20} color="#8B5CF6" />
                 </View>
-                <Text style={styles.modalOptionText}>Choose from Library</Text>
+                <Text style={styles.modalOptionText}>{t('settings.chooseFromLibrary')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity 
@@ -736,7 +756,7 @@ export default function SettingsScreen() {
                 <View style={[styles.modalOptionIconBg, { backgroundColor: 'rgba(139, 92, 246, 0.12)' }]}>
                   <MaterialCommunityIcons name="camera" size={20} color="#8B5CF6" />
                 </View>
-                <Text style={styles.modalOptionText}>Take Photo</Text>
+                <Text style={styles.modalOptionText}>{t('settings.takePhoto')}</Text>
               </TouchableOpacity>
 
               {!isDefaultAvatar && (
@@ -748,7 +768,7 @@ export default function SettingsScreen() {
                   <View style={[styles.modalOptionIconBg, { backgroundColor: 'rgba(239, 68, 68, 0.12)' }]}>
                     <MaterialCommunityIcons name="delete-outline" size={20} color="#EF4444" />
                   </View>
-                  <Text style={[styles.modalOptionText, { color: '#EF4444' }]}>Remove Photo</Text>
+                  <Text style={[styles.modalOptionText, { color: '#EF4444' }]}>{t('settings.removePhoto')}</Text>
                 </TouchableOpacity>
               )}
 
@@ -757,7 +777,80 @@ export default function SettingsScreen() {
                 onPress={() => setShowPhotoModal(false)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.modalCancelText}>Cancel</Text>
+                <Text style={styles.modalCancelText}>{t('settings.cancel')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Language Selection Modal */}
+      <Modal
+        visible={showLanguageModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowLanguageModal(false)}
+      >
+        <Pressable 
+          style={styles.modalBackdrop} 
+          onPress={() => setShowLanguageModal(false)}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalDragIndicator} />
+            <Text style={styles.modalTitle}>{t('settings.language')}</Text>
+
+            <View style={styles.modalBody}>
+              <TouchableOpacity 
+                style={styles.modalOption} 
+                onPress={() => {
+                  i18n.changeLanguage('en');
+                  setShowLanguageModal(false);
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.modalOptionIconBg, { backgroundColor: 'rgba(139, 92, 246, 0.12)' }]}>
+                  <Text style={{color: '#8B5CF6', fontWeight: 'bold'}}>EN</Text>
+                </View>
+                <Text style={styles.modalOptionText}>English</Text>
+                {i18n.language.startsWith('en') && <MaterialCommunityIcons name="check" size={20} color="#8B5CF6" style={{marginLeft: 'auto'}} />}
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.modalOption} 
+                onPress={() => {
+                  i18n.changeLanguage('de');
+                  setShowLanguageModal(false);
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.modalOptionIconBg, { backgroundColor: 'rgba(139, 92, 246, 0.12)' }]}>
+                  <Text style={{color: '#8B5CF6', fontWeight: 'bold'}}>DE</Text>
+                </View>
+                <Text style={styles.modalOptionText}>Deutsch</Text>
+                {i18n.language.startsWith('de') && <MaterialCommunityIcons name="check" size={20} color="#8B5CF6" style={{marginLeft: 'auto'}} />}
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.modalOption} 
+                onPress={() => {
+                  i18n.changeLanguage('tr');
+                  setShowLanguageModal(false);
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.modalOptionIconBg, { backgroundColor: 'rgba(139, 92, 246, 0.12)' }]}>
+                  <Text style={{color: '#8B5CF6', fontWeight: 'bold'}}>TR</Text>
+                </View>
+                <Text style={styles.modalOptionText}>Türkçe</Text>
+                {i18n.language.startsWith('tr') && <MaterialCommunityIcons name="check" size={20} color="#8B5CF6" style={{marginLeft: 'auto'}} />}
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.modalCancelButton} 
+                onPress={() => setShowLanguageModal(false)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalCancelText}>{t('settings.cancel')}</Text>
               </TouchableOpacity>
             </View>
           </View>

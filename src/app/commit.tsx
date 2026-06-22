@@ -28,6 +28,7 @@ import Animated, {
   FadeOutRight
 } from 'react-native-reanimated';
 
+import { useTranslation } from 'react-i18next';
 import { Spacing } from '@/constants/theme';
 import { HealthDataService, MetricType } from '@/services/health';
 import { VerificationGuideModal } from '@/components/VerificationGuideModal';
@@ -38,6 +39,7 @@ const { width } = Dimensions.get('window');
 export default function CommitScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t, i18n } = useTranslation();
   
   const { rolloverFrom, rolloverStake, debug_auto_commit, debug_targetScope, debug_targetValue, debug_metricType } = useLocalSearchParams<{
     rolloverFrom?: string;
@@ -132,7 +134,7 @@ export default function CommitScreen() {
     const tomorrowDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1, 12, 0, 0);
     
     const formatDateLabel = (d: Date) => {
-      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return d.toLocaleDateString(i18n.language, { month: 'short', day: 'numeric' });
     };
 
     const formatISOString = (d: Date) => {
@@ -140,9 +142,9 @@ export default function CommitScreen() {
     };
 
     return [
-      { id: 'today' as const, label: 'Today', dateLabel: formatDateLabel(todayDate), date: todayDate, dateStr: formatISOString(todayDate) },
-      { id: 'tomorrow' as const, label: 'Tomorrow', dateLabel: formatDateLabel(tomorrowDate), date: tomorrowDate, dateStr: formatISOString(tomorrowDate) },
-      { id: 'custom' as const, label: 'Custom', dateLabel: formatDateLabel(customStartDate), date: customStartDate, dateStr: formatISOString(customStartDate) },
+      { id: 'today' as const, label: t('commit.startToday'), dateLabel: formatDateLabel(todayDate), date: todayDate, dateStr: formatISOString(todayDate) },
+      { id: 'tomorrow' as const, label: t('commit.startTomorrow'), dateLabel: formatDateLabel(tomorrowDate), date: tomorrowDate, dateStr: formatISOString(tomorrowDate) },
+      { id: 'custom' as const, label: t('commit.startCustom'), dateLabel: formatDateLabel(customStartDate), date: customStartDate, dateStr: formatISOString(customStartDate) },
     ];
   };
 
@@ -406,7 +408,7 @@ export default function CommitScreen() {
     scrollViewRef.current?.scrollTo({ y: 0, animated: false });
   };
 
-  const confirmPayment = async (overrides?: { targetScope?: 'daily' | 'weekly'; targetValue?: number; metricType?: MetricType }) => {
+  async function confirmPayment(overrides?: { targetScope?: 'daily' | 'weekly'; targetValue?: number; metricType?: MetricType }) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setPaymentStep('processing');
 
@@ -489,67 +491,34 @@ export default function CommitScreen() {
 
   const getMetricFullName = (type: MetricType) => {
     switch (type) {
-      case 'steps': return 'Steps';
-      case 'run': return 'Run';
-      case 'mindfulness': return 'Mindfulness';
-      case 'cycle': return 'Cycle';
-      case 'calories': return 'Active Calories';
-      case 'activeTime': return 'Active Time';
+      case 'steps': return t('metrics.steps');
+      case 'run': return t('metrics.run');
+      case 'mindfulness': return t('metrics.mindfulness');
+      case 'cycle': return t('metrics.cycle');
+      case 'calories': return t('metrics.calories');
+      case 'activeTime': return t('metrics.activeTime');
     }
   };
 
   const getMetricLabel = () => {
-    const suffix = targetScope === 'weekly' ? '/week' : '/day';
+    const suffix = targetScope === 'weekly' ? t('metrics.per_week') : t('metrics.per_day');
     switch (metric) {
-      case 'steps': return `steps${suffix}`;
-      case 'run': return `km${suffix}`;
-      case 'mindfulness': return `mins${suffix}`;
-      case 'cycle': return `km${suffix}`;
-      case 'calories': return `active kcal${suffix}`;
-      case 'activeTime': return `mins${suffix}`;
+      case 'steps': return `${t('metrics.steps_unit')}${suffix}`;
+      case 'run': return `${t('metrics.run_unit')}${suffix}`;
+      case 'mindfulness': return `${t('metrics.mindfulness_unit')}${suffix}`;
+      case 'cycle': return `${t('metrics.cycle_unit')}${suffix}`;
+      case 'calories': return `${t('metrics.calories_unit')}${suffix}`;
+      case 'activeTime': return `${t('metrics.activeTime_unit')}${suffix}`;
     }
   };
 
   const getCommitmentStatement = () => {
     const formattedValue = metric === 'steps' || metric === 'calories' ? targetValue.toLocaleString() : targetValue;
-    const periodLabel = period === 'week' ? 'week' : 'month';
+    const periodLabel = period === 'week' ? t('commit.period_week') : t('commit.period_month');
     const isWeekly = targetScope === 'weekly';
 
-    if (isWeekly) {
-      switch (metric) {
-        case 'steps':
-          return `I commit to walk more than total ${formattedValue} steps in the ${periodLabel}.`;
-        case 'run':
-          return `I commit to run more than total ${formattedValue} km in the ${periodLabel}.`;
-        case 'mindfulness':
-          return `I commit to practice mindfulness for more than total ${formattedValue} mins in the ${periodLabel}.`;
-        case 'cycle':
-          return `I commit to cycle more than total ${formattedValue} km in the ${periodLabel}.`;
-        case 'calories':
-          return `I commit to burn more than total ${formattedValue} active kcal in the ${periodLabel}.`;
-        case 'activeTime':
-          return `I commit to exercise for more than total ${formattedValue} mins in the ${periodLabel}.`;
-        default:
-          return `I commit to achieve more than total ${formattedValue} in the ${periodLabel}.`;
-      }
-    } else {
-      switch (metric) {
-        case 'steps':
-          return `I commit to walk more than ${formattedValue} steps everyday for a ${periodLabel}.`;
-        case 'run':
-          return `I commit to run more than ${formattedValue} km everyday for a ${periodLabel}.`;
-        case 'mindfulness':
-          return `I commit to practice mindfulness for more than ${formattedValue} mins everyday for a ${periodLabel}.`;
-        case 'cycle':
-          return `I commit to cycle more than ${formattedValue} km everyday for a ${periodLabel}.`;
-        case 'calories':
-          return `I commit to burn more than ${formattedValue} active kcal everyday for a ${periodLabel}.`;
-        case 'activeTime':
-          return `I commit to exercise for more than ${formattedValue} mins everyday for a ${periodLabel}.`;
-        default:
-          return `I commit to achieve more than ${formattedValue} everyday for a ${periodLabel}.`;
-      }
-    }
+    const key = `commit.statement_${isWeekly ? 'weekly' : 'daily'}_${metric}`;
+    return t(key, { value: formattedValue, period: periodLabel });
   };
 
   const getMetricIcon = (type: MetricType) => {
@@ -595,14 +564,14 @@ export default function CommitScreen() {
           >
             <MaterialCommunityIcons name="swap-horizontal" size={18} color="#7C3AED" />
             <Text style={styles.rolloverBannerText}>
-              Rollover Active: Re-pledging €{rolloverStake} from completed commitment.
+              {t('commit.rolloverActive', { stake: rolloverStake })}
             </Text>
           </LinearGradient>
         )}
 
         {/* Header (Compact) */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Lock Commitment</Text>
+          <Text style={styles.headerTitle}>{t('commit.headerTitle')}</Text>
         </View>
 
         {/* 1. Select Activity */}
@@ -630,7 +599,7 @@ export default function CommitScreen() {
                   <Text style={[styles.stepNumberText, activeStep === 1 && styles.stepNumberTextActive]}>01</Text>
                 )}
               </View>
-              <Text style={styles.accordionTitle}>Activity</Text>
+              <Text style={styles.accordionTitle}>{t('commit.step1Title')}</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               {activeStep !== 1 && isMetricSelected && (
@@ -724,7 +693,7 @@ export default function CommitScreen() {
                   <Text style={[styles.stepNumberText, activeStep === 2 && styles.stepNumberTextActive]}>02</Text>
                 )}
               </View>
-              <Text style={styles.accordionTitle}>Target</Text>
+              <Text style={styles.accordionTitle}>{t('commit.step2Title')}</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               {activeStep !== 2 && isTargetSelected && (
@@ -747,7 +716,7 @@ export default function CommitScreen() {
           {activeStep === 2 && (
             <Animated.View entering={FadeInDown.duration(220).springify().damping(22).stiffness(180)} exiting={FadeOutUp.duration(150)} style={styles.accordionContent}>
               <View style={styles.targetCardHeader}>
-                <Text style={styles.targetCardTitle}>TARGET GOAL</Text>
+                <Text style={styles.targetCardTitle}>{t('commit.targetGoalLabel')}</Text>
                 
                 <View style={styles.scopeToggleContainer}>
                   <TouchableOpacity
@@ -756,7 +725,7 @@ export default function CommitScreen() {
                     activeOpacity={0.8}
                   >
                     <Text style={[styles.scopeToggleText, targetScope === 'daily' && styles.scopeToggleTextActive]}>
-                      Daily
+                      {t('commit.dailyTarget')}
                     </Text>
                   </TouchableOpacity>
                   
@@ -766,7 +735,7 @@ export default function CommitScreen() {
                     activeOpacity={0.8}
                   >
                     <Text style={[styles.scopeToggleText, targetScope === 'weekly' && styles.scopeToggleTextActive]}>
-                      Weekly
+                      {t('commit.weeklyAccumulator')}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -818,7 +787,7 @@ export default function CommitScreen() {
                 }}
                 activeOpacity={0.8}
               >
-                <Text style={styles.stepContinueButtonText}>Continue to Start & Duration</Text>
+                <Text style={styles.stepContinueButtonText}>{t('commit.continueToStartDuration')}</Text>
                 <MaterialCommunityIcons name="arrow-right" size={14} color="#FFFFFF" />
               </TouchableOpacity>
             </Animated.View>
@@ -850,7 +819,7 @@ export default function CommitScreen() {
                   <Text style={[styles.stepNumberText, activeStep === 3 && styles.stepNumberTextActive]}>03</Text>
                 )}
               </View>
-              <Text style={styles.accordionTitle}>Start and duration</Text>
+              <Text style={styles.accordionTitle}>{t('commit.step3Title')}</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               {activeStep !== 3 && isDurationSelected && (
@@ -858,8 +827,8 @@ export default function CommitScreen() {
                   <Text style={styles.accordionSummaryText}>
                     {(() => {
                       const dates = getCommitmentDates(startDateChoice, period);
-                      const startLabel = dates.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                      const durationLabel = period === 'week' ? '1 Wk' : '1 Mo';
+                      const startLabel = dates.startDate.toLocaleDateString(i18n.language, { month: 'short', day: 'numeric' });
+                      const durationLabel = period === 'week' ? t('commit.duration1WkCompact', '1 Wk') : t('commit.duration1MoCompact', '1 Mo');
                       return `${startLabel} • ${durationLabel}`;
                     })()}
                   </Text>
@@ -879,9 +848,9 @@ export default function CommitScreen() {
               {/* Duration Row */}
               <View style={styles.periodRowCompact}>
                 <View style={styles.periodLeftColCompact}>
-                  <Text style={styles.periodTitleCompact}>DURATION</Text>
+                  <Text style={styles.periodTitleCompact}>{t('commit.durationLabel')}</Text>
                   <Text style={styles.periodDescCompact}>
-                    {period === 'week' ? '1 Week commitment' : '1 Month commitment'}
+                    {period === 'week' ? t('commit.duration1WeekDesc', '1 Week commitment') : t('commit.duration1MonthDesc', '1 Month commitment')}
                   </Text>
                 </View>
                 <View style={styles.periodPillContainerCompact}>
@@ -894,7 +863,7 @@ export default function CommitScreen() {
                     style={[styles.periodPillCompact, period === 'week' && styles.periodPillActiveCompact]}
                     activeOpacity={0.8}
                   >
-                    <Text style={[styles.periodPillTextCompact, period === 'week' && styles.periodPillTextActiveCompact]}>1 Week</Text>
+                    <Text style={[styles.periodPillTextCompact, period === 'week' && styles.periodPillTextActiveCompact]}>{t('commit.duration1Week')}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -906,7 +875,7 @@ export default function CommitScreen() {
                     style={[styles.periodPillCompact, period === 'month' && styles.periodPillActiveCompact]}
                     activeOpacity={0.8}
                   >
-                    <Text style={[styles.periodPillTextCompact, period === 'month' && styles.periodPillTextActiveCompact]}>1 Month</Text>
+                    <Text style={[styles.periodPillTextCompact, period === 'month' && styles.periodPillTextActiveCompact]}>{t('commit.duration1Month')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -916,7 +885,7 @@ export default function CommitScreen() {
               {/* Start Date Row */}
               <View style={styles.periodRowCompact}>
                 <View style={styles.periodLeftColCompact}>
-                  <Text style={styles.periodTitleCompact}>START DATE</Text>
+                  <Text style={styles.periodTitleCompact}>{t('commit.startDateLabel')}</Text>
                   <Text style={styles.periodDescCompact}>
                     {(() => {
                       const dates = getCommitmentDates(startDateChoice, period);
@@ -1046,12 +1015,12 @@ export default function CommitScreen() {
             <Animated.View entering={FadeInDown.duration(220).springify().damping(22).stiffness(180)} exiting={FadeOutUp.duration(150)} style={styles.accordionContent}>
               <View style={styles.pledgeHeaderRow}>
                 <View style={styles.parameterLeftCol}>
-                  <Text style={styles.parameterTitle}>PLEDGE AMOUNT</Text>
-                  <Text style={styles.parameterDesc}>100% refunded when you reach your goal</Text>
+                  <Text style={styles.parameterTitle}>{t('commit.pledgeAmountLabel')}</Text>
+                  <Text style={styles.parameterDesc}>{t('commit.pledgeAmountDesc')}</Text>
                 </View>
                 <View style={styles.pledgeStatusBadge}>
                   <MaterialCommunityIcons name="lock-outline" size={12} color="#7C3AED" />
-                  <Text style={styles.pledgeStatusText}>SECURED</Text>
+                  <Text style={styles.pledgeStatusText}>{t('commit.securedLabel')}</Text>
                 </View>
               </View>
 
@@ -1084,7 +1053,7 @@ export default function CommitScreen() {
                   activeOpacity={0.8}
                 >
                   <Text style={[styles.stakePillTextExpanded, !!customStake && styles.stakePillTextActive]}>
-                    {customStake ? `€${customStake}` : 'Custom'}
+                    {customStake ? `€${customStake}` : t('commit.startCustom')}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -1099,7 +1068,7 @@ export default function CommitScreen() {
                 }}
                 activeOpacity={0.8}
               >
-                <Text style={styles.stepContinueButtonText}>Ready to Lock</Text>
+                <Text style={styles.stepContinueButtonText}>{t('commit.readyToLock')}</Text>
                 <MaterialCommunityIcons name="check-bold" size={14} color="#FFFFFF" />
               </TouchableOpacity>
             </Animated.View>
@@ -1139,8 +1108,8 @@ export default function CommitScreen() {
             <BlurView tint="dark" intensity={95} style={styles.modalContent}>
               <View style={styles.sheetHeader}>
                 <View style={styles.sheetPullBar} />
-                <Text style={styles.customSheetTitle}>Select Start Date</Text>
-                <Text style={styles.customSheetSubtitle}>Choose when your commitment should start</Text>
+                <Text style={styles.customSheetTitle}>{t('commit.selectStartDateTitle')}</Text>
+                <Text style={styles.customSheetSubtitle}>{t('commit.selectStartDateDesc')}</Text>
               </View>
 
               <View style={styles.datePickerContainer}>
@@ -1167,7 +1136,7 @@ export default function CommitScreen() {
                 style={styles.confirmCustomButton}
                 activeOpacity={0.8}
               >
-                <Text style={styles.confirmCustomButtonText}>Confirm Start Date</Text>
+                <Text style={styles.confirmCustomButtonText}>{t('commit.confirmStartDate')}</Text>
               </TouchableOpacity>
             </BlurView>
           </View>
@@ -1191,8 +1160,8 @@ export default function CommitScreen() {
           <BlurView tint="dark" intensity={95} style={styles.modalContent}>
             <View style={styles.sheetHeader}>
               <View style={styles.sheetPullBar} />
-              <Text style={styles.customSheetTitle}>Select Custom Pledge</Text>
-              <Text style={styles.customSheetSubtitle}>Swipe vertically to choose your stake amount</Text>
+              <Text style={styles.customSheetTitle}>{t('commit.selectCustomPledgeTitle')}</Text>
+              <Text style={styles.customSheetSubtitle}>{t('commit.selectCustomPledgeDesc')}</Text>
             </View>
 
             <View style={styles.customPickerContainer}>
@@ -1249,7 +1218,7 @@ export default function CommitScreen() {
               style={styles.confirmCustomButton}
               activeOpacity={0.8}
             >
-              <Text style={styles.confirmCustomButtonText}>Confirm €{tempStake}.00 Pledge</Text>
+              <Text style={styles.confirmCustomButtonText}>{t('commit.confirmCustomPledge', { stake: tempStake })}</Text>
             </TouchableOpacity>
           </BlurView>
         </View>
@@ -1261,7 +1230,7 @@ export default function CommitScreen() {
       {activeStep === 0 && allStepsReady && (
         <View style={styles.readyIndicatorAbove}>
           <MaterialCommunityIcons name={"check-circle" as any} size={14} color="#05D38E" />
-          <Text style={styles.readyIndicatorText}>All steps ready! Lock your pledge below</Text>
+          <Text style={styles.readyIndicatorText}>{t('commit.allStepsReady')}</Text>
           <MaterialCommunityIcons name={"arrow-down" as any} size={14} color="#05D38E" />
         </View>
       )}
@@ -1276,12 +1245,12 @@ export default function CommitScreen() {
         >
           <LinearGradient colors={['#7C3AED', '#4F46E5']} style={styles.submitGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
             <MaterialCommunityIcons name="lock" size={18} color="#FFFFFF" />
-            <Text style={styles.submitText}>Pledge & Lock €{stake}.00</Text>
+            <Text style={styles.submitText}>{t('commit.pledgeAndLock', { stake })}</Text>
           </LinearGradient>
         </TouchableOpacity>
 
         <Text style={styles.disclaimerText}>
-          Funds are secured safely. Complete your goals to unlock refund.
+          {t('commit.disclaimerText')}
         </Text>
       </View>
 
@@ -1306,16 +1275,16 @@ export default function CommitScreen() {
                 <View style={styles.disclaimerIconContainer}>
                   <MaterialCommunityIcons name="shield-alert" size={24} color="#FF4A85" />
                 </View>
-                <Text style={styles.disclaimerTitle}>Verification Notice</Text>
+                <Text style={styles.disclaimerTitle}>{t('commit.verificationNoticeTitle')}</Text>
               </View>
             </View>
 
             <View style={styles.sheetBody}>
               <View style={styles.disclaimerBox}>
                 <MaterialCommunityIcons name="radar" size={32} color="#7C3AED" style={styles.disclaimerBoxIcon} />
-                <Text style={styles.disclaimerHeading}>HARDWARE TRACKING ONLY</Text>
+                <Text style={styles.disclaimerHeading}>{t('commit.hardwareTrackingTitle')}</Text>
                 <Text style={styles.disclaimerDescription}>
-                  To ensure fairness, manual entries will not be accepted and counted. Only activities and steps registered by a hardware device will count.
+                  {t('commit.hardwareTrackingDesc')}
                 </Text>
               </View>
 
@@ -1323,13 +1292,13 @@ export default function CommitScreen() {
                 <View style={styles.noticeItem}>
                   <MaterialCommunityIcons name="close-circle-outline" size={18} color="#FF4A85" />
                   <Text style={styles.noticeText}>
-                    <Text style={styles.boldText}>Manual entries</Text> in Apple Health or Google Health Connect will not be accepted or counted.
+                    {t('commit.noticeManual')}
                   </Text>
                 </View>
                 <View style={styles.noticeItem}>
                   <MaterialCommunityIcons name="check-circle-outline" size={18} color="#05D38E" />
                   <Text style={styles.noticeText}>
-                    Only activities and steps registered by hardware like a <Text style={styles.boldText}>watch</Text>, a <Text style={styles.boldText}>smartband</Text>, or your <Text style={styles.boldText}>mobile device itself</Text> will be accepted and counted.
+                    {t('commit.noticeHardware')}
                   </Text>
                 </View>
               </View>
@@ -1344,7 +1313,7 @@ export default function CommitScreen() {
                 activeOpacity={0.7}
               >
                 <MaterialCommunityIcons name="shield-check-outline" size={16} color="#8B5CF6" />
-                <Text style={styles.learnMoreText}>Read the official verification guide</Text>
+                <Text style={styles.learnMoreText}>{t('commit.readOfficialGuide')}</Text>
               </TouchableOpacity>
 
               {/* Checkbox for Consent */}
@@ -1362,7 +1331,7 @@ export default function CommitScreen() {
                   )}
                 </View>
                 <Text style={styles.checkboxLabel}>
-                  I accept that manual entries will not count and only hardware-registered data is accepted.
+                  {t('commit.acceptConsentLabel')}
                 </Text>
               </TouchableOpacity>
 
@@ -1373,7 +1342,7 @@ export default function CommitScreen() {
                   style={styles.cancelDisclaimerButton}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.cancelDisclaimerButtonText}>Cancel</Text>
+                  <Text style={styles.cancelDisclaimerButtonText}>{t('commit.cancelLabel')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -1395,7 +1364,7 @@ export default function CommitScreen() {
                       styles.acceptDisclaimerButtonText,
                       !hasAcceptedDisclaimer && styles.acceptDisclaimerButtonTextDisabled
                     ]}>
-                      Accept & Continue
+                      {t('commit.acceptContinue')}
                     </Text>
                   </LinearGradient>
                 </TouchableOpacity>
@@ -1438,21 +1407,21 @@ export default function CommitScreen() {
               <View style={styles.sheetBody}>
                 {/* Card and Transaction Details */}
                 <View style={styles.payRow}>
-                  <Text style={styles.payRowLabel}>CARD</Text>
+                  <Text style={styles.payRowLabel}>{t('commit.payCard')}</Text>
                   <Text style={styles.payRowValue}>•••• 4890</Text>
                 </View>
 
                 <View style={styles.payDivider} />
 
                 <View style={styles.payRow}>
-                  <Text style={styles.payRowLabel}>MERCHANT</Text>
+                  <Text style={styles.payRowLabel}>{t('commit.payMerchant')}</Text>
                   <Text style={styles.payRowValue}>HabitContract Platform GmbH</Text>
                 </View>
 
                 <View style={styles.payDivider} />
 
                 <View style={styles.payRow}>
-                  <Text style={styles.payRowLabel}>COMMITMENT</Text>
+                  <Text style={styles.payRowLabel}>{t('commit.payCommitment')}</Text>
                   <Text style={styles.payRowValue}>
                     {getMetricFullName(metric).toUpperCase()}: {targetValue.toLocaleString()} {getMetricLabel()}
                   </Text>
@@ -1461,7 +1430,7 @@ export default function CommitScreen() {
                 <View style={styles.payDivider} />
 
                 <View style={styles.payRow}>
-                  <Text style={styles.payRowLabel}>TOTAL</Text>
+                  <Text style={styles.payRowLabel}>{t('commit.payTotal')}</Text>
                   <Text style={styles.payTotalValue}>€{stake}.00</Text>
                 </View>
 
@@ -1470,22 +1439,22 @@ export default function CommitScreen() {
                   <View style={styles.doubleClickWrapper}>
                     <MaterialCommunityIcons name="gesture-double-tap" size={24} color="#7C3AED" />
                     <Text style={styles.doubleClickText}>
-                      Double Click to Confirm
+                      {t('commit.payDoubleClick')}
                     </Text>
                   </View>
                 ) : (
                   <Text style={styles.fingerprintPrompt}>
-                    Place finger on sensor to confirm
+                    {t('commit.payFingerprint')}
                   </Text>
                 )}
 
                 <TouchableOpacity 
-                  onPress={confirmPayment} 
+                  onPress={() => confirmPayment()} 
                   style={styles.payButton}
                   activeOpacity={0.8}
                 >
                   <Text style={styles.payButtonText}>
-                    Confirm Pledge & Pay €{stake}.00
+                    {t('commit.payConfirm', { stake })}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -1494,8 +1463,8 @@ export default function CommitScreen() {
             {paymentStep === 'processing' && (
               <View style={styles.sheetCenterBody}>
                 <ActivityIndicator size="large" color="#7C3AED" />
-                <Text style={styles.processingText}>Verifying with Apple/Google Sandbox...</Text>
-                <Text style={styles.processingSubtext}>Securing pledge funds safely</Text>
+                <Text style={styles.processingText}>{t('commit.payVerifying')}</Text>
+                <Text style={styles.processingSubtext}>{t('commit.paySecuring')}</Text>
               </View>
             )}
 
@@ -1504,8 +1473,8 @@ export default function CommitScreen() {
                 <View style={styles.successCircle}>
                   <MaterialCommunityIcons name="check" size={48} color="#FFFFFF" />
                 </View>
-                <Text style={styles.successText}>Pledge Locked!</Text>
-                <Text style={styles.successSubtext}>€{stake}.00 successfully charged & locked</Text>
+                <Text style={styles.successText}>{t('commit.paySuccess')}</Text>
+                <Text style={styles.successSubtext}>{t('commit.paySuccessDesc', { stake })}</Text>
               </View>
             )}
 

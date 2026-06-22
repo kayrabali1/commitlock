@@ -23,6 +23,7 @@ import HowItWorksPane from '@/components/HowItWorksPane';
 import { VerificationGuideModal } from '@/components/VerificationGuideModal';
 import AppHeader, { BASE_HEADER_HEIGHT } from '@/components/AppHeader';
 import { NotificationService } from '@/services/notifications';
+import { useTranslation } from 'react-i18next';
 
 function generateRandomId() {
   return Math.random().toString(36).substring(2, 11);
@@ -31,6 +32,7 @@ function generateRandomId() {
 export default function TrackerDashboard() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   
   // State
   const [activeCommitments, setActiveCommitments] = useState<Commitment[]>([]);
@@ -498,7 +500,7 @@ export default function TrackerDashboard() {
               refreshing={isRefreshing}
               onRefresh={handleRefresh}
               tintColor="#7C3AED"
-              title="Syncing Apple HealthKit..."
+              title={t('active.syncing')}
               titleColor="#7C3AED"
               progressViewOffset={BASE_HEADER_HEIGHT + insets.top}
             />
@@ -521,9 +523,9 @@ export default function TrackerDashboard() {
                 <MaterialCommunityIcons name="lock-open-outline" size={26} color="#7C3AED" />
               </LinearGradient>
 
-              <Text style={styles.emptyTitle}>No Pledge Locked</Text>
+              <Text style={styles.emptyTitle}>{t('active.noPledgeLocked')}</Text>
               <Text style={styles.emptyText}>
-                Set a weekly goal and stake money to stay accountable. Complete your goal to keep your money.
+                {t('active.setGoalPrompt')}
               </Text>
 
               <TouchableOpacity
@@ -539,7 +541,7 @@ export default function TrackerDashboard() {
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                 >
-                  <Text style={styles.emptyButtonText}>Lock down a commitment now</Text>
+                  <Text style={styles.emptyButtonText}>{t('active.lockDownNow')}</Text>
                   <MaterialCommunityIcons name="arrow-right" size={16} color="#FFFFFF" />
                 </LinearGradient>
               </TouchableOpacity>
@@ -606,7 +608,7 @@ export default function TrackerDashboard() {
                           </Text>
                         </View>
                         <Text style={styles.commitmentPeriodSubtitle}>
-                          {commitment.targetScope === 'weekly' ? 'Weekly' : 'Daily'} Target • {commitment.targetValue.toLocaleString()} {getMetricUnit(commitment.metricType)}
+                          {commitment.targetScope === 'weekly' ? t('active.weeklyTarget') : t('active.dailyTarget')} • {commitment.targetValue.toLocaleString()} {getMetricUnit(commitment.metricType)}
                         </Text>
                         <Text style={[styles.commitmentPeriodSubtitle, { opacity: 0.8, marginTop: 4, fontStyle: 'italic' }]} numberOfLines={2}>
                           {HealthDataService.getCommitmentSentence(commitment)}
@@ -615,7 +617,7 @@ export default function TrackerDashboard() {
 
                       <View style={styles.commitmentHeaderRight}>
                         <Text style={styles.commitmentPledgeAmount}>€{commitment.stakeAmount}</Text>
-                        <Text style={styles.commitmentPledgeLabel}>PLEDGED</Text>
+                        <Text style={styles.commitmentPledgeLabel}>{t('active.pledged')}</Text>
                       </View>
                     </View>
 
@@ -632,8 +634,8 @@ export default function TrackerDashboard() {
                           { color: isBroken ? '#FF4655' : '#05D38E' }
                         ]}>
                           {isBroken 
-                            ? 'Broken Commitment' 
-                            : (commitment.targetScope === 'weekly' ? 'Weekly Accumulator Safe' : 'On Track for Refund')}
+                            ? t('active.brokenCommitment') 
+                            : (commitment.targetScope === 'weekly' ? t('active.weeklySafe') : t('active.onTrack'))}
                         </Text>
                       </View>
 
@@ -646,11 +648,11 @@ export default function TrackerDashboard() {
                     {/* Sliced Progress Bar */}
                     <View style={styles.progressSection}>
                       <View style={styles.progressBarHeader}>
-                        <Text style={styles.progressBarLabel}>Goal Progress ({overallProgress}%)</Text>
+                        <Text style={styles.progressBarLabel}>{t('active.goalProgress')} ({overallProgress}%)</Text>
                         <Text style={styles.progressBarValue}>
                           {commitment.targetScope === 'weekly'
                             ? `${Math.round(totalAccumulated).toLocaleString()} / ${commitment.targetValue.toLocaleString()} ${getMetricUnit(commitment.metricType)}`
-                            : `${overallProgress}% completed`}
+                            : `${overallProgress}% ${t('active.completed')}`}
                         </Text>
                       </View>
                       
@@ -705,7 +707,7 @@ export default function TrackerDashboard() {
                       activeOpacity={0.8}
                     >
                       <Text style={styles.expandToggleText}>
-                        {isExpanded ? 'Hide Daily Logs' : 'Show Daily Logs'}
+                        {isExpanded ? t('active.hideDailyLogs') : t('active.showDailyLogs')}
                       </Text>
                       <MaterialCommunityIcons 
                         name={isExpanded ? "chevron-up" : "chevron-down"} 
@@ -793,7 +795,7 @@ export default function TrackerDashboard() {
                                       <MaterialCommunityIcons name={iconName as any} size={18} color={iconColor} />
                                       <View>
                                         <Text style={[styles.dayNameText, isToday && { color: '#7C3AED', fontWeight: 'bold' }]}>
-                                          {dayName} {isToday && '(Today)'}
+                                          {dayName} {isToday && t('active.today')}
                                         </Text>
                                         <Text style={styles.dayDateText}>{dateStr}</Text>
                                       </View>

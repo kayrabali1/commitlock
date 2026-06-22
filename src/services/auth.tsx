@@ -150,8 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Local Sign In
-  const signIn = async (email: string, password: string) => {
+  async function signIn(email: string, password: string) {
     setIsLoading(true);
     setError(null);
     try {

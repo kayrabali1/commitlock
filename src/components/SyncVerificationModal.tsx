@@ -13,6 +13,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 
+import { useTranslation } from 'react-i18next';
 import { Spacing } from '@/constants/theme';
 
 interface SyncVerificationModalProps {
@@ -27,6 +28,8 @@ interface SyncVerificationModalProps {
 }
 
 export function SyncVerificationModal({ visible, onClose, metrics }: SyncVerificationModalProps) {
+  const { t } = useTranslation();
+
   const handleClose = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onClose();
@@ -35,44 +38,44 @@ export function SyncVerificationModal({ visible, onClose, metrics }: SyncVerific
   const getStatusDetails = (status: 'granted' | 'denied' | 'unsupported') => {
     switch (status) {
       case 'granted':
-        return { label: 'Active', icon: 'check-circle', color: '#10B981' };
+        return { label: t('modals.active'), icon: 'check-circle', color: '#10B981' };
       case 'denied':
-        return { label: 'Restricted', icon: 'alert-circle', color: '#EF4444' };
+        return { label: t('modals.restricted'), icon: 'alert-circle', color: '#EF4444' };
       case 'unsupported':
       default:
-        return { label: 'Simulated', icon: 'clock-outline', color: '#8B5CF6' };
+        return { label: t('modals.simulated'), icon: 'clock-outline', color: '#8B5CF6' };
     }
   };
 
   const metricItems = [
     {
       icon: 'walk',
-      label: 'Steps Today',
-      value: `${Math.round(metrics.steps.value).toLocaleString()} steps`,
+      label: t('modals.stepsToday'),
+      value: `${Math.round(metrics.steps.value).toLocaleString()} ${t('metrics.steps_unit')}`,
       status: metrics.steps.status,
       color: '#10B981',
       bgColor: 'rgba(16, 185, 129, 0.1)',
     },
     {
       icon: 'fire',
-      label: 'Calories Today',
-      value: `${Math.round(metrics.calories.value)} kcal`,
+      label: t('modals.caloriesToday'),
+      value: `${Math.round(metrics.calories.value)} ${t('metrics.calories_unit')}`,
       status: metrics.calories.status,
       color: '#EF4444',
       bgColor: 'rgba(239, 68, 68, 0.1)',
     },
     {
       icon: 'spa',
-      label: 'Mindful Minutes Today',
-      value: `${Math.round(metrics.mindfulness.value)} mins`,
+      label: t('modals.mindfulMinutesToday'),
+      value: `${Math.round(metrics.mindfulness.value)} ${t('metrics.mindfulness_unit')}`,
       status: metrics.mindfulness.status,
       color: '#8B5CF6',
       bgColor: 'rgba(139, 92, 246, 0.1)',
     },
     {
       icon: 'run',
-      label: 'Distance Today',
-      value: `${metrics.distance.value.toFixed(2)} km`,
+      label: t('modals.distanceToday'),
+      value: `${metrics.distance.value.toFixed(2)} ${t('metrics.run_unit')}`,
       status: metrics.distance.status,
       color: '#3B82F6',
       bgColor: 'rgba(59, 130, 246, 0.1)',
@@ -99,14 +102,14 @@ export function SyncVerificationModal({ visible, onClose, metrics }: SyncVerific
       : ['rgba(16, 185, 129, 0.2)', 'rgba(16, 185, 129, 0.05)'] as const);
 
   const headerTitle = anyDenied 
-    ? 'Sync Permission Issue' 
-    : (!allGranted ? 'Sandbox Connection' : 'Sensor Sync Verified');
+    ? t('modals.syncIssueTitle') 
+    : (!allGranted ? t('modals.sandboxTitle') : t('modals.sensorSyncVerifiedTitle'));
 
   const headerSubtitle = anyDenied 
-    ? 'Some permissions are restricted. Please enable them in your Apple Health settings.'
+    ? t('modals.syncIssueDesc')
     : (!allGranted 
-      ? 'Health sensor connection loaded in sandbox simulation mode.' 
-      : `Successfully connected to ${Platform.OS === 'ios' ? 'Apple HealthKit' : 'Google Health Connect'}`);
+      ? t('modals.sandboxDesc') 
+      : t('modals.sensorSyncVerifiedDesc', { source: Platform.OS === 'ios' ? 'Apple HealthKit' : 'Google Health Connect' }));
 
   const headerIcon = anyDenied 
     ? 'heart-broken' 
@@ -152,7 +155,7 @@ export function SyncVerificationModal({ visible, onClose, metrics }: SyncVerific
               <View style={styles.liveIndicatorRow}>
                 <View style={[styles.pulseCircle, { backgroundColor: headerIconColor }]} />
                 <Text style={[styles.liveIndicatorText, { color: headerIconColor }]}>
-                  {anyDenied ? 'READING RESTRICTED SENSORS' : 'LIVE SENSOR READOUTS'}
+                  {anyDenied ? t('modals.readingRestricted') : t('modals.liveReadouts')}
                 </Text>
               </View>
 
@@ -167,7 +170,7 @@ export function SyncVerificationModal({ visible, onClose, metrics }: SyncVerific
                       <View style={styles.metricTextContent}>
                         <Text style={styles.metricLabel}>{item.label}</Text>
                         <Text style={styles.metricValue}>
-                          {item.status === 'denied' ? 'Restricted' : item.value}
+                          {item.status === 'denied' ? t('modals.restricted') : item.value}
                         </Text>
                       </View>
                       <View style={styles.statusBadgeWrapper}>
@@ -185,7 +188,7 @@ export function SyncVerificationModal({ visible, onClose, metrics }: SyncVerific
             </View>
 
             <Text style={styles.disclaimerText}>
-              Verification utilizes physical sensor data only. Manually typed-in steps or workout entries are automatically filtered and not counted.
+              {t('modals.physicalSensorNotice')}
             </Text>
 
             {/* Action button */}
@@ -200,7 +203,7 @@ export function SyncVerificationModal({ visible, onClose, metrics }: SyncVerific
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
               >
-                <Text style={styles.actionButtonText}>Done</Text>
+                <Text style={styles.actionButtonText}>{t('modals.done')}</Text>
               </LinearGradient>
             </TouchableOpacity>
 

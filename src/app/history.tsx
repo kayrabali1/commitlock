@@ -18,11 +18,13 @@ import { Spacing, BottomTabInset } from '@/constants/theme';
 import { HealthDataService, Commitment, DailyHealthData } from '@/services/health';
 import { DisciplineCard } from '@/components/DisciplineCard';
 import AppHeader, { BASE_HEADER_HEIGHT } from '@/components/AppHeader';
+import { useTranslation } from 'react-i18next';
 
 const { width } = Dimensions.get('window');
 
 export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
+  const { t, i18n } = useTranslation();
   const [history, setHistory] = useState<Commitment[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectedItemForCard, setSelectedItemForCard] = useState<Commitment | null>(null);
@@ -120,11 +122,11 @@ export default function HistoryScreen() {
 
   const getMetricUnit = (type: string) => {
     switch (type) {
-      case 'steps': return 'steps';
-      case 'calories': return 'kcal';
-      case 'activeTime': return 'mins';
-      case 'mindfulness': return 'mins';
-      default: return 'km';
+      case 'steps': return t('metrics.steps_unit');
+      case 'calories': return t('metrics.calories_unit');
+      case 'activeTime': return t('metrics.activeTime_unit');
+      case 'mindfulness': return t('metrics.mindfulness_unit');
+      default: return t('metrics.run_unit');
     }
   };
 
@@ -143,19 +145,19 @@ export default function HistoryScreen() {
         
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Commitment History</Text>
+          <Text style={styles.headerTitle}>{t('history.headerTitle')}</Text>
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Completed Commitments</Text>
+          <Text style={styles.sectionTitle}>{t('history.completed')}</Text>
         </View>
 
         {history.length === 0 ? (
           <View style={styles.emptyLogsCard}>
             <MaterialCommunityIcons name="file-document-outline" size={36} color="#475569" />
-            <Text style={styles.emptyLogsText}>No completed commitments yet.</Text>
+            <Text style={styles.emptyLogsText}>{t('history.noHistory')}</Text>
             <Text style={styles.emptyLogsSubtext}>
-              Commitment periods will resolve every Monday morning. Results will be logged here.
+              {t('history.noHistoryDesc')}
             </Text>
           </View>
         ) : (
@@ -210,11 +212,11 @@ export default function HistoryScreen() {
                       </View>
                       <View style={styles.logDetails}>
                         <Text style={styles.logGoalTitle}>
-                          {(item.metricType === 'calories' ? 'active calories' : item.metricType).toUpperCase()}: {item.targetValue.toLocaleString()} {getMetricUnit(item.metricType)}{item.targetScope === 'weekly' ? '/week' : '/day'}
+                          {t(`metrics.${item.metricType}`).toUpperCase()}: {item.targetValue.toLocaleString()} {getMetricUnit(item.metricType)}{item.targetScope === 'weekly' ? t('metrics.per_week') : t('metrics.per_day')}
                         </Text>
                         <Text style={styles.logDates}>
-                          {item.startDate} to {item.endDate}
-                          {item.resolvedAt ? ` • Archived ${item.resolvedAt.substring(0, 10)}` : ''}
+                          {item.startDate} {t('history.to')} {item.endDate}
+                          {item.resolvedAt ? ` • ${t('history.archived')} ${item.resolvedAt.substring(0, 10)}` : ''}
                         </Text>
                       </View>
                     </View>
@@ -222,7 +224,7 @@ export default function HistoryScreen() {
                     <View style={styles.logRightCol}>
                       <View style={styles.rightStatusRow}>
                         <Text style={[styles.logStatusText, isSuccess ? styles.textSuccess : styles.textFailed]}>
-                          {isSuccess ? 'Achieved' : 'Failed'}
+                          {isSuccess ? t('history.achieved') : t('history.failed')}
                         </Text>
                         <MaterialCommunityIcons
                           name={isExpanded ? 'chevron-up' : 'chevron-down'}
@@ -243,8 +245,8 @@ export default function HistoryScreen() {
                           <MaterialCommunityIcons name="checkbox-marked-circle" size={16} color="#05D38E" />
                           <Text style={styles.highlightTextSuccess}>
                             {item.targetScope === 'weekly'
-                              ? `Goal achieved! Exceeded weekly target by ${Math.round(totalAchieved - targetVal).toLocaleString()} ${getMetricUnit(item.metricType)}. Stake of €${item.stakeAmount} refunded.`
-                              : `Goal achieved! Met the daily target of ${targetVal.toLocaleString()} ${getMetricUnit(item.metricType)} every single day. Stake of €${item.stakeAmount} refunded.`}
+                              ? t('history.bannerWeeklySuccess', { diff: Math.round(totalAchieved - targetVal).toLocaleString(), unit: getMetricUnit(item.metricType), stake: item.stakeAmount })
+                              : t('history.bannerDailySuccess', { target: targetVal.toLocaleString(), unit: getMetricUnit(item.metricType), stake: item.stakeAmount })}
                           </Text>
                         </View>
                       ) : (
@@ -252,8 +254,8 @@ export default function HistoryScreen() {
                           <MaterialCommunityIcons name="alert-circle" size={16} color="#FF4655" />
                           <Text style={styles.highlightTextFailed}>
                             {item.targetScope === 'weekly'
-                              ? `Target missed by ${Math.round(targetVal - totalAchieved).toLocaleString()} ${getMetricUnit(item.metricType)}. Stake of €${item.stakeAmount} forfeited.`
-                              : `Daily target missed on ${failedDaysCount} day${failedDaysCount > 1 ? 's' : ''} (${failedDayNames}). Stake of €${item.stakeAmount} forfeited.`}
+                              ? t('history.bannerWeeklyFailure', { diff: Math.round(targetVal - totalAchieved).toLocaleString(), unit: getMetricUnit(item.metricType), stake: item.stakeAmount })
+                              : t('history.bannerDailyFailure', { count: failedDaysCount, plural: failedDaysCount > 1 ? (i18n.language === 'tr' ? '' : 's') : '', days: failedDayNames, stake: item.stakeAmount })}
                           </Text>
                         </View>
                       )}
@@ -263,7 +265,7 @@ export default function HistoryScreen() {
                       {/* Performance Stats Cards */}
                       <View style={styles.expandedStatsGrid}>
                         <View style={styles.expandedStatsCard}>
-                          <Text style={styles.expandedStatsLabel}>TOTAL ACHIEVED</Text>
+                          <Text style={styles.expandedStatsLabel}>{t('history.totalAchieved')}</Text>
                           <Text style={styles.expandedStatsVal}>
                             {item.metricType === 'steps' || item.metricType === 'calories'
                               ? Math.round(totalAchieved).toLocaleString()
@@ -272,7 +274,7 @@ export default function HistoryScreen() {
                           </Text>
                         </View>
                         <View style={styles.expandedStatsCard}>
-                          <Text style={styles.expandedStatsLabel}>DAILY AVERAGE</Text>
+                          <Text style={styles.expandedStatsLabel}>{t('history.dailyAverage')}</Text>
                           <Text style={styles.expandedStatsVal}>
                             {item.metricType === 'steps' || item.metricType === 'calories'
                               ? Math.round(dailyAvg).toLocaleString()
@@ -281,7 +283,7 @@ export default function HistoryScreen() {
                           </Text>
                         </View>
                         <View style={styles.expandedStatsCard}>
-                          <Text style={styles.expandedStatsLabel}>BEST DAY</Text>
+                          <Text style={styles.expandedStatsLabel}>{t('history.bestDay')}</Text>
                           <Text style={styles.expandedStatsVal}>
                             {item.metricType === 'steps' || item.metricType === 'calories'
                               ? Math.round(bestDay.value).toLocaleString()
@@ -293,7 +295,7 @@ export default function HistoryScreen() {
 
                       {/* Daily Breakdown List */}
                       <View style={styles.breakdownContainer}>
-                        <Text style={styles.breakdownHeaderTitle}>DAILY BREAKDOWN</Text>
+                        <Text style={styles.breakdownHeaderTitle}>{t('history.dailyBreakdown')}</Text>
                         {performance.map((dayData) => {
                           const isDayGoalMet = dayData.value >= dailyTargetVal;
                           
@@ -339,7 +341,7 @@ export default function HistoryScreen() {
                           activeOpacity={0.8}
                         >
                           <MaterialCommunityIcons name="badge-account-horizontal" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
-                          <Text style={styles.viewCardButtonText}>View Discipline Card</Text>
+                          <Text style={styles.viewCardButtonText}>{t('history.viewDisciplineCard')}</Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -369,7 +371,7 @@ export default function HistoryScreen() {
             >
               <MaterialCommunityIcons name="close" size={24} color="#FFFFFF" />
             </TouchableOpacity>
-            <Text style={styles.modalHeaderTitle}>Proof of Discipline</Text>
+            <Text style={styles.modalHeaderTitle}>{t('history.proofOfDiscipline')}</Text>
             <View style={{ width: 40 }} />
           </View>
           

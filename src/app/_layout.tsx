@@ -13,6 +13,8 @@ import AuthScreen from '@/components/AuthScreen';
 import { NotificationService } from '@/services/notifications';
 import { addUserInteractionListener } from 'expo-widgets';
 import { HealthDataService } from '@/services/health';
+import { useTranslation } from 'react-i18next';
+import '@/i18n/i18n';
 
 // Configure foreground notifications
 Notifications.setNotificationHandler({
@@ -26,6 +28,7 @@ Notifications.setNotificationHandler({
 });
 
 function TabLayoutContent() {
+  const { t } = useTranslation();
   const { user, isLoading } = useAuth();
   const colorScheme = useColorScheme() ?? 'dark';
   const colors = Colors[colorScheme === 'light' ? 'light' : 'dark'];
@@ -105,7 +108,7 @@ function TabLayoutContent() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Active',
+          title: t('tabs.active'),
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons 
               name={focused ? "run-fast" : "run"} 
@@ -118,7 +121,7 @@ function TabLayoutContent() {
       <Tabs.Screen
         name="commit"
         options={{
-          title: 'Create',
+          title: t('tabs.create'),
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons 
               name={focused ? "lock" : "lock-outline"} 
@@ -131,7 +134,7 @@ function TabLayoutContent() {
       <Tabs.Screen
         name="history"
         options={{
-          title: 'History',
+          title: t('tabs.history'),
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons 
               name={focused ? "history" : "text-box-search-outline"} 
@@ -144,7 +147,7 @@ function TabLayoutContent() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Settings',
+          title: t('tabs.settings'),
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons 
               name={focused ? "cog" : "cog-outline"} 

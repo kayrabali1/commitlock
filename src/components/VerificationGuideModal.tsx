@@ -14,6 +14,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 
+import { useTranslation } from 'react-i18next';
 import { Spacing } from '@/constants/theme';
 
 interface VerificationGuideModalProps {
@@ -22,6 +23,8 @@ interface VerificationGuideModalProps {
 }
 
 export function VerificationGuideModal({ visible, onClose }: VerificationGuideModalProps) {
+  const { t } = useTranslation();
+
   const handleClose = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onClose();
@@ -32,36 +35,36 @@ export function VerificationGuideModal({ visible, onClose }: VerificationGuideMo
       icon: 'heart-pulse',
       iconColor: '#10B981',
       bgColor: 'rgba(16, 185, 129, 0.1)',
-      title: '1. Secure Native Sync',
-      desc: `HabitContract syncs with ${Platform.OS === 'ios' ? 'Apple Health' : 'Google Health Connect'} directly on your device. We request read-only access to count specific activity totals (like steps, run/cycling distance, active minutes, and mindfulness).`,
+      title: t('modals.step1Title'),
+      desc: t('modals.step1Desc', { source: Platform.OS === 'ios' ? 'Apple Health' : 'Google Health Connect' }),
     },
     {
       icon: 'watch-variant',
       iconColor: '#8B5CF6',
       bgColor: 'rgba(139, 92, 246, 0.1)',
-      title: '2. Real Device Sensors Only',
-      desc: "To ensure honesty and accountability, we only count fitness data recorded by physical sensors. This includes any smartwatch that can write to Apple Health or Google Health Connect, fitness smartbands, or your mobile device's built-in motion sensors.",
+      title: t('modals.step2Title'),
+      desc: t('modals.step2Desc'),
     },
     {
       icon: 'pencil-off',
       iconColor: '#EF4444',
       bgColor: 'rgba(239, 68, 68, 0.1)',
-      title: '3. Manual Entries Ignored',
-      desc: 'Any workout details or step counts typed in or added to your health apps manually by hand are automatically detected and filtered out. Only physical sensor recordings are counted.',
+      title: t('modals.step3Title'),
+      desc: t('modals.step3Desc'),
     },
     {
       icon: 'sync',
       iconColor: '#3B82F6',
       bgColor: 'rgba(59, 130, 246, 0.1)',
-      title: '4. 48-Hour Sync Grace Period',
-      desc: 'Health sensors store statistics locally on your phone. To make sure all weekly values (including the final day) are uploaded, you have a 48-hour grace period after the commitment period ends (until Tuesday at 23:59) to open the app and sync.',
+      title: t('modals.step4Title'),
+      desc: t('modals.step4Desc'),
     },
     {
       icon: 'scale-balance',
       iconColor: '#F59E0B',
       bgColor: 'rgba(245, 158, 11, 0.1)',
-      title: '5. Resolution & Forfeiture',
-      desc: 'If you sync within the 48-hour grace period and meet your target, your stake is fully returned. If you fail to meet the target, or if you do not open the app to sync before the 48 hours expire, your stake is forfeited.',
+      title: t('modals.step5Title'),
+      desc: t('modals.step5Desc'),
     },
   ];
 
@@ -84,7 +87,7 @@ export function VerificationGuideModal({ visible, onClose }: VerificationGuideMo
               <View style={styles.headerIconContainer}>
                 <MaterialCommunityIcons name="shield-check" size={24} color="#8B5CF6" />
               </View>
-              <Text style={styles.modalTitle}>How Verification Works</Text>
+              <Text style={styles.modalTitle}>{t('modals.verificationTitle')}</Text>
             </View>
           </View>
 
@@ -94,7 +97,7 @@ export function VerificationGuideModal({ visible, onClose }: VerificationGuideMo
             showsVerticalScrollIndicator={false}
           >
             <Text style={styles.introText}>
-              HabitContract is designed to help you build real, honest discipline. Here is how we verify your commitments officially and fairly:
+              {t('modals.verificationIntro')}
             </Text>
 
             <View style={styles.stepsContainer}>
@@ -122,7 +125,7 @@ export function VerificationGuideModal({ visible, onClose }: VerificationGuideMo
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
               >
-                <Text style={styles.closeButtonText}>{"Got It, Let's Move"}</Text>
+                <Text style={styles.closeButtonText}>{t('modals.gotIt')}</Text>
               </LinearGradient>
             </TouchableOpacity>
           </ScrollView>

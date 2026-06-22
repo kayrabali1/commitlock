@@ -321,7 +321,7 @@ export default function AndroidCommitmentsWidget({ commitments = [], weeklyData 
                     style={{
                       flex: 100 - overallProgress,
                       height: 'match_parent',
-                      backgroundColor: 'transparent',
+                      backgroundColor: '#00000000',
                     }}
                   />
                 </FlexWidget>
