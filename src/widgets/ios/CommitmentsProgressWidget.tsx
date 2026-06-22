@@ -48,7 +48,7 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
     switch (status) {
       case 'success': return '#05D38E';
       case 'failed': return '#FF4655';
-      case 'today_success': return '#F5A623';
+      case 'today_success': return '#05D38E';
       case 'today_pending': return '#F5A623';
       default: return '#2A2D3A';
     }
