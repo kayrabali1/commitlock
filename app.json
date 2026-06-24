@@ -1,11 +1,16 @@
 {
   "expo": {
-    "name": "HabitContract",
-    "slug": "habitcontract",
+    "name": "CommitLock",
+    "slug": "commitlock",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "habitcontract",
+    "splash": {
+      "image": "./assets/images/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "scheme": "commitlock",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
     "ios": {
@@ -49,7 +54,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#06070B",
+          "backgroundColor": "#000000",
           "android": {
             "image": "./assets/images/splash-icon.png",
             "imageWidth": 76
