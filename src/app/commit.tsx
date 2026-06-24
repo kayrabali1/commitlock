@@ -659,10 +659,17 @@ export default function CommitScreen() {
           </View>
         </View>
 
+
+        {/* Glowing Statement */}
+        <View style={styles.statementContainer}>
+          <Text style={styles.statementText}>
+            {getCommitmentStatement()}
+          </Text>
+        </View>
         </ScrollView>
       </View>
 
-      <View style={[styles.fixedBottomContainer, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
+      <View style={[styles.fixedBottomContainer, { paddingBottom: insets.bottom + 100 }]}>
         <Text style={styles.summaryDateText}>
           {(() => {
             const dates = getCommitmentDates(startDateChoice, durationDays);
@@ -948,5 +955,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+
+  statementContainer: {
+    marginTop: 32,
+    marginBottom: 16,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statementText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#F8FAFC',
+    textAlign: 'center',
+    lineHeight: 22,
+    textShadowColor: 'rgba(124, 58, 237, 0.8)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 15,
   },
 });
