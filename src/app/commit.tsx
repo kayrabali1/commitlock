@@ -693,7 +693,7 @@ export default function CommitScreen() {
         </ScrollView>
       </View>
 
-      <View style={[styles.fixedBottomContainer, { paddingBottom: insets.bottom + 110 }]}>
+      <View style={[styles.fixedBottomContainer, { paddingBottom: insets.bottom + 65 }]}>
         <Text style={styles.summaryDateText}>
           {(() => {
             const dates = getCommitmentDates(startDateChoice, durationDays);
@@ -782,10 +782,10 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: 'rgba(255,255,255,0.06)',
     marginHorizontal: 16,
-    marginBottom: 20,
+    marginVertical: 16,
   },
   dashboardSection: {
-    marginBottom: 20,
+    marginBottom: 0,
     paddingHorizontal: 16,
   },
   sectionLabel: {
@@ -1014,7 +1014,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     textShadowColor: 'rgba(167, 139, 250, 1)',
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 25,
+    textShadowRadius: 15,
   },
 
   submitButtonDisabled: {
