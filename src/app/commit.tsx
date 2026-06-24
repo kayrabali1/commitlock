@@ -686,14 +686,8 @@ export default function CommitScreen() {
 
         {/* Glowing Statement */}
         <Animated.View style={[styles.statementContainer, animatedGlowStyle]}>
-          {allStepsReady && <View style={styles.ambientNeonBackground} />}
           <View style={{ width: '100%', alignItems: 'center', justifyContent: 'center' }}>
-            {allStepsReady && (
-              <Text style={[styles.statementText, styles.neonGlowBack]}>
-                {getCommitmentStatement()}
-              </Text>
-            )}
-            <Text style={[styles.statementText, !allStepsReady ? styles.statementTextNoGlow : styles.neonGlowFront]}>
+            <Text style={styles.statementText}>
               {getCommitmentStatement()}
             </Text>
           </View>
@@ -1020,9 +1014,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     textAlign: 'center',
     lineHeight: 24,
-    textShadowColor: 'rgba(167, 139, 250, 1)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 15,
   },
 
   submitButtonDisabled: {

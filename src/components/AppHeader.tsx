@@ -49,7 +49,7 @@ export default function AppHeader({ showProfile = true }: AppHeaderProps) {
           />
         </View>
         <Text style={[styles.brandText, { color: colors.text }]}>
-          Habit<Text style={{ color: colors.primary }}>Contract</Text>
+          Commit<Text style={{ color: colors.primary }}>Lock</Text>
         </Text>
       </View>
 
