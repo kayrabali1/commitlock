@@ -57,6 +57,9 @@ export default function CommitScreen() {
     debug_metricType?: string;
   }>();
   
+  const [stake, setStake] = useState<number>(() => rolloverStake ? Number(rolloverStake) : 0);
+  const allStepsReady = stake > 0;
+
   useEffect(() => {
     if (debug_auto_commit === 'true') {
       console.log('[Commit] Debug auto-commit triggered with targetScope:', debug_targetScope, 'targetValue:', debug_targetValue, 'metricType:', debug_metricType);
@@ -69,11 +72,7 @@ export default function CommitScreen() {
       if (debug_metricType) {
         setMetric(debug_metricType as any);
       }
-      setIsMetricSelected(true);
-      setIsTargetSelected(true);
-      setIsDurationSelected(true);
-      setIsStakeSelected(true);
-      
+                              
       const timer = setTimeout(() => {
         confirmPayment({
           targetScope: debug_targetScope as any,
@@ -109,12 +108,9 @@ export default function CommitScreen() {
   }, [activeStep]);
 
   // Selection Interaction States
-  const [isMetricSelected, setIsMetricSelected] = useState<boolean>(false);
-  const [isTargetSelected, setIsTargetSelected] = useState<boolean>(false);
-  const [isDurationSelected, setIsDurationSelected] = useState<boolean>(false);
-  const [isStakeSelected, setIsStakeSelected] = useState<boolean>(!!rolloverStake);
+        const [isStakeSelected, setIsStakeSelected] = useState<boolean>(!!rolloverStake);
 
-  const allStepsReady = isMetricSelected && isTargetSelected && isDurationSelected && isStakeSelected;
+  
 
   const glowOpacity = useSharedValue(0);
   
@@ -152,7 +148,6 @@ export default function CommitScreen() {
     return new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2, 12, 0, 0);
   });
   const [isDatePickerVisible, setIsDatePickerVisible] = useState(false);
-  const [stake, setStake] = useState<number>(() => rolloverStake ? Number(rolloverStake) : 10); // Default €10
   const [customStake, setCustomStake] = useState<string>('');
 
   const getStartDateOptions = () => {
@@ -216,8 +211,7 @@ export default function CommitScreen() {
         if (event.type === 'set') {
           setCustomStartDate(validatedDate);
           setStartDateChoice('custom');
-          setIsDurationSelected(true);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
       } else {
         // iOS / Web inline selection
@@ -290,8 +284,7 @@ export default function CommitScreen() {
   const handleMetricChange = (selected: MetricType) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setMetric(selected);
-    setIsMetricSelected(true);
-    const multiplier = targetScope === 'weekly' ? 7 : 1;
+        const multiplier = targetScope === 'weekly' ? 7 : 1;
     if (selected === 'steps') setTargetValue(10000 * multiplier);
     else if (selected === 'run') setTargetValue(5 * multiplier);
     else if (selected === 'mindfulness') setTargetValue(15 * multiplier);
@@ -318,8 +311,7 @@ export default function CommitScreen() {
   const incrementTarget = (amount: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setTargetValue((prev) => Math.max(1, prev + amount));
-    setIsTargetSelected(true);
-  };
+      };
 
   const decrementTarget = (amount: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -333,15 +325,13 @@ export default function CommitScreen() {
     else if (metric === 'calories') minVal = 100 * mult;
     else if (metric === 'activeTime') minVal = 5 * mult;
     setTargetValue((prev) => Math.max(minVal, prev - amount));
-    setIsTargetSelected(true);
-  };
+      };
 
   const handleTargetScopeChange = (scope: 'daily' | 'weekly') => {
     if (scope === targetScope) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setTargetScope(scope);
-    setIsTargetSelected(true);
-    if (scope === 'weekly') {
+        if (scope === 'weekly') {
       // Multiply current daily target by 7 to yield weekly target, rounded cleanly
       setTargetValue((prev) => {
         const multiplied = prev * durationDays;
@@ -372,8 +362,7 @@ export default function CommitScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setStake(value);
     setCustomStake('');
-    setIsStakeSelected(true);
-    
+        
     // Collapse accordion as all steps are completed!
     setTimeout(() => {
       setActiveStep(0);
@@ -398,11 +387,7 @@ export default function CommitScreen() {
 
   const resetForm = () => {
     setActiveStep(0);
-    setIsMetricSelected(false);
-    setIsTargetSelected(false);
-    setIsDurationSelected(false);
-    setIsStakeSelected(false);
-    setMetric('steps');
+                    setMetric('steps');
     setTargetScope('daily');
     setTargetValue(10000);
     setDurationDays(3);
