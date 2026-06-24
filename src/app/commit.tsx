@@ -119,20 +119,20 @@ export default function CommitScreen() {
       glowOpacity.value = withRepeat(
         withSequence(
           withTiming(1, { duration: 1500 }),
-          withTiming(0.4, { duration: 1500 })
+          withTiming(0.6, { duration: 1500 })
         ),
         -1, // infinite
         true // reverse
       );
     } else {
-      glowOpacity.value = withTiming(0, { duration: 300 });
+      glowOpacity.value = withTiming(1, { duration: 300 });
     }
   }, [allStepsReady]);
 
   const animatedGlowStyle = useAnimatedStyle(() => {
     return {
       opacity: glowOpacity.value,
-      transform: [{ scale: 1 + (glowOpacity.value * 0.05) }],
+      transform: [{ scale: allStepsReady ? 1 + ((glowOpacity.value - 0.6) * 0.05) : 1 }],
     };
   });
   
@@ -686,7 +686,7 @@ export default function CommitScreen() {
 
         {/* Glowing Statement */}
         <Animated.View style={[styles.statementContainer, animatedGlowStyle]}>
-          <Text style={styles.statementText}>
+          <Text style={[styles.statementText, !allStepsReady && styles.statementTextNoGlow]}>
             {getCommitmentStatement()}
           </Text>
         </Animated.View>
@@ -1021,5 +1021,10 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   submitTextDisabled: {
+  },
+  statementTextNoGlow: {
+    textShadowRadius: 0,
+    textShadowColor: 'transparent',
+    color: '#94A3B8',
   },
 });
