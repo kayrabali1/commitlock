@@ -92,10 +92,9 @@
   },
   "commit": {
     "headerTitle": "Lock Commitment",
-    "step1Title": "Activity",
-    "step2Title": "Target",
-    "step3Title": "Start and duration",
-    "step4Title": "Pledge Stake",
+    "step1Title": "Activity & Target",
+    "step2Title": "Schedule",
+    "step3Title": "Pledge Stake",
     "rolloverActive": "Rollover Active: Re-pledging €{{stake}} from completed commitment.",
     "targetGoalLabel": "TARGET GOAL",
     "dailyTarget": "Daily Target",

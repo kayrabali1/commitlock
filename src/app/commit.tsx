@@ -33,11 +33,13 @@ import { Spacing } from '@/constants/theme';
 import { HealthDataService, MetricType } from '@/services/health';
 import { VerificationGuideModal } from '@/components/VerificationGuideModal';
 import AppHeader, { BASE_HEADER_HEIGHT } from '@/components/AppHeader';
+import { useAuth } from '@/services/auth';
 
 const { width } = Dimensions.get('window');
 
 export default function CommitScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { t, i18n } = useTranslation();
   
@@ -285,10 +287,7 @@ export default function CommitScreen() {
     else if (selected === 'calories') setTargetValue(500 * multiplier);
     else if (selected === 'activeTime') setTargetValue(30 * multiplier);
 
-    // Auto advance to step 2!
-    setTimeout(() => {
-      setActiveStep(2);
-    }, 200);
+    // Removed auto advance to allow target configuration in same step
   };
 
   const getStepSize = () => {
@@ -409,84 +408,90 @@ export default function CommitScreen() {
   };
 
   async function confirmPayment(overrides?: { targetScope?: 'daily' | 'weekly'; targetValue?: number; metricType?: MetricType }) {
+    if (!user?.hasPaymentMethod) {
+      Alert.alert(
+        'Payment Method Required',
+        'Apple does not allow us to process this payment in-app. Please visit our website to securely authorize your payment method with Stripe. You only need to do this once.',
+        [{ text: 'OK', style: 'default' }]
+      );
+      return;
+    }
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setPaymentStep('processing');
 
-    // Simulate standard In-App Purchase network verification delay
-    setTimeout(async () => {
-      try {
-        // Calculate dates based on selected start date choice and period
-        const { startDate, endDate } = getCommitmentDates(startDateChoice, period);
+    try {
+      // Calculate dates based on selected start date choice and period
+      const { startDate, endDate } = getCommitmentDates(startDateChoice, period);
 
-        const formatLocalDate = (d: Date) => {
-          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        };
+      const formatLocalDate = (d: Date) => {
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      };
 
-        const finalTargetScope = overrides?.targetScope ?? targetScope;
-        const finalTargetValue = overrides?.targetValue ?? targetValue;
-        const finalMetric = overrides?.metricType ?? metric;
+      const finalTargetScope = overrides?.targetScope ?? targetScope;
+      const finalTargetValue = overrides?.targetValue ?? targetValue;
+      const finalMetric = overrides?.metricType ?? metric;
 
-        const newCommitment = {
-          id: Math.random().toString(36).substr(2, 9),
-          metricType: finalMetric,
-          targetValue: finalTargetValue,
-          period,
-          stakeAmount: stake,
-          startDate: formatLocalDate(startDate),
-          endDate: formatLocalDate(endDate),
-          status: 'active' as const,
-          createdAt: new Date().toISOString(),
-          targetScope: finalTargetScope,
-        };
+      const newCommitment = {
+        id: Math.random().toString(36).substr(2, 9),
+        metricType: finalMetric,
+        targetValue: finalTargetValue,
+        period,
+        stakeAmount: stake,
+        startDate: formatLocalDate(startDate),
+        endDate: formatLocalDate(endDate),
+        status: 'active' as const,
+        createdAt: new Date().toISOString(),
+        targetScope: finalTargetScope,
+      };
 
-        // If rollover from completed commitment
-        if (rolloverFrom) {
-          try {
-            const oldCommitment = await HealthDataService.getActiveCommitment(rolloverFrom);
-            if (oldCommitment) {
-              const oldWeeklyData = await HealthDataService.fetchWeeklyData(oldCommitment.metricType, oldCommitment);
-              const resolvedOldCommitment = {
-                ...oldCommitment,
-                status: 'success' as const,
-                performanceData: oldWeeklyData,
-              };
-              await HealthDataService.addHistoryEntry(resolvedOldCommitment);
-              await HealthDataService.clearActiveCommitment(oldCommitment.id);
-            }
-          } catch (e) {
-            console.error('Error resolving old commitment in rollover flow:', e);
+      // If rollover from completed commitment
+      if (rolloverFrom) {
+        try {
+          const oldCommitment = await HealthDataService.getActiveCommitment(rolloverFrom);
+          if (oldCommitment) {
+            const oldWeeklyData = await HealthDataService.fetchWeeklyData(oldCommitment.metricType, oldCommitment);
+            const resolvedOldCommitment = {
+              ...oldCommitment,
+              status: 'success' as const,
+              performanceData: oldWeeklyData,
+            };
+            await HealthDataService.addHistoryEntry(resolvedOldCommitment);
+            await HealthDataService.clearActiveCommitment(oldCommitment.id);
           }
+        } catch (e) {
+          console.error('Error resolving old commitment in rollover flow:', e);
         }
-
-        // Save to active commitment storage
-        await HealthDataService.saveActiveCommitment(newCommitment);
-
-        // Reset health data storage overrides back to defaults to ensure a fresh track session
-        await HealthDataService.resetSimulatedData();
-
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        setPaymentStep('success');
-
-        // Redirect to active tracker dashboard after celebration checkmark fades
-        setTimeout(() => {
-          setIsPaymentSheetVisible(false);
-          router.replace('/');
-          
-          // Reset form fields after redirect completes to avoid visual glitching on close animation
-          setTimeout(() => {
-            resetForm();
-          }, 300);
-        }, 1500);
-
-      } catch (error: any) {
-        console.error(error);
-        setPaymentStep('idle');
-        Alert.alert(
-          'Pledge Failed',
-          error.message || 'An error occurred while locking your commitment. Please try again.'
-        );
       }
-    }, 2000);
+
+      // Save to active commitment storage (this now triggers the backend Stripe charge)
+      await HealthDataService.saveActiveCommitment(newCommitment);
+
+      // Reset health data storage overrides back to defaults to ensure a fresh track session
+      await HealthDataService.resetSimulatedData();
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setPaymentStep('success');
+
+      // Redirect to active tracker dashboard after celebration checkmark fades
+      setTimeout(() => {
+        setIsPaymentSheetVisible(false);
+        router.replace('/');
+        
+        // Reset form fields after redirect completes to avoid visual glitching on close animation
+        setTimeout(() => {
+          resetForm();
+        }, 300);
+      }, 1500);
+
+    } catch (error: any) {
+      console.error(error);
+      setPaymentStep('idle');
+      Alert.alert(
+        'Pledge Failed',
+        error.message || 'An error occurred while locking your commitment. Please try again.'
+      );
+    }
   };
 
   const getMetricFullName = (type: MetricType) => {
@@ -602,10 +607,12 @@ export default function CommitScreen() {
               <Text style={styles.accordionTitle}>{t('commit.step1Title')}</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              {activeStep !== 1 && isMetricSelected && (
+              {activeStep !== 1 && isMetricSelected && isTargetSelected && (
                 <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(150)} style={styles.accordionSummary}>
                   <MaterialCommunityIcons name={getMetricIcon(metric)} size={12} color={getMetricColor(metric)[0]} />
-                  <Text style={styles.accordionSummaryText}>{getMetricFullName(metric)}</Text>
+                  <Text style={styles.accordionSummaryText}>
+                    {getMetricFullName(metric)} • {metric === 'steps' || metric === 'calories' ? targetValue.toLocaleString() : targetValue} {getMetricLabel().split('/')[0]}/{targetScope === 'daily' ? 'd' : 'wk'}
+                  </Text>
                 </Animated.View>
               )}
               <MaterialCommunityIcons
@@ -668,7 +675,7 @@ export default function CommitScreen() {
           )}
         </Animated.View>
 
-        {/* 2. Select Target */}
+{/* 2. Start and duration */}
         <Animated.View 
           layout={LinearTransition.springify().damping(28).stiffness(220)}
           onLayout={(e) => handleStepLayout(2, e.nativeEvent.layout.y)}
@@ -683,9 +690,9 @@ export default function CommitScreen() {
               <View style={[
                 styles.stepBadge,
                 activeStep === 2 && styles.stepBadgeActive,
-                (activeStep !== 2 && isTargetSelected) && styles.stepBadgeCompleted
+                (activeStep !== 2 && isDurationSelected) && styles.stepBadgeCompleted
               ]}>
-                {(activeStep !== 2 && isTargetSelected) ? (
+                {(activeStep !== 2 && isDurationSelected) ? (
                   <Animated.View entering={ZoomIn.duration(200)} exiting={ZoomOut.duration(200)}>
                     <MaterialCommunityIcons name="check" size={12} color="#FFFFFF" />
                   </Animated.View>
@@ -693,14 +700,18 @@ export default function CommitScreen() {
                   <Text style={[styles.stepNumberText, activeStep === 2 && styles.stepNumberTextActive]}>02</Text>
                 )}
               </View>
-              <Text style={styles.accordionTitle}>{t('commit.step2Title')}</Text>
+              <Text style={styles.accordionTitle}>{t('commit.step3Title')}</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              {activeStep !== 2 && isTargetSelected && (
+              {activeStep !== 2 && isDurationSelected && (
                 <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(150)} style={styles.accordionSummary}>
                   <Text style={styles.accordionSummaryText}>
-                    {metric === 'steps' || metric === 'calories' ? targetValue.toLocaleString() : targetValue}{' '}
-                    {getMetricLabel().split('/')[0]} / {targetScope === 'daily' ? 'day' : 'week'}
+                    {(() => {
+                      const dates = getCommitmentDates(startDateChoice, period);
+                      const startLabel = dates.startDate.toLocaleDateString(i18n.language, { month: 'short', day: 'numeric' });
+                      const durationLabel = period === 'week' ? t('commit.duration1WkCompact', '1 Wk') : t('commit.duration1MoCompact', '1 Mo');
+                      return `${startLabel} • ${durationLabel}`;
+                    })()}
                   </Text>
                 </Animated.View>
               )}
@@ -714,136 +725,6 @@ export default function CommitScreen() {
           </TouchableOpacity>
 
           {activeStep === 2 && (
-            <Animated.View entering={FadeInDown.duration(220).springify().damping(22).stiffness(180)} exiting={FadeOutUp.duration(150)} style={styles.accordionContent}>
-              <View style={styles.targetCardHeader}>
-                <Text style={styles.targetCardTitle}>{t('commit.targetGoalLabel')}</Text>
-                
-                <View style={styles.scopeToggleContainer}>
-                  <TouchableOpacity
-                    onPress={() => handleTargetScopeChange('daily')}
-                    style={[styles.scopeToggleButton, targetScope === 'daily' && styles.scopeToggleButtonActive]}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[styles.scopeToggleText, targetScope === 'daily' && styles.scopeToggleTextActive]}>
-                      {t('commit.dailyTarget')}
-                    </Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    onPress={() => handleTargetScopeChange('weekly')}
-                    style={[styles.scopeToggleButton, targetScope === 'weekly' && styles.scopeToggleButtonActive]}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[styles.scopeToggleText, targetScope === 'weekly' && styles.scopeToggleTextActive]}>
-                      {t('commit.weeklyAccumulator')}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              <View style={styles.targetStepperRow}>
-                <TouchableOpacity
-                  onPress={() => decrementTarget(getStepSize())}
-                  style={styles.stepperButton}
-                  activeOpacity={0.7}
-                >
-                  <MaterialCommunityIcons name="minus" size={20} color="#FFFFFF" />
-                </TouchableOpacity>
-
-                <View style={styles.targetValueWrapper}>
-                  <Text style={styles.targetValueText}>
-                    {metric === 'steps' || metric === 'calories' ? targetValue.toLocaleString() : targetValue}
-                  </Text>
-                  <Text style={styles.targetValueLabel}>{getMetricLabel()}</Text>
-                </View>
-
-                <TouchableOpacity
-                  onPress={() => incrementTarget(getStepSize())}
-                  style={styles.stepperButton}
-                  activeOpacity={0.7}
-                >
-                  <MaterialCommunityIcons name="plus" size={20} color="#FFFFFF" />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.syncNoticeRow}>
-                <MaterialCommunityIcons 
-                  name="checkbox-marked-circle-outline" 
-                  size={12} 
-                  color="#05D38E" 
-                />
-                <Text style={[styles.syncNoticeText, { flexShrink: 1, color: '#94A3B8' }]}>
-                  {getCommitmentStatement()}
-                </Text>
-              </View>
-
-              <View style={styles.targetDivider} />
-              <TouchableOpacity
-                style={styles.stepContinueButton}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setIsTargetSelected(true);
-                  setActiveStep(3);
-                }}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.stepContinueButtonText}>{t('commit.continueToStartDuration')}</Text>
-                <MaterialCommunityIcons name="arrow-right" size={14} color="#FFFFFF" />
-              </TouchableOpacity>
-            </Animated.View>
-          )}
-        </Animated.View>
-
-        {/* 3. Start and duration */}
-        <Animated.View 
-          layout={LinearTransition.springify().damping(28).stiffness(220)}
-          onLayout={(e) => handleStepLayout(3, e.nativeEvent.layout.y)}
-          style={[styles.accordionItem, activeStep === 3 && styles.accordionItemActive]}
-        >
-          <TouchableOpacity
-            style={styles.accordionHeader}
-            onPress={() => toggleStep(3)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.accordionHeaderLeft}>
-              <View style={[
-                styles.stepBadge,
-                activeStep === 3 && styles.stepBadgeActive,
-                (activeStep !== 3 && isDurationSelected) && styles.stepBadgeCompleted
-              ]}>
-                {(activeStep !== 3 && isDurationSelected) ? (
-                  <Animated.View entering={ZoomIn.duration(200)} exiting={ZoomOut.duration(200)}>
-                    <MaterialCommunityIcons name="check" size={12} color="#FFFFFF" />
-                  </Animated.View>
-                ) : (
-                  <Text style={[styles.stepNumberText, activeStep === 3 && styles.stepNumberTextActive]}>03</Text>
-                )}
-              </View>
-              <Text style={styles.accordionTitle}>{t('commit.step3Title')}</Text>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              {activeStep !== 3 && isDurationSelected && (
-                <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(150)} style={styles.accordionSummary}>
-                  <Text style={styles.accordionSummaryText}>
-                    {(() => {
-                      const dates = getCommitmentDates(startDateChoice, period);
-                      const startLabel = dates.startDate.toLocaleDateString(i18n.language, { month: 'short', day: 'numeric' });
-                      const durationLabel = period === 'week' ? t('commit.duration1WkCompact', '1 Wk') : t('commit.duration1MoCompact', '1 Mo');
-                      return `${startLabel} • ${durationLabel}`;
-                    })()}
-                  </Text>
-                </Animated.View>
-              )}
-              <MaterialCommunityIcons
-                name={activeStep === 3 ? "chevron-up" : "chevron-down"}
-                size={18}
-                color={activeStep === 3 ? '#7C3AED' : '#64748B'}
-                style={styles.chevronIcon}
-              />
-            </View>
-          </TouchableOpacity>
-
-          {activeStep === 3 && (
             <Animated.View entering={FadeInDown.duration(220).springify().damping(22).stiffness(180)} exiting={FadeOutUp.duration(150)} style={styles.accordionContent}>
               {/* Duration Row */}
               <View style={styles.periodRowCompact}>
@@ -958,7 +839,7 @@ export default function CommitScreen() {
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   setIsDurationSelected(true);
-                  setActiveStep(4);
+                  setActiveStep(3);
                 }}
                 activeOpacity={0.8}
               >
@@ -972,46 +853,46 @@ export default function CommitScreen() {
         {/* 4. Pledge Stake */}
         <Animated.View 
           layout={LinearTransition.springify().damping(28).stiffness(220)}
-          onLayout={(e) => handleStepLayout(4, e.nativeEvent.layout.y)}
-          style={[styles.accordionItem, activeStep === 4 && styles.accordionItemActive]}
+          onLayout={(e) => handleStepLayout(3, e.nativeEvent.layout.y)}
+          style={[styles.accordionItem, activeStep === 3 && styles.accordionItemActive]}
         >
           <TouchableOpacity
             style={styles.accordionHeader}
-            onPress={() => toggleStep(4)}
+            onPress={() => toggleStep(3)}
             activeOpacity={0.7}
           >
             <View style={styles.accordionHeaderLeft}>
               <View style={[
                 styles.stepBadge,
-                activeStep === 4 && styles.stepBadgeActive,
-                (activeStep !== 4 && isStakeSelected) && styles.stepBadgeCompleted
+                activeStep === 3 && styles.stepBadgeActive,
+                (activeStep !== 3 && isStakeSelected) && styles.stepBadgeCompleted
               ]}>
-                {(activeStep !== 4 && isStakeSelected) ? (
+                {(activeStep !== 3 && isStakeSelected) ? (
                   <Animated.View entering={ZoomIn.duration(200)} exiting={ZoomOut.duration(200)}>
                     <MaterialCommunityIcons name="check" size={12} color="#FFFFFF" />
                   </Animated.View>
                 ) : (
-                  <Text style={[styles.stepNumberText, activeStep === 4 && styles.stepNumberTextActive]}>04</Text>
+                  <Text style={[styles.stepNumberText, activeStep === 3 && styles.stepNumberTextActive]}>03</Text>
                 )}
               </View>
               <Text style={styles.accordionTitle}>Pledge Stake</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              {activeStep !== 4 && isStakeSelected && (
+              {activeStep !== 3 && isStakeSelected && (
                 <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(150)} style={styles.accordionSummary}>
                   <Text style={styles.accordionSummaryText}>€{stake}.00</Text>
                 </Animated.View>
               )}
               <MaterialCommunityIcons
-                name={activeStep === 4 ? "chevron-up" : "chevron-down"}
+                name={activeStep === 3 ? "chevron-up" : "chevron-down"}
                 size={18}
-                color={activeStep === 4 ? '#7C3AED' : '#64748B'}
+                color={activeStep === 3 ? '#7C3AED' : '#64748B'}
                 style={styles.chevronIcon}
               />
             </View>
           </TouchableOpacity>
 
-          {activeStep === 4 && (
+          {activeStep === 3 && (
             <Animated.View entering={FadeInDown.duration(220).springify().damping(22).stiffness(180)} exiting={FadeOutUp.duration(150)} style={styles.accordionContent}>
               <View style={styles.pledgeHeaderRow}>
                 <View style={styles.parameterLeftCol}>
@@ -1527,7 +1408,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: Spacing.four,
-    paddingBottom: Spacing.two,
+    paddingBottom: 40,
   },
   fixedBottomContainer: {
     paddingHorizontal: Spacing.four,
@@ -1618,7 +1499,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   metricCardInactive: {
-    backgroundColor: '#11131E',
+    backgroundColor: 'rgba(17, 19, 30, 0.6)',
     borderWidth: 1,
     borderColor: '#181B28',
     borderRadius: 14,
@@ -1634,7 +1515,7 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
   },
   targetCard: {
-    backgroundColor: '#11131E',
+    backgroundColor: 'rgba(17, 19, 30, 0.6)',
     borderWidth: 1,
     borderColor: '#181B28',
     borderRadius: 20,
@@ -1667,7 +1548,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   scopeToggleButtonActive: {
-    backgroundColor: '#11131E',
+    backgroundColor: 'rgba(17, 19, 30, 0.6)',
     borderWidth: 0.5,
     borderColor: '#181B28',
   },
@@ -1771,7 +1652,7 @@ const styles = StyleSheet.create({
     color: '#7C3AED',
   },
   parametersCard: {
-    backgroundColor: '#11131E',
+    backgroundColor: 'rgba(17, 19, 30, 0.6)',
     borderWidth: 1,
     borderColor: '#181B28',
     borderRadius: 20,
@@ -2280,7 +2161,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   accordionItem: {
-    backgroundColor: '#11131E',
+    backgroundColor: 'rgba(17, 19, 30, 0.6)',
     borderWidth: 1,
     borderColor: '#181B28',
     borderRadius: 20,
@@ -2289,7 +2170,7 @@ const styles = StyleSheet.create({
   },
   accordionItemActive: {
     borderColor: '#7C3AED',
-    backgroundColor: '#11131E',
+    backgroundColor: 'rgba(17, 19, 30, 0.6)',
   },
   accordionHeader: {
     flexDirection: 'row',
