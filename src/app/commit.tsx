@@ -640,7 +640,7 @@ export default function CommitScreen() {
         <View style={styles.sectionSeparator} />
         <View style={styles.dashboardSection}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionLabel}>DURATION</Text>
+            <Text style={styles.sectionLabel}>START DATE & DURATION</Text>
             <View style={styles.scopeToggleContainerCompact}>
               {getStartDateOptions().map((opt) => {
                 const isSelected = startDateChoice === opt.id;
@@ -693,7 +693,7 @@ export default function CommitScreen() {
         </ScrollView>
       </View>
 
-      <View style={[styles.fixedBottomContainer, { paddingBottom: insets.bottom + 15 }]}>
+      <View style={[styles.fixedBottomContainer, { paddingBottom: insets.bottom + 110 }]}>
         <Text style={styles.summaryDateText}>
           {(() => {
             const dates = getCommitmentDates(startDateChoice, durationDays);
