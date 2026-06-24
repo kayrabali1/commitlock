@@ -50,13 +50,30 @@
 .navLinks {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 16px;
+}
+
+@media (min-width: 640px) {
+  .navLinks {
+    gap: 24px;
+  }
+}
+
+.headerCta {
+  display: none !important;
+}
+
+@media (min-width: 640px) {
+  .headerCta {
+    display: inline-flex !important;
+  }
 }
 
 .loginLink {
   font-size: 0.95rem;
   font-weight: 500;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .loginLink:hover {

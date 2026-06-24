@@ -115,7 +115,7 @@ export default function CommitScreen() {
   const [metric, setMetric] = useState<MetricType>('steps');
   const [targetScope, setTargetScope] = useState<'daily' | 'weekly'>('daily');
   const [targetValue, setTargetValue] = useState<number>(10000);
-  const [period, setPeriod] = useState<'week' | 'month'>('week');
+  const [durationDays, setDurationDays] = useState<number>(3);
   const [startDateChoice, setStartDateChoice] = useState<'today' | 'tomorrow' | 'custom'>('today');
   const [customStartDate, setCustomStartDate] = useState<Date>(() => {
     const today = new Date();
@@ -149,28 +149,12 @@ export default function CommitScreen() {
     ];
   };
 
-  const getCommitmentDates = (choice: 'today' | 'tomorrow' | 'custom', per: 'week' | 'month') => {
+  const getCommitmentDates = (choice: 'today' | 'tomorrow' | 'custom', durationDays: number) => {
     const options = getStartDateOptions();
     const selectedOpt = options.find(o => o.id === choice) || options[0];
-    const baseStartDate = selectedOpt.date;
-    
-    let startDate: Date;
-    let endDate: Date;
-    
-    if (per === 'month') {
-      // Starts on the selected start date
-      startDate = new Date(baseStartDate);
-      // Ends 1 month later (inclusive, minus 1 day)
-      endDate = new Date(startDate);
-      endDate.setMonth(startDate.getMonth() + 1);
-      endDate.setDate(endDate.getDate() - 1);
-    } else {
-      // Starts on the selected start date
-      startDate = new Date(baseStartDate);
-      endDate = new Date(startDate);
-      endDate.setDate(startDate.getDate() + 6);
-    }
-    
+    const startDate = new Date(selectedOpt.date);
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + durationDays - 1);
     return { startDate, endDate };
   };
 
@@ -391,7 +375,7 @@ export default function CommitScreen() {
     setMetric('steps');
     setTargetScope('daily');
     setTargetValue(10000);
-    setPeriod('week');
+    setDurationDays(3);
     setStartDateChoice('today');
     const today = new Date();
     setCustomStartDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2, 12, 0, 0));
@@ -421,7 +405,7 @@ export default function CommitScreen() {
 
     try {
       // Calculate dates based on selected start date choice and period
-      const { startDate, endDate } = getCommitmentDates(startDateChoice, period);
+      const { startDate, endDate } = getCommitmentDates(startDateChoice, durationDays);
 
       const formatLocalDate = (d: Date) => {
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -435,7 +419,7 @@ export default function CommitScreen() {
         id: Math.random().toString(36).substr(2, 9),
         metricType: finalMetric,
         targetValue: finalTargetValue,
-        period,
+        durationDays,
         stakeAmount: stake,
         startDate: formatLocalDate(startDate),
         endDate: formatLocalDate(endDate),
@@ -505,7 +489,7 @@ export default function CommitScreen() {
   };
 
   const getMetricLabel = () => {
-    const suffix = targetScope === 'weekly' ? t('metrics.per_week') : t('metrics.per_day');
+    const suffix = targetScope === 'weekly' ? '' : t('metrics.per_day');
     switch (metric) {
       case 'steps': return `${t('metrics.steps_unit')}${suffix}`;
       case 'run': return `${t('metrics.run_unit')}${suffix}`;
@@ -518,11 +502,9 @@ export default function CommitScreen() {
 
   const getCommitmentStatement = () => {
     const formattedValue = metric === 'steps' || metric === 'calories' ? targetValue.toLocaleString() : targetValue;
-    const periodLabel = period === 'week' ? t('commit.period_week') : t('commit.period_month');
     const isWeekly = targetScope === 'weekly';
-
     const key = `commit.statement_${isWeekly ? 'weekly' : 'daily'}_${metric}`;
-    return t(key, { value: formattedValue, period: periodLabel });
+    return t(key, { value: formattedValue, period: '' });
   };
 
   const getMetricIcon = (type: MetricType) => {
@@ -784,9 +766,9 @@ export default function CommitScreen() {
                 <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(150)} style={styles.accordionSummary}>
                   <Text style={styles.accordionSummaryText}>
                     {(() => {
-                      const dates = getCommitmentDates(startDateChoice, period);
+                      const dates = getCommitmentDates(startDateChoice, durationDays);
                       const startLabel = dates.startDate.toLocaleDateString(i18n.language, { month: 'short', day: 'numeric' });
-                      const durationLabel = period === 'week' ? t('commit.duration1WkCompact', '1 Wk') : t('commit.duration1MoCompact', '1 Mo');
+                      const durationLabel = `${durationDays} Days`;
                       return `${startLabel} • ${durationLabel}`;
                     })()}
                   </Text>
@@ -807,25 +789,40 @@ export default function CommitScreen() {
               <View style={styles.periodRowCompact}>
                 <View style={styles.periodLeftColCompact}>
                   <Text style={styles.periodTitleCompact}>{t('commit.durationLabel')}</Text>
-                  <Text style={styles.periodDescCompact}>
-                    {period === 'week' ? t('commit.duration1WeekDesc', '1 Week commitment') : t('commit.duration1MonthDesc', '1 Month commitment')}
-                  </Text>
+                  <Text style={styles.periodDescCompact}>Between 3 to 10 days</Text>
                 </View>
-                <View style={styles.periodPillContainerCompact}>
+                <View style={[styles.targetStepperRow, { backgroundColor: 'transparent', padding: 0 }]}>
                   <TouchableOpacity
-                    onPress={() => { 
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); 
-                      setPeriod('week'); 
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setDurationDays(v => Math.max(3, v - 1));
                       setIsDurationSelected(true);
                     }}
-                    style={[styles.periodPillCompact, period === 'week' && styles.periodPillActiveCompact]}
-                    activeOpacity={0.8}
+                    style={styles.stepperButton}
+                    activeOpacity={0.7}
                   >
-                    <Text style={[styles.periodPillTextCompact, period === 'week' && styles.periodPillTextActiveCompact]}>{t('commit.duration1Week')}</Text>
+                    <MaterialCommunityIcons name="minus" size={20} color="#FFFFFF" />
+                  </TouchableOpacity>
+                  
+                  <View style={{ alignItems: 'center', width: 60 }}>
+                    <Text style={[styles.targetValueText, { fontSize: 28 }]}>{durationDays}</Text>
+                    <Text style={[styles.targetValueLabel, { marginTop: 0 }]}>Days</Text>
+                  </View>
+                  
+                  <TouchableOpacity
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setDurationDays(v => Math.min(10, v + 1));
+                      setIsDurationSelected(true);
+                    }}
+                    style={styles.stepperButton}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons name="plus" size={20} color="#FFFFFF" />
                   </TouchableOpacity>
                 </View>
               </View>
-
+              
               <View style={styles.targetDivider} />
 
               {/* Start Date Row */}
@@ -834,7 +831,7 @@ export default function CommitScreen() {
                   <Text style={styles.periodTitleCompact}>{t('commit.startDateLabel')}</Text>
                   <Text style={styles.periodDescCompact}>
                     {(() => {
-                      const dates = getCommitmentDates(startDateChoice, period);
+                      const dates = getCommitmentDates(startDateChoice, durationDays);
                       return `${formatDisplayDate(dates.startDate)} - ${formatDisplayDate(dates.endDate)}`;
                     })()}
                   </Text>
@@ -1429,7 +1426,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(124, 58, 237, 0.25)',
     padding: Spacing.three,
-    marginBottom: Spacing.three,
+    marginBottom: Spacing.two,
     marginTop: 10,
   },
   rolloverBannerText: {
@@ -1964,7 +1961,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.one,
     marginTop: Spacing.three,
-    marginBottom: Spacing.three,
+    marginBottom: Spacing.two,
   },
   doubleClickText: {
     color: '#7C3AED',
@@ -1976,7 +1973,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
     marginTop: Spacing.three,
-    marginBottom: Spacing.three,
+    marginBottom: Spacing.two,
   },
   payButton: {
     backgroundColor: '#FFFFFF',
@@ -2053,7 +2050,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: Spacing.three,
     alignItems: 'center',
-    marginBottom: Spacing.three,
+    marginBottom: Spacing.two,
   },
   disclaimerBoxIcon: {
     marginBottom: Spacing.two,
@@ -2153,7 +2150,7 @@ const styles = StyleSheet.create({
   cancelDisclaimerButton: {
     flex: 1,
     height: 48,
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: '#1E293B',
     alignItems: 'center',
@@ -2168,7 +2165,7 @@ const styles = StyleSheet.create({
   acceptDisclaimerButton: {
     flex: 1,
     height: 48,
-    borderRadius: 24,
+    borderRadius: 20,
     overflow: 'hidden',
   },
   acceptDisclaimerButtonDisabled: {

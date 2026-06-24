@@ -51,7 +51,7 @@ export default function MarketingLayout({
             ) : (
               <Link href="/login" className={styles.loginLink}>Log in</Link>
             )}
-            <Link href="/#download" className="btn btn-primary">
+            <Link href="/#download" className={`btn btn-primary ${styles.headerCta}`}>
               Get the App
             </Link>
           </div>

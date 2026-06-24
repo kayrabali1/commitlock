@@ -5,7 +5,7 @@ export interface Commitment {
   id: string;
   metricType: string;
   targetValue: number;
-  period: 'week' | 'month';
+  durationDays: number;
   stakeAmount: number;
   startDate: string;
   endDate: string;

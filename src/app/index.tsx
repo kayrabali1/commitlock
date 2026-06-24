@@ -360,12 +360,7 @@ export default function TrackerDashboard() {
       newStartDateObj.setDate(endDateObj.getDate() + 1); // starts next day (Monday)
       
       const newEndDateObj = new Date(newStartDateObj);
-      if (commitment.period === 'month') {
-        newEndDateObj.setMonth(newStartDateObj.getMonth() + 1);
-        newEndDateObj.setDate(newEndDateObj.getDate() - 1);
-      } else {
-        newEndDateObj.setDate(newStartDateObj.getDate() + 6);
-      }
+      newEndDateObj.setDate(newStartDateObj.getDate() + commitment.durationDays - 1);
       
       const formatLocalDate = (d: Date) => {
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -376,7 +371,7 @@ export default function TrackerDashboard() {
         id: generateRandomId(),
         metricType: commitment.metricType,
         targetValue: commitment.targetValue,
-        period: commitment.period,
+        durationDays: commitment.durationDays,
         stakeAmount: commitment.stakeAmount,
         startDate: formatLocalDate(newStartDateObj),
         endDate: formatLocalDate(newEndDateObj),

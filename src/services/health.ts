@@ -38,7 +38,7 @@ export interface Commitment {
   id: string;
   metricType: MetricType;
   targetValue: number; // e.g., 10000 steps, 5 km, 15 km, 500 kcal, 30 mins, 7 hrs
-  period: 'week' | 'month';
+  durationDays: number;
   stakeAmount: number; // e.g., 5, 10, 20
   startDate: string; // Monday date string (YYYY-MM-DD)
   endDate: string; // Sunday date string (YYYY-MM-DD)
@@ -759,7 +759,7 @@ export class HealthDataService {
         body: JSON.stringify({
           metricType: commitment.metricType,
           targetValue: commitment.targetValue,
-          period: commitment.period,
+          durationDays: commitment.durationDays,
           stakeAmount: commitment.stakeAmount,
           startDate: commitment.startDate,
           endDate: commitment.endDate,
@@ -986,8 +986,7 @@ export class HealthDataService {
 
   static getCommitmentSentence(commitment: Commitment): string {
     const isWeekly = commitment.targetScope === 'weekly';
-    const periodLabel = commitment.period === 'week' ? 'week' : 'month';
-    const targetValue = commitment.targetValue;
+        const targetValue = commitment.targetValue;
     const metric = commitment.metricType;
     
     const formattedValue = metric === 'steps' || metric === 'calories' ? targetValue.toLocaleString() : targetValue;
@@ -995,36 +994,36 @@ export class HealthDataService {
     if (isWeekly) {
       switch (metric) {
         case 'steps':
-          return `I commit to walk more than total ${formattedValue} steps in the ${periodLabel}.`;
+          return `I commit to walk more than total ${formattedValue} steps in the the duration.`;
         case 'run':
-          return `I commit to run more than total ${formattedValue} km in the ${periodLabel}.`;
+          return `I commit to run more than total ${formattedValue} km in the the duration.`;
         case 'mindfulness':
-          return `I commit to practice mindfulness for more than total ${formattedValue} mins in the ${periodLabel}.`;
+          return `I commit to practice mindfulness for more than total ${formattedValue} mins in the the duration.`;
         case 'cycle':
-          return `I commit to cycle more than total ${formattedValue} km in the ${periodLabel}.`;
+          return `I commit to cycle more than total ${formattedValue} km in the the duration.`;
         case 'calories':
-          return `I commit to burn more than total ${formattedValue} active kcal in the ${periodLabel}.`;
+          return `I commit to burn more than total ${formattedValue} active kcal in the the duration.`;
         case 'activeTime':
-          return `I commit to exercise for more than total ${formattedValue} mins in the ${periodLabel}.`;
+          return `I commit to exercise for more than total ${formattedValue} mins in the the duration.`;
         default:
-          return `I commit to achieve more than total ${formattedValue} in the ${periodLabel}.`;
+          return `I commit to achieve more than total ${formattedValue} in the the duration.`;
       }
     } else {
       switch (metric) {
         case 'steps':
-          return `I commit to walk more than ${formattedValue} steps everyday for a ${periodLabel}.`;
+          return `I commit to walk more than ${formattedValue} steps everyday for the duration.`;
         case 'run':
-          return `I commit to run more than ${formattedValue} km everyday for a ${periodLabel}.`;
+          return `I commit to run more than ${formattedValue} km everyday for the duration.`;
         case 'mindfulness':
-          return `I commit to practice mindfulness for more than ${formattedValue} mins everyday for a ${periodLabel}.`;
+          return `I commit to practice mindfulness for more than ${formattedValue} mins everyday for the duration.`;
         case 'cycle':
-          return `I commit to cycle more than ${formattedValue} km everyday for a ${periodLabel}.`;
+          return `I commit to cycle more than ${formattedValue} km everyday for the duration.`;
         case 'calories':
-          return `I commit to burn more than ${formattedValue} active kcal everyday for a ${periodLabel}.`;
+          return `I commit to burn more than ${formattedValue} active kcal everyday for the duration.`;
         case 'activeTime':
-          return `I commit to exercise for more than ${formattedValue} mins everyday for a ${periodLabel}.`;
+          return `I commit to exercise for more than ${formattedValue} mins everyday for the duration.`;
         default:
-          return `I commit to achieve more than ${formattedValue} everyday for a ${periodLabel}.`;
+          return `I commit to achieve more than ${formattedValue} everyday for the duration.`;
       }
     }
   }
