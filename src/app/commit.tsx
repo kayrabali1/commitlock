@@ -1019,9 +1019,6 @@ export default function CommitScreen() {
           </LinearGradient>
         </TouchableOpacity>
 
-        <Text style={styles.disclaimerText}>
-          {t('commit.disclaimerText')}
-        </Text>
       </View>
 
       {/* Native Tracking Disclaimer Modal */}
@@ -2052,8 +2049,8 @@ const styles = StyleSheet.create({
   cardContainer: {
     backgroundColor: '#1E293B',
     borderRadius: 24,
-    padding: 24,
-    marginBottom: 20,
+    padding: 16,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: 'rgba(124, 58, 237, 0.1)',
   },
@@ -2072,7 +2069,7 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
     gap: 12,
   },
   cardIconBadge: {
