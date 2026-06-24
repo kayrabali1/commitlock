@@ -1,0 +1,93 @@
+.wrapper {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 24px;
+  position: relative;
+  min-height: 100vh;
+}
+
+.backLink {
+  position: absolute;
+  top: 2rem;
+  left: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.backLink:hover {
+  color: var(--text-main);
+}
+
+.loginCard {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.logoIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent), var(--primary));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 20px rgba(124, 58, 237, 0.4);
+  margin-bottom: 1rem;
+}
+
+.icon {
+  color: white;
+}
+
+.header h2 {
+  font-size: 1.75rem;
+}
+
+.header p {
+  color: var(--text-muted);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.submitBtn {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.error {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  text-align: center;
+}

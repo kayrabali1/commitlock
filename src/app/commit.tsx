@@ -146,7 +146,6 @@ export default function CommitScreen() {
     return [
       { id: 'today' as const, label: t('commit.startToday'), dateLabel: formatDateLabel(todayDate), date: todayDate, dateStr: formatISOString(todayDate) },
       { id: 'tomorrow' as const, label: t('commit.startTomorrow'), dateLabel: formatDateLabel(tomorrowDate), date: tomorrowDate, dateStr: formatISOString(tomorrowDate) },
-      { id: 'custom' as const, label: t('commit.startCustom'), dateLabel: formatDateLabel(customStartDate), date: customStartDate, dateStr: formatISOString(customStartDate) },
     ];
   };
 
@@ -675,9 +674,7 @@ export default function CommitScreen() {
               {/* TARGET SECTION (Moved to Step 1) */}
               <View style={{ marginTop: 24 }}>
                 <View style={styles.targetCardHeader}>
-                  <Text style={styles.targetCardTitle}>{t('commit.targetGoalLabel')}</Text>
-                  
-                  <View style={styles.scopeToggleContainer}>
+                  <View style={[styles.scopeToggleContainer, { width: '100%', justifyContent: 'center' }]} >
                     <TouchableOpacity
                       onPress={() => handleTargetScopeChange('daily')}
                       style={[styles.scopeToggleButton, targetScope === 'daily' && styles.scopeToggleButtonActive]}
@@ -826,18 +823,6 @@ export default function CommitScreen() {
                   >
                     <Text style={[styles.periodPillTextCompact, period === 'week' && styles.periodPillTextActiveCompact]}>{t('commit.duration1Week')}</Text>
                   </TouchableOpacity>
-
-                  <TouchableOpacity
-                    onPress={() => { 
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); 
-                      setPeriod('month'); 
-                      setIsDurationSelected(true);
-                    }}
-                    style={[styles.periodPillCompact, period === 'month' && styles.periodPillActiveCompact]}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[styles.periodPillTextCompact, period === 'month' && styles.periodPillTextActiveCompact]}>{t('commit.duration1Month')}</Text>
-                  </TouchableOpacity>
                 </View>
               </View>
 
@@ -857,56 +842,26 @@ export default function CommitScreen() {
                 <View style={styles.datePillContainer}>
                   {getStartDateOptions().map((opt) => {
                     const isSelected = startDateChoice === opt.id;
-                    const isCustom = opt.id === 'custom';
-                    
                     return (
                       <TouchableOpacity
                         key={opt.id}
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          if (isCustom) {
-                            setIsDatePickerVisible(true);
-                          } else {
-                            setStartDateChoice(opt.id);
-                            setIsDurationSelected(true);
-                          }
+                          setStartDateChoice(opt.id);
+                          setIsDurationSelected(true);
                         }}
                         style={[
                           styles.datePillCompact,
-                          isSelected && styles.datePillActiveCompact,
-                          isCustom && { 
-                            flexDirection: 'row', 
-                            alignItems: 'center', 
-                            gap: isSelected ? 4 : 0,
-                            paddingHorizontal: isSelected ? 8 : 10
-                          }
+                          isSelected && styles.datePillActiveCompact
                         ]}
                         activeOpacity={0.8}
                       >
-                        {isCustom ? (
-                          <>
-                            <MaterialCommunityIcons 
-                              name="calendar-month" 
-                              size={14} 
-                              color={isSelected ? '#7C3AED' : '#94A3B8'} 
-                            />
-                            {isSelected && (
-                              <Text style={[
-                                styles.datePillTextCompact,
-                                styles.datePillTextActiveCompact
-                              ]}>
-                                {opt.dateLabel}
-                              </Text>
-                            )}
-                          </>
-                        ) : (
-                          <Text style={[
-                            styles.datePillTextCompact,
-                            isSelected && styles.datePillTextActiveCompact
-                          ]}>
-                            {opt.label}
-                          </Text>
-                        )}
+                        <Text style={[
+                          styles.datePillTextCompact,
+                          isSelected && styles.datePillTextActiveCompact
+                        ]}>
+                          {opt.label}
+                        </Text>
                       </TouchableOpacity>
                     );
                   })}

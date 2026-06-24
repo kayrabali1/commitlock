@@ -6,6 +6,7 @@ import authRouter from './routes/auth';
 import userRouter from './routes/user';
 import commitmentsRouter from './routes/commitments';
 import healthRouter from './routes/health';
+import stripeRouter from './routes/stripe';
 
 dotenv.config();
 
@@ -16,10 +17,16 @@ const port = process.env.PORT || 8080;
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'stripe-signature'],
 }));
 
+// Stripe webhook must come BEFORE express.json() because it needs the raw body
+app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
+
 app.use(express.json({ limit: '10mb' })); // support base64 avatars in request body
+
+// Mount stripe router (create-setup-session will get JSON body, webhook will get raw)
+app.use('/api/stripe', stripeRouter);
 
 // Health check endpoint for GCP Cloud Run probing
 app.get('/healthz', (req, res) => {

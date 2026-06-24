@@ -13,6 +13,7 @@ export interface User {
   avatar: string;
   tier: string;
   provider: 'email' | 'google' | 'apple';
+  hasPaymentMethod?: boolean;
 }
 
 interface AuthContextType {

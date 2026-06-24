@@ -1,6 +1,10 @@
 import { Router } from 'express';
+import Stripe from 'stripe';
 import { db } from '../config/firestore';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
+
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY || 'sk_test_mock_key';
+const stripe = new Stripe(stripeSecretKey);
 
 const router = Router();
 
@@ -94,6 +98,31 @@ router.post('/', authenticateToken as any, async (req: AuthenticatedRequest, res
       return res.status(400).json({ error: 'Missing required commitment parameters' });
     }
 
+    const userDoc = await db.collection('users').doc(userId).get();
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const userData = userDoc.data()!;
+    if (!userData.hasPaymentMethod || !userData.stripeCustomerId) {
+      return res.status(400).json({ error: 'no_payment_method', message: 'You must link a credit card on the website before committing.' });
+    }
+
+    // Process Stripe PaymentIntent off-session
+    let paymentIntent;
+    try {
+      paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(Number(stakeAmount) * 100),
+        currency: 'usd',
+        customer: userData.stripeCustomerId,
+        confirm: true,
+        off_session: true,
+        metadata: { userId, metricType },
+      });
+    } catch (stripeErr: any) {
+      console.error('Stripe off-session charge failed:', stripeErr);
+      return res.status(402).json({ error: 'payment_failed', message: 'Payment authorization failed. Please update your payment method.' });
+    }
+
     const commitmentsRef = db.collection('commitments');
     const newCommitmentRef = commitmentsRef.doc();
     const newCommitment = {
@@ -107,6 +136,7 @@ router.post('/', authenticateToken as any, async (req: AuthenticatedRequest, res
       targetScope: targetScope || 'daily',
       status: 'active',
       createdAt: new Date().toISOString(),
+      stripePaymentIntentId: paymentIntent.id,
     };
 
     await newCommitmentRef.set(newCommitment);
@@ -147,8 +177,18 @@ router.delete('/:id', authenticateToken as any, async (req: AuthenticatedRequest
       return {
         refunded: commitment.status === 'active',
         refundAmount: commitment.stakeAmount,
+        paymentIntentId: commitment.stripePaymentIntentId,
       };
     });
+
+    // Process Stripe refund if there's a payment intent
+    if (result.refunded && result.paymentIntentId) {
+      try {
+        await stripe.refunds.create({ payment_intent: result.paymentIntentId });
+      } catch (stripeErr) {
+        console.error('Stripe refund failed during cancellation:', stripeErr);
+      }
+    }
 
     return res.status(200).json({ message: 'Commitment deleted successfully', ...result });
   } catch (err: any) {
@@ -205,6 +245,16 @@ router.post('/:id/resolve', authenticateToken as any, async (req: AuthenticatedR
         ...updates,
       };
     });
+
+    // Process Stripe refund if success
+    const commitmentToRefund = updatedCommitment as any;
+    if (status === 'success' && commitmentToRefund.stripePaymentIntentId) {
+      try {
+        await stripe.refunds.create({ payment_intent: commitmentToRefund.stripePaymentIntentId });
+      } catch (stripeErr) {
+        console.error('Stripe refund failed during resolution:', stripeErr);
+      }
+    }
 
     return res.status(200).json(updatedCommitment);
   } catch (err: any) {

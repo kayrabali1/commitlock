@@ -3,9 +3,13 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Fallback to local Firestore emulator if no GCP credentials are set
+if (process.env.NODE_ENV !== 'production' && !process.env.GOOGLE_APPLICATION_CREDENTIALS && !process.env.FIRESTORE_EMULATOR_HOST) {
+  process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8081';
+  console.log('No GCP credentials found. Falling back to local Firestore emulator at 127.0.0.1:8081');
+}
+
 // Initialize Firestore
-// In GCP Cloud Run, the Firestore SDK automatically discovers the Project ID and Application Default Credentials.
-// Locally, it will read GOOGLE_APPLICATION_CREDENTIALS or use the Firestore Emulator if FIRESTORE_EMULATOR_HOST is set.
 const db = new Firestore({
   projectId: process.env.GOOGLE_CLOUD_PROJECT || 'commitlock-499812',
   keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,

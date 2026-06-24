@@ -21,6 +21,7 @@ router.get('/profile', authenticateToken as any, async (req: AuthenticatedReques
       email: userData.email,
       avatar: userData.avatar,
       tier: userData.tier,
+      hasPaymentMethod: userData.hasPaymentMethod || false,
       notificationSettings: userData.notificationSettings || {
         dailyReminder: true,
         statusUpdates: true,
