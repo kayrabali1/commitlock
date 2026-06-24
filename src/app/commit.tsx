@@ -631,7 +631,7 @@ export default function CommitScreen() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.metricScrollContent}
               >
-                {(['steps', 'run', 'mindfulness', 'cycle', 'calories', 'activeTime'] as MetricType[]).map((type) => {
+                {(['steps', 'run', 'mindfulness'] as MetricType[]).map((type) => {
                   const isActive = isMetricSelected && metric === type;
                   const gradient = getMetricColor(type);
                   
@@ -671,6 +671,86 @@ export default function CommitScreen() {
                   );
                 })}
               </ScrollView>
+
+              {/* TARGET SECTION (Moved to Step 1) */}
+              <View style={{ marginTop: 24 }}>
+                <View style={styles.targetCardHeader}>
+                  <Text style={styles.targetCardTitle}>{t('commit.targetGoalLabel')}</Text>
+                  
+                  <View style={styles.scopeToggleContainer}>
+                    <TouchableOpacity
+                      onPress={() => handleTargetScopeChange('daily')}
+                      style={[styles.scopeToggleButton, targetScope === 'daily' && styles.scopeToggleButtonActive]}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.scopeToggleText, targetScope === 'daily' && styles.scopeToggleTextActive]}>
+                        {t('commit.dailyTarget')}
+                      </Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      onPress={() => handleTargetScopeChange('weekly')}
+                      style={[styles.scopeToggleButton, targetScope === 'weekly' && styles.scopeToggleButtonActive]}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.scopeToggleText, targetScope === 'weekly' && styles.scopeToggleTextActive]}>
+                        {t('commit.weeklyAccumulator')}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={styles.targetStepperRow}>
+                  <TouchableOpacity
+                    onPress={() => decrementTarget(getStepSize())}
+                    style={styles.stepperButton}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons name="minus" size={20} color="#FFFFFF" />
+                  </TouchableOpacity>
+
+                  <View style={styles.targetValueWrapper}>
+                    <Text style={styles.targetValueText}>
+                      {metric === 'steps' || metric === 'calories' ? targetValue.toLocaleString() : targetValue}
+                    </Text>
+                    <Text style={styles.targetValueLabel}>{getMetricLabel()}</Text>
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={() => incrementTarget(getStepSize())}
+                    style={styles.stepperButton}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons name="plus" size={20} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.syncNoticeRow}>
+                  <MaterialCommunityIcons 
+                    name="checkbox-marked-circle-outline" 
+                    size={12} 
+                    color="#05D38E" 
+                  />
+                  <Text style={[styles.syncNoticeText, { flexShrink: 1, color: '#94A3B8' }]}>
+                    {getCommitmentStatement()}
+                  </Text>
+                </View>
+
+                <View style={styles.targetDivider} />
+                <TouchableOpacity
+                  style={styles.stepContinueButton}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setIsTargetSelected(true);
+                    setActiveStep(2);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.stepContinueButtonText}>{t('commit.continueToStartDuration')}</Text>
+                  <MaterialCommunityIcons name="arrow-right" size={14} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+
             </Animated.View>
           )}
         </Animated.View>
@@ -700,7 +780,7 @@ export default function CommitScreen() {
                   <Text style={[styles.stepNumberText, activeStep === 2 && styles.stepNumberTextActive]}>02</Text>
                 )}
               </View>
-              <Text style={styles.accordionTitle}>{t('commit.step3Title')}</Text>
+              <Text style={styles.accordionTitle}>{t('commit.step2Title')}</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               {activeStep !== 2 && isDurationSelected && (
@@ -875,7 +955,7 @@ export default function CommitScreen() {
                   <Text style={[styles.stepNumberText, activeStep === 3 && styles.stepNumberTextActive]}>03</Text>
                 )}
               </View>
-              <Text style={styles.accordionTitle}>Pledge Stake</Text>
+              <Text style={styles.accordionTitle}>{t('commit.step3Title')}</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               {activeStep !== 3 && isStakeSelected && (
