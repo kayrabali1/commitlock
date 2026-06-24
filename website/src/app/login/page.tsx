@@ -63,7 +63,7 @@ export default function LoginPage() {
           <p>Sign in to securely manage your payment methods.</p>
         </div>
 
-        <form onSubmit={handleLogin} className={styles.form}>
+        <form onSubmit={handleLogin} className={styles.form} suppressHydrationWarning>
           {error && <div className={styles.error}>{error}</div>}
           
           <div className={styles.inputGroup}>
@@ -76,6 +76,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="you@example.com"
+              suppressHydrationWarning
             />
           </div>
 
@@ -89,6 +90,7 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               placeholder="••••••••"
+              suppressHydrationWarning
             />
           </div>
 

@@ -64,11 +64,7 @@ export default function CommitScreen() {
       if (debug_metricType) {
         setMetric(debug_metricType as any);
       }
-      setIsMetricSelected(true);
-      setIsTargetSelected(true);
-      setIsDurationSelected(true);
-      setIsStakeSelected(true);
-      
+                              
       const timer = setTimeout(() => {
         confirmPayment({
           targetScope: debug_targetScope as any,
@@ -81,41 +77,36 @@ export default function CommitScreen() {
   }, [debug_auto_commit, debug_targetScope, debug_targetValue, debug_metricType]);
   
   // Accordion Step State
-  const [activeStep, setActiveStep] = useState<number>(0);
-
+  
   // Scroll & Layout Tracking for Auto-Scroll
   const scrollViewRef = useRef<ScrollView>(null);
   const stepLayouts = useRef<{ [key: number]: number }>({});
 
-  const handleStepLayout = (stepNumber: number, y: number) => {
-    stepLayouts.current[stepNumber] = y;
-  };
-
-  useEffect(() => {
-    if (activeStep > 0 && stepLayouts.current[activeStep] !== undefined) {
-      const timer = setTimeout(() => {
-        scrollViewRef.current?.scrollTo({
-          y: Math.max(0, stepLayouts.current[activeStep] - 16),
-          animated: true,
-        });
-      }, 120);
-      return () => clearTimeout(timer);
-    }
-  }, [activeStep]);
+  
+  
 
   // Selection Interaction States
-  const [isMetricSelected, setIsMetricSelected] = useState<boolean>(false);
-  const [isTargetSelected, setIsTargetSelected] = useState<boolean>(false);
-  const [isDurationSelected, setIsDurationSelected] = useState<boolean>(false);
-  const [isStakeSelected, setIsStakeSelected] = useState<boolean>(!!rolloverStake);
+        const [isStakeSelected, setIsStakeSelected] = useState<boolean>(!!rolloverStake);
 
-  const allStepsReady = isMetricSelected && isTargetSelected && isDurationSelected && isStakeSelected;
+  const allStepsReady = true;
   
   // Selection States
   const [metric, setMetric] = useState<MetricType>('steps');
   const [targetScope, setTargetScope] = useState<'daily' | 'weekly'>('daily');
   const [targetValue, setTargetValue] = useState<number>(10000);
   const [durationDays, setDurationDays] = useState<number>(3);
+
+  // Layout states (No longer used for accordions, kept for TS compatibility in resetForm)
+  const activeStep = 0;
+  const setActiveStep = (step: number) => {};
+  const isMetricSelected = true;
+  const setIsMetricSelected = (val: boolean) => {};
+  const isTargetSelected = true;
+  const setIsTargetSelected = (val: boolean) => {};
+  const isDurationSelected = true;
+  const setIsDurationSelected = (val: boolean) => {};
+  
+
   const [startDateChoice, setStartDateChoice] = useState<'today' | 'tomorrow' | 'custom'>('today');
   const [customStartDate, setCustomStartDate] = useState<Date>(() => {
     const today = new Date();
@@ -187,8 +178,7 @@ export default function CommitScreen() {
         if (event.type === 'set') {
           setCustomStartDate(validatedDate);
           setStartDateChoice('custom');
-          setIsDurationSelected(true);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
       } else {
         // iOS / Web inline selection
@@ -206,11 +196,7 @@ export default function CommitScreen() {
   // Custom Stake options
   const customStakeOptions = [30, 40, 50, 100, 250];
 
-  const toggleStep = (stepNumber: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setActiveStep(prev => prev === stepNumber ? 0 : stepNumber);
-  };
-
+  
   const handleOpenCustomSheet = () => {
     const activeVal = customStakeOptions.includes(stake) ? stake : customStakeOptions[0];
     setTempStake(activeVal);
@@ -261,8 +247,7 @@ export default function CommitScreen() {
   const handleMetricChange = (selected: MetricType) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setMetric(selected);
-    setIsMetricSelected(true);
-    const multiplier = targetScope === 'weekly' ? 7 : 1;
+        const multiplier = targetScope === 'weekly' ? 7 : 1;
     if (selected === 'steps') setTargetValue(10000 * multiplier);
     else if (selected === 'run') setTargetValue(5 * multiplier);
     else if (selected === 'mindfulness') setTargetValue(15 * multiplier);
@@ -289,8 +274,7 @@ export default function CommitScreen() {
   const incrementTarget = (amount: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setTargetValue((prev) => Math.max(1, prev + amount));
-    setIsTargetSelected(true);
-  };
+      };
 
   const decrementTarget = (amount: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -303,15 +287,13 @@ export default function CommitScreen() {
     else if (metric === 'calories') minVal = isWeekly ? 700 : 100;
     else if (metric === 'activeTime') minVal = isWeekly ? 35 : 5;
     setTargetValue((prev) => Math.max(minVal, prev - amount));
-    setIsTargetSelected(true);
-  };
+      };
 
   const handleTargetScopeChange = (scope: 'daily' | 'weekly') => {
     if (scope === targetScope) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setTargetScope(scope);
-    setIsTargetSelected(true);
-    if (scope === 'weekly') {
+        if (scope === 'weekly') {
       // Multiply current daily target by 7 to yield weekly target, rounded cleanly
       setTargetValue((prev) => {
         const multiplied = prev * 7;
@@ -342,8 +324,7 @@ export default function CommitScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setStake(value);
     setCustomStake('');
-    setIsStakeSelected(true);
-    
+        
     // Collapse accordion as all steps are completed!
     setTimeout(() => {
       setActiveStep(0);
@@ -560,53 +541,16 @@ export default function CommitScreen() {
           <Text style={styles.headerTitle}>{t('commit.headerTitle')}</Text>
         </View>
 
-        {/* 1. Select Activity */}
-        <Animated.View 
-          layout={LinearTransition.springify().damping(28).stiffness(220)}
-          onLayout={(e) => handleStepLayout(1, e.nativeEvent.layout.y)}
-          style={[styles.accordionItem, activeStep === 1 && styles.accordionItemActive]}
-        >
-          <TouchableOpacity
-            style={styles.accordionHeader}
-            onPress={() => toggleStep(1)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.accordionHeaderLeft}>
-              <View style={[
-                styles.stepBadge,
-                activeStep === 1 && styles.stepBadgeActive,
-                (activeStep !== 1 && isMetricSelected) && styles.stepBadgeCompleted
-              ]}>
-                {(activeStep !== 1 && isMetricSelected) ? (
-                  <Animated.View entering={ZoomIn.duration(200)} exiting={ZoomOut.duration(200)}>
-                    <MaterialCommunityIcons name="check" size={12} color="#FFFFFF" />
-                  </Animated.View>
-                ) : (
-                  <Text style={[styles.stepNumberText, activeStep === 1 && styles.stepNumberTextActive]}>01</Text>
-                )}
-              </View>
-              <Text style={styles.accordionTitle}>{t('commit.step1Title')}</Text>
+        {/* 1. Goal Setup */}
+        <View style={styles.cardContainer}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardIconBadge}>
+              <Text style={styles.stepNumberTextActive}>01</Text>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              {activeStep !== 1 && isMetricSelected && isTargetSelected && (
-                <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(150)} style={styles.accordionSummary}>
-                  <MaterialCommunityIcons name={getMetricIcon(metric)} size={12} color={getMetricColor(metric)[0]} />
-                  <Text style={styles.accordionSummaryText}>
-                    {getMetricFullName(metric)} • {metric === 'steps' || metric === 'calories' ? targetValue.toLocaleString() : targetValue} {getMetricLabel().split('/')[0]}/{targetScope === 'daily' ? 'd' : 'wk'}
-                  </Text>
-                </Animated.View>
-              )}
-              <MaterialCommunityIcons
-                name={activeStep === 1 ? "chevron-up" : "chevron-down"}
-                size={18}
-                color={activeStep === 1 ? '#7C3AED' : '#64748B'}
-                style={styles.chevronIcon}
-              />
-            </View>
-          </TouchableOpacity>
+            <Text style={styles.cardTitle}>{t('commit.step1Title')}</Text>
+          </View>
 
-          {activeStep === 1 && (
-            <Animated.View entering={FadeInDown.duration(220).springify().damping(22).stiffness(180)} exiting={FadeOutUp.duration(150)} style={styles.accordionContent}>
+          
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -720,8 +664,7 @@ export default function CommitScreen() {
                   style={styles.stepContinueButton}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setIsTargetSelected(true);
-                    setActiveStep(2);
+                                        setActiveStep(2);
                   }}
                   activeOpacity={0.8}
                 >
@@ -730,61 +673,18 @@ export default function CommitScreen() {
                 </TouchableOpacity>
               </View>
 
-            </Animated.View>
-          )}
-        </Animated.View>
+        </View>
 
-{/* 2. Start and duration */}
-        <Animated.View 
-          layout={LinearTransition.springify().damping(28).stiffness(220)}
-          onLayout={(e) => handleStepLayout(2, e.nativeEvent.layout.y)}
-          style={[styles.accordionItem, activeStep === 2 && styles.accordionItemActive]}
-        >
-          <TouchableOpacity
-            style={styles.accordionHeader}
-            onPress={() => toggleStep(2)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.accordionHeaderLeft}>
-              <View style={[
-                styles.stepBadge,
-                activeStep === 2 && styles.stepBadgeActive,
-                (activeStep !== 2 && isDurationSelected) && styles.stepBadgeCompleted
-              ]}>
-                {(activeStep !== 2 && isDurationSelected) ? (
-                  <Animated.View entering={ZoomIn.duration(200)} exiting={ZoomOut.duration(200)}>
-                    <MaterialCommunityIcons name="check" size={12} color="#FFFFFF" />
-                  </Animated.View>
-                ) : (
-                  <Text style={[styles.stepNumberText, activeStep === 2 && styles.stepNumberTextActive]}>02</Text>
-                )}
-              </View>
-              <Text style={styles.accordionTitle}>{t('commit.step2Title')}</Text>
+{/* 2. Duration Setup */}
+        <View style={styles.cardContainer}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardIconBadge}>
+              <Text style={styles.stepNumberTextActive}>02</Text>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              {activeStep !== 2 && isDurationSelected && (
-                <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(150)} style={styles.accordionSummary}>
-                  <Text style={styles.accordionSummaryText}>
-                    {(() => {
-                      const dates = getCommitmentDates(startDateChoice, durationDays);
-                      const startLabel = dates.startDate.toLocaleDateString(i18n.language, { month: 'short', day: 'numeric' });
-                      const durationLabel = `${durationDays} Days`;
-                      return `${startLabel} • ${durationLabel}`;
-                    })()}
-                  </Text>
-                </Animated.View>
-              )}
-              <MaterialCommunityIcons
-                name={activeStep === 2 ? "chevron-up" : "chevron-down"}
-                size={18}
-                color={activeStep === 2 ? '#7C3AED' : '#64748B'}
-                style={styles.chevronIcon}
-              />
-            </View>
-          </TouchableOpacity>
+            <Text style={styles.cardTitle}>{t('commit.step2Title')}</Text>
+          </View>
 
-          {activeStep === 2 && (
-            <Animated.View entering={FadeInDown.duration(220).springify().damping(22).stiffness(180)} exiting={FadeOutUp.duration(150)} style={styles.accordionContent}>
+          
               {/* Duration Row */}
               <View style={styles.periodRowCompact}>
                 <View style={styles.periodLeftColCompact}>
@@ -796,8 +696,7 @@ export default function CommitScreen() {
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       setDurationDays(v => Math.max(3, v - 1));
-                      setIsDurationSelected(true);
-                    }}
+                                          }}
                     style={styles.stepperButton}
                     activeOpacity={0.7}
                   >
@@ -813,8 +712,7 @@ export default function CommitScreen() {
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       setDurationDays(v => Math.min(10, v + 1));
-                      setIsDurationSelected(true);
-                    }}
+                                          }}
                     style={styles.stepperButton}
                     activeOpacity={0.7}
                   >
@@ -845,8 +743,7 @@ export default function CommitScreen() {
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                           setStartDateChoice(opt.id);
-                          setIsDurationSelected(true);
-                        }}
+                                                  }}
                         style={[
                           styles.datePillCompact,
                           isSelected && styles.datePillActiveCompact
@@ -870,62 +767,26 @@ export default function CommitScreen() {
                 style={styles.stepContinueButton}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setIsDurationSelected(true);
-                  setActiveStep(3);
+                                    setActiveStep(3);
                 }}
                 activeOpacity={0.8}
               >
                 <Text style={styles.stepContinueButtonText}>Continue to Pledge</Text>
                 <MaterialCommunityIcons name="arrow-right" size={14} color="#FFFFFF" />
               </TouchableOpacity>
-            </Animated.View>
-          )}
-        </Animated.View>
+            
+        </View>
 
-        {/* 4. Pledge Stake */}
-        <Animated.View 
-          layout={LinearTransition.springify().damping(28).stiffness(220)}
-          onLayout={(e) => handleStepLayout(3, e.nativeEvent.layout.y)}
-          style={[styles.accordionItem, activeStep === 3 && styles.accordionItemActive]}
-        >
-          <TouchableOpacity
-            style={styles.accordionHeader}
-            onPress={() => toggleStep(3)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.accordionHeaderLeft}>
-              <View style={[
-                styles.stepBadge,
-                activeStep === 3 && styles.stepBadgeActive,
-                (activeStep !== 3 && isStakeSelected) && styles.stepBadgeCompleted
-              ]}>
-                {(activeStep !== 3 && isStakeSelected) ? (
-                  <Animated.View entering={ZoomIn.duration(200)} exiting={ZoomOut.duration(200)}>
-                    <MaterialCommunityIcons name="check" size={12} color="#FFFFFF" />
-                  </Animated.View>
-                ) : (
-                  <Text style={[styles.stepNumberText, activeStep === 3 && styles.stepNumberTextActive]}>03</Text>
-                )}
-              </View>
-              <Text style={styles.accordionTitle}>{t('commit.step3Title')}</Text>
+        {/* 3. Stake Setup */}
+        <View style={styles.cardContainer}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardIconBadge}>
+              <Text style={styles.stepNumberTextActive}>03</Text>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              {activeStep !== 3 && isStakeSelected && (
-                <Animated.View entering={FadeInRight.duration(220)} exiting={FadeOutRight.duration(150)} style={styles.accordionSummary}>
-                  <Text style={styles.accordionSummaryText}>€{stake}.00</Text>
-                </Animated.View>
-              )}
-              <MaterialCommunityIcons
-                name={activeStep === 3 ? "chevron-up" : "chevron-down"}
-                size={18}
-                color={activeStep === 3 ? '#7C3AED' : '#64748B'}
-                style={styles.chevronIcon}
-              />
-            </View>
-          </TouchableOpacity>
+            <Text style={styles.cardTitle}>{t('commit.step3Title')}</Text>
+          </View>
 
-          {activeStep === 3 && (
-            <Animated.View entering={FadeInDown.duration(220).springify().damping(22).stiffness(180)} exiting={FadeOutUp.duration(150)} style={styles.accordionContent}>
+          
               <View style={styles.pledgeHeaderRow}>
                 <View style={styles.parameterLeftCol}>
                   <Text style={styles.parameterTitle}>{t('commit.pledgeAmountLabel')}</Text>
@@ -976,17 +837,15 @@ export default function CommitScreen() {
                 style={styles.stepContinueButton}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setIsStakeSelected(true);
-                  setActiveStep(0);
+                                    setActiveStep(0);
                 }}
                 activeOpacity={0.8}
               >
                 <Text style={styles.stepContinueButtonText}>{t('commit.readyToLock')}</Text>
                 <MaterialCommunityIcons name="check-bold" size={14} color="#FFFFFF" />
               </TouchableOpacity>
-            </Animated.View>
-          )}
-        </Animated.View>
+            
+        </View>
 
         </ScrollView>
         <AppHeader />
@@ -1044,8 +903,7 @@ export default function CommitScreen() {
                   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                   setStartDateChoice('custom');
                   setIsDatePickerVisible(false);
-                  setIsDurationSelected(true);
-                }}
+                                  }}
                 style={styles.confirmCustomButton}
                 activeOpacity={0.8}
               >
@@ -1121,8 +979,7 @@ export default function CommitScreen() {
                 setStake(tempStake);
                 setCustomStake(tempStake.toString());
                 setIsCustomSheetVisible(false);
-                setIsStakeSelected(true);
-                
+                                
                 // Collapse accordion as all steps are completed!
                 setTimeout(() => {
                   setActiveStep(0);
@@ -2192,6 +2049,14 @@ const styles = StyleSheet.create({
   payButtonTextDisabled: {
     color: '#64748B',
   },
+  cardContainer: {
+    backgroundColor: '#1E293B',
+    borderRadius: 24,
+    padding: 24,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(124, 58, 237, 0.1)',
+  },
   accordionItem: {
     backgroundColor: 'rgba(17, 19, 30, 0.6)',
     borderWidth: 1,
@@ -2203,6 +2068,25 @@ const styles = StyleSheet.create({
   accordionItemActive: {
     borderColor: '#7C3AED',
     backgroundColor: 'rgba(17, 19, 30, 0.6)',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 12,
+  },
+  cardIconBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(124, 58, 237, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#F8FAFC',
   },
   accordionHeader: {
     flexDirection: 'row',
