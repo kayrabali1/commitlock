@@ -606,6 +606,7 @@ export default function CommitScreen() {
         </View>
 
         {/* 2. Target Row */}
+        <View style={styles.sectionSeparator} />
         <View style={styles.dashboardSection}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionLabel}>TARGET</Text>
@@ -636,6 +637,7 @@ export default function CommitScreen() {
         </View>
 
         {/* 3. Duration Row */}
+        <View style={styles.sectionSeparator} />
         <View style={styles.dashboardSection}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionLabel}>DURATION</Text>
@@ -666,6 +668,7 @@ export default function CommitScreen() {
         </View>
 
         {/* 4. Stake Row */}
+        <View style={styles.sectionSeparator} />
         <View style={styles.dashboardSection}>
           <Text style={styles.sectionLabel}>STAKE</Text>
           <View style={styles.stakeGrid}>
@@ -690,7 +693,7 @@ export default function CommitScreen() {
         </ScrollView>
       </View>
 
-      <View style={[styles.fixedBottomContainer, { paddingBottom: insets.bottom + 100 }]}>
+      <View style={[styles.fixedBottomContainer, { paddingBottom: insets.bottom + 15 }]}>
         <Text style={styles.summaryDateText}>
           {(() => {
             const dates = getCommitmentDates(startDateChoice, durationDays);
@@ -704,12 +707,12 @@ export default function CommitScreen() {
           disabled={!allStepsReady}
         >
           <LinearGradient 
-            colors={allStepsReady ? ['#7C3AED', '#4F46E5'] : ['#1E293B', '#0F172A']} 
+            colors={['#7C3AED', '#4F46E5']} 
             style={styles.submitGradient} 
             start={{ x: 0, y: 0 }} 
             end={{ x: 1, y: 0 }}
           >
-            <MaterialCommunityIcons name="lock" size={18} color={allStepsReady ? "#FFFFFF" : "#475569"} />
+            <MaterialCommunityIcons name="lock" size={18} color="#FFFFFF" />
             <Text style={[styles.submitText, !allStepsReady && styles.submitTextDisabled]}>
               {t('commit.pledgeAndLock', { stake })}
             </Text>
@@ -774,6 +777,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
     letterSpacing: -0.5,
+  },
+  sectionSeparator: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    marginHorizontal: 16,
+    marginBottom: 20,
   },
   dashboardSection: {
     marginBottom: 20,
@@ -998,21 +1007,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   statementText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#F8FAFC',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
     textAlign: 'center',
-    lineHeight: 22,
-    textShadowColor: 'rgba(124, 58, 237, 0.8)',
+    lineHeight: 24,
+    textShadowColor: 'rgba(167, 139, 250, 1)',
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 15,
+    textShadowRadius: 25,
   },
 
   submitButtonDisabled: {
-    shadowOpacity: 0,
-    elevation: 0,
+    opacity: 0.4,
   },
   submitTextDisabled: {
-    color: '#64748B',
   },
 });
