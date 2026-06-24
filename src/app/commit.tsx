@@ -686,9 +686,17 @@ export default function CommitScreen() {
 
         {/* Glowing Statement */}
         <Animated.View style={[styles.statementContainer, animatedGlowStyle]}>
-          <Text style={[styles.statementText, !allStepsReady && styles.statementTextNoGlow]}>
-            {getCommitmentStatement()}
-          </Text>
+          {allStepsReady && <View style={styles.ambientNeonBackground} />}
+          <View style={{ width: '100%', alignItems: 'center', justifyContent: 'center' }}>
+            {allStepsReady && (
+              <Text style={[styles.statementText, styles.neonGlowBack]}>
+                {getCommitmentStatement()}
+              </Text>
+            )}
+            <Text style={[styles.statementText, !allStepsReady ? styles.statementTextNoGlow : styles.neonGlowFront]}>
+              {getCommitmentStatement()}
+            </Text>
+          </View>
         </Animated.View>
         </ScrollView>
       </View>
@@ -1023,8 +1031,37 @@ const styles = StyleSheet.create({
   submitTextDisabled: {
   },
   statementTextNoGlow: {
-    textShadowRadius: 0,
-    textShadowColor: 'transparent',
     color: '#94A3B8',
+  },
+  neonGlowBack: {
+    position: 'absolute',
+    top: 0,
+    color: '#A855F7',
+    textShadowColor: '#7C3AED',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 16,
+    opacity: 0.8,
+  },
+  neonGlowFront: {
+    color: '#FFFFFF',
+    textShadowColor: '#D8B4FE',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 4,
+  },
+  ambientNeonBackground: {
+    position: 'absolute',
+    top: '50%',
+    left: '10%',
+    right: '10%',
+    height: 30,
+    marginTop: -15,
+    backgroundColor: '#9333EA',
+    opacity: 0.15,
+    borderRadius: 20,
+    shadowColor: '#A855F7',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 35,
+    elevation: 20,
   },
 });
