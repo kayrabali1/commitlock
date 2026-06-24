@@ -276,9 +276,6 @@ export default function CommitScreen() {
   // Payment Sheets States
   const [isPaymentSheetVisible, setIsPaymentSheetVisible] = useState(false);
   const [paymentStep, setPaymentStep] = useState<'idle' | 'processing' | 'success'>('idle');
-  const [isDisclaimerVisible, setIsDisclaimerVisible] = useState(false);
-  const [hasAcceptedDisclaimer, setHasAcceptedDisclaimer] = useState(false);
-  const [isVerificationGuideVisible, setIsVerificationGuideVisible] = useState(false);
 
   // Default values when metric changes
   const handleMetricChange = (selected: MetricType) => {
@@ -373,14 +370,6 @@ export default function CommitScreen() {
     if (!allStepsReady || stake <= 0) return;
     
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setHasAcceptedDisclaimer(false);
-    setIsDisclaimerVisible(true);
-  };
-
-  const handleAcceptDisclaimer = () => {
-    if (!hasAcceptedDisclaimer) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setIsDisclaimerVisible(false);
     setIsPaymentSheetVisible(true);
     setPaymentStep('idle');
   };
@@ -400,8 +389,6 @@ export default function CommitScreen() {
     setIsCustomSheetVisible(false);
     setTempStake(30);
     setPaymentStep('idle');
-    setHasAcceptedDisclaimer(false);
-    setIsVerificationGuideVisible(false);
     scrollViewRef.current?.scrollTo({ y: 0, animated: false });
   };
 
@@ -722,18 +709,111 @@ export default function CommitScreen() {
         </TouchableOpacity>
       </View>
       
-      <Modal visible={isDisclaimerVisible} transparent={true} animationType="fade">
+      {/* Simulated Apple Pay / Google Pay Bottom Sheet */}
+      <Modal
+        visible={isPaymentSheetVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setIsPaymentSheetVisible(false)}
+      >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <MaterialCommunityIcons name="shield-check" size={24} color="#05D38E" />
-              <Text style={styles.modalTitle}>{t('commit.healthAccessTitle')}</Text>
+          <TouchableOpacity 
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => paymentStep !== 'processing' && setIsPaymentSheetVisible(false)}
+          />
+
+          <BlurView tint="dark" intensity={95} style={styles.sheetContent}>
+            
+            {/* Native Apple/Google Pay Header Mock */}
+            <View style={styles.sheetHeader}>
+              <View style={styles.sheetPullBar} />
+              <View style={styles.payLogoRow}>
+                <MaterialCommunityIcons 
+                  name={Platform.OS === 'ios' ? 'apple' : 'google'} 
+                  size={24} 
+                  color="#FFFFFF" 
+                />
+                <Text style={styles.payLogoText}>Pay</Text>
+              </View>
             </View>
-            <Text style={styles.modalBody}>{t('commit.healthAccessDesc')}</Text>
-            <TouchableOpacity style={styles.modalButton} onPress={() => setIsDisclaimerVisible(false)}>
-              <Text style={styles.modalButtonText}>{t('commit.gotIt')}</Text>
-            </TouchableOpacity>
-          </View>
+
+            {paymentStep === 'idle' && (
+              <View style={styles.sheetBody}>
+                {/* Card and Transaction Details */}
+                <View style={styles.payRow}>
+                  <Text style={styles.payRowLabel}>{t('commit.payCard')}</Text>
+                  <Text style={styles.payRowValue}>•••• 4890</Text>
+                </View>
+
+                <View style={styles.payDivider} />
+
+                <View style={styles.payRow}>
+                  <Text style={styles.payRowLabel}>{t('commit.payMerchant')}</Text>
+                  <Text style={styles.payRowValue}>HabitContract Platform GmbH</Text>
+                </View>
+
+                <View style={styles.payDivider} />
+
+                <View style={styles.payRow}>
+                  <Text style={styles.payRowLabel}>{t('commit.payCommitment')}</Text>
+                  <Text style={styles.payRowValue}>
+                    {getMetricFullName(metric).toUpperCase()}: {targetValue.toLocaleString()} {getMetricLabel()}
+                  </Text>
+                </View>
+
+                <View style={styles.payDivider} />
+
+                <View style={styles.payRow}>
+                  <Text style={styles.payRowLabel}>{t('commit.payTotal')}</Text>
+                  <Text style={styles.payTotalValue}>€{stake}.00</Text>
+                </View>
+
+                {/* Double click side button prompt for iOS feel */}
+                {Platform.OS === 'ios' ? (
+                  <View style={styles.doubleClickWrapper}>
+                    <MaterialCommunityIcons name="gesture-double-tap" size={24} color="#7C3AED" />
+                    <Text style={styles.doubleClickText}>
+                      {t('commit.payDoubleClick')}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.fingerprintPrompt}>
+                    {t('commit.payFingerprint')}
+                  </Text>
+                )}
+
+                <TouchableOpacity 
+                  onPress={() => confirmPayment()} 
+                  style={styles.payButton}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.payButtonText}>
+                    {t('commit.payConfirm', { stake })}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {paymentStep === 'processing' && (
+              <View style={styles.sheetCenterBody}>
+                <ActivityIndicator size="large" color="#7C3AED" />
+                <Text style={styles.processingText}>{t('commit.payVerifying')}</Text>
+                <Text style={styles.processingSubtext}>{t('commit.paySecuring')}</Text>
+              </View>
+            )}
+
+            {paymentStep === 'success' && (
+              <View style={styles.sheetCenterBody}>
+                <View style={styles.successCircle}>
+                  <MaterialCommunityIcons name="check" size={48} color="#FFFFFF" />
+                </View>
+                <Text style={styles.successText}>{t('commit.paySuccess')}</Text>
+                <Text style={styles.successSubtext}>{t('commit.paySuccessDesc', { stake })}</Text>
+              </View>
+            )}
+
+          </BlurView>
         </View>
       </Modal>
       
@@ -999,6 +1079,136 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  sheetContent: {
+    backgroundColor: '#1E293B',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    width: '100%',
+    position: 'absolute',
+    bottom: 0,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  sheetHeader: {
+    alignItems: 'center',
+    paddingTop: 16,
+    paddingBottom: 24,
+  },
+  sheetPullBar: {
+    width: 36,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#334155',
+    marginBottom: 16,
+  },
+  payLogoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  payLogoText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '500',
+  },
+  sheetBody: {
+    paddingHorizontal: 24,
+    paddingBottom: 48,
+  },
+  payRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+  },
+  payRowLabel: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  payRowValue: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    maxWidth: 250,
+    textAlign: 'right',
+  },
+  payTotalValue: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  payDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  doubleClickWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 24,
+    marginBottom: 24,
+  },
+  doubleClickText: {
+    color: '#7C3AED',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  fingerprintPrompt: {
+    color: '#94A3B8',
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 24,
+    marginBottom: 24,
+  },
+  payButton: {
+    backgroundColor: '#FFFFFF',
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  payButtonText: {
+    color: '#000000',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  sheetCenterBody: {
+    height: 350,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  processingText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 16,
+  },
+  processingSubtext: {
+    color: '#94A3B8',
+    fontSize: 12,
+    marginTop: 8,
+  },
+  successCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#05D38E',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  successText: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  successSubtext: {
+    color: '#94A3B8',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
   },
 
   statementContainer: {
