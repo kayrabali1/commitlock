@@ -23,7 +23,7 @@ export default function LandingPage() {
           </h1>
           
           <p className={`animate-fade-up delay-200 ${styles.heroDescription}`}>
-            The ultimate accountability app. Set a physical goal, stake your money, and let Apple Health verify your success. Miss your goal, and lose your stake.
+            The ultimate accountability app. Set a physical goal, stake your money, and let CommitLock verify your success via Apple or Google Health data. Miss your goal, and lose your stake.
           </p>
           
           <div className={`animate-fade-up delay-300 ${styles.heroActions}`}>
@@ -83,7 +83,7 @@ export default function LandingPage() {
                 <Wallet size={28} />
               </div>
               <h3>3. Succeed or Pay</h3>
-              <p>If Apple Health verifies you hit your target, you pay nothing. If you fail, your card is automatically charged.</p>
+              <p>If CommitLock verifies you hit your target using Apple or Google Health data, your money is released. If you fail, the charge captures.</p>
             </div>
           </div>
         </div>

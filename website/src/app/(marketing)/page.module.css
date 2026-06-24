@@ -120,8 +120,7 @@
 
 /* CTA */
 .ctaSection {
-  padding: 4rem 0 8rem;
-  min-height: 100vh;
+  padding: clamp(4rem, 10vh, 8rem) 0 clamp(6rem, 15vh, 10rem);
   display: flex;
   align-items: center;
   justify-content: center;
