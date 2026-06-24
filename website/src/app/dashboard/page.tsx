@@ -12,6 +12,8 @@ export default function DashboardPage() {
   const [setupLoading, setSetupLoading] = useState(false);
   const router = useRouter();
 
+  const [activeTab, setActiveTab] = useState('profile');
+
   useEffect(() => {
     const fetchProfile = async () => {
       const token = localStorage.getItem('token');
@@ -96,46 +98,111 @@ export default function DashboardPage() {
           </Link>
           <button onClick={handleLogout} className={styles.logoutBtn}>
             <LogOut size={18} />
-            <span>Sign Out</span>
+            <span className={styles.hideOnMobile}>Sign Out</span>
           </button>
         </div>
       </header>
 
       <main className={`container ${styles.mainContent}`}>
-        <div className={`glass-card animate-fade-up ${styles.dashboardCard}`}>
-          <div className={styles.profileSection}>
-            <div className={styles.avatar}>
-              {profile?.name?.charAt(0) || 'U'}
-            </div>
-            <div className={styles.profileInfo}>
-              <h2>Welcome, {profile?.name || 'User'}!</h2>
-              <p>{profile?.email}</p>
-            </div>
-          </div>
+        <div className={`animate-fade-up ${styles.pageHeader}`}>
+          <h1>Account Settings</h1>
+          <p>Manage your profile, commitments, and billing details.</p>
+        </div>
 
-          <div className={styles.statusSection}>
-            <div className={styles.statusHeader}>
-              <h3>Payment Method</h3>
-              <div className={`${styles.statusBadge} ${profile?.hasPaymentMethod ? styles.statusActive : styles.statusMissing}`}>
-                {profile?.hasPaymentMethod ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-                {profile?.hasPaymentMethod ? 'Linked' : 'Missing'}
-              </div>
-            </div>
-            
-            <p className={styles.statusText}>
-              {profile?.hasPaymentMethod 
-                ? 'Your account is ready. You can now make secure commitments in the mobile app.' 
-                : 'You need to link a credit card to authorize blocks for your accountability commitments.'}
-            </p>
+        <div className={`animate-fade-up delay-100 ${styles.settingsLayout}`}>
+          <aside className={styles.sidebar}>
+            <nav className={styles.tabNav}>
+              <button 
+                className={`${styles.tabBtn} ${activeTab === 'profile' ? styles.activeTab : ''}`}
+                onClick={() => setActiveTab('profile')}
+              >
+                <div className={styles.tabIcon}><ShieldCheck size={18} /></div>
+                Profile
+              </button>
+              <button 
+                className={`${styles.tabBtn} ${activeTab === 'billing' ? styles.activeTab : ''}`}
+                onClick={() => setActiveTab('billing')}
+              >
+                <div className={styles.tabIcon}><CreditCard size={18} /></div>
+                Billing
+              </button>
+              <button 
+                className={`${styles.tabBtn} ${activeTab === 'preferences' ? styles.activeTab : ''}`}
+                onClick={() => setActiveTab('preferences')}
+              >
+                <div className={styles.tabIcon}><AlertCircle size={18} /></div>
+                Preferences
+              </button>
+            </nav>
+          </aside>
 
-            <button 
-              onClick={handleLinkCard} 
-              className={`btn btn-primary ${styles.actionBtn}`}
-              disabled={setupLoading}
-            >
-              <CreditCard size={20} />
-              {setupLoading ? 'Redirecting...' : profile?.hasPaymentMethod ? 'Update Payment Method' : 'Link Credit Card'}
-            </button>
+          <div className={styles.contentArea}>
+            <div className={`glass-card ${styles.settingsCard}`}>
+              {activeTab === 'profile' && (
+                <div className={styles.tabPanel}>
+                  <h2>Personal Information</h2>
+                  <p className={styles.panelDesc}>Update your photo and personal details here.</p>
+                  
+                  <div className={styles.profileSection}>
+                    <div className={styles.avatarLarge}>
+                      {profile?.name?.charAt(0) || 'U'}
+                    </div>
+                    <div className={styles.profileDetails}>
+                      <div className={styles.infoGroup}>
+                        <label>Full Name</label>
+                        <div className={styles.infoValue}>{profile?.name || 'User'}</div>
+                      </div>
+                      <div className={styles.infoGroup}>
+                        <label>Email Address</label>
+                        <div className={styles.infoValue}>{profile?.email}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'billing' && (
+                <div className={styles.tabPanel}>
+                  <h2>Payment Methods</h2>
+                  <p className={styles.panelDesc}>Manage the cards used to authorize your commitments.</p>
+                  
+                  <div className={styles.statusSection}>
+                    <div className={styles.statusHeader}>
+                      <h3>Primary Card</h3>
+                      <div className={`${styles.statusBadge} ${profile?.hasPaymentMethod ? styles.statusActive : styles.statusMissing}`}>
+                        {profile?.hasPaymentMethod ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+                        {profile?.hasPaymentMethod ? 'Linked' : 'Missing'}
+                      </div>
+                    </div>
+                    
+                    <p className={styles.statusText}>
+                      {profile?.hasPaymentMethod 
+                        ? 'Your account is ready. You can securely make commitments from the mobile app.' 
+                        : 'Link a credit card to use CommitLock. No money is charged upfront.'}
+                    </p>
+
+                    <button 
+                      onClick={handleLinkCard} 
+                      className={`btn btn-primary ${styles.actionBtn}`}
+                      disabled={setupLoading}
+                    >
+                      <CreditCard size={20} />
+                      {setupLoading ? 'Redirecting...' : profile?.hasPaymentMethod ? 'Update Payment Method' : 'Link Credit Card'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'preferences' && (
+                <div className={styles.tabPanel}>
+                  <h2>Preferences</h2>
+                  <p className={styles.panelDesc}>Manage your app notifications and privacy settings.</p>
+                  <div className={styles.placeholderState}>
+                    <p>Coming soon...</p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </main>

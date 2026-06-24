@@ -296,12 +296,13 @@ export default function CommitScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     let minVal = 1;
     const isWeekly = targetScope === 'weekly';
-    if (metric === 'steps') minVal = isWeekly ? 7000 : 1000;
-    else if (metric === 'run') minVal = isWeekly ? 7 : 1;
-    else if (metric === 'mindfulness') minVal = isWeekly ? 35 : 5;
-    else if (metric === 'cycle') minVal = isWeekly ? 14 : 2;
-    else if (metric === 'calories') minVal = isWeekly ? 700 : 100;
-    else if (metric === 'activeTime') minVal = isWeekly ? 35 : 5;
+    const mult = isWeekly ? durationDays : 1;
+    if (metric === 'steps') minVal = 1000 * mult;
+    else if (metric === 'run') minVal = 1 * mult;
+    else if (metric === 'mindfulness') minVal = 5 * mult;
+    else if (metric === 'cycle') minVal = 2 * mult;
+    else if (metric === 'calories') minVal = 100 * mult;
+    else if (metric === 'activeTime') minVal = 5 * mult;
     setTargetValue((prev) => Math.max(minVal, prev - amount));
     setIsTargetSelected(true);
   };
@@ -314,7 +315,7 @@ export default function CommitScreen() {
     if (scope === 'weekly') {
       // Multiply current daily target by 7 to yield weekly target, rounded cleanly
       setTargetValue((prev) => {
-        const multiplied = prev * 7;
+        const multiplied = prev * durationDays;
         if (metric === 'steps') return Math.round(multiplied / 5000) * 5000 || 70000;
         if (metric === 'run') return Math.round(multiplied / 5) * 5 || 35;
         if (metric === 'mindfulness') return Math.round(multiplied / 30) * 30 || 105;
@@ -326,7 +327,7 @@ export default function CommitScreen() {
     } else {
       // Divide current weekly target by 7 to yield daily target, rounded cleanly
       setTargetValue((prev) => {
-        const divided = prev / 7;
+        const divided = prev / durationDays;
         if (metric === 'steps') return Math.round(divided / 1000) * 1000 || 10000;
         if (metric === 'run') return Math.round(divided / 1) * 1 || 5;
         if (metric === 'mindfulness') return Math.round(divided / 5) * 5 || 15;
@@ -617,7 +618,7 @@ export default function CommitScreen() {
         {/* 3. Duration Row */}
         <View style={styles.dashboardSection}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionLabel}>DURATION</Text>
+            <Text style={styles.sectionLabel}>DURATION ({durationDays} DAYS)</Text>
             <View style={styles.scopeToggleContainerCompact}>
               {getStartDateOptions().map((opt) => {
                 const isSelected = startDateChoice === opt.id;

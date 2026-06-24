@@ -54,50 +54,217 @@
   border-color: var(--border-light);
 }
 
+.hideOnMobile {
+  display: none;
+}
+@media (min-width: 640px) {
+  .hideOnMobile {
+    display: inline;
+  }
+}
+
 .mainContent {
   flex: 1;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem 24px;
+  flex-direction: column;
+  padding: 3rem 24px 6rem;
+  max-width: 1200px;
 }
 
-.dashboardCard {
-  width: 100%;
-  max-width: 500px;
+.pageHeader {
+  margin-bottom: 3rem;
+}
+
+.pageHeader h1 {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.pageHeader p {
+  color: var(--text-muted);
+  font-size: 1.125rem;
+}
+
+.settingsLayout {
   display: flex;
   flex-direction: column;
-  gap: 2.5rem;
+  gap: 2rem;
+}
+
+@media (min-width: 768px) {
+  .settingsLayout {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 3rem;
+  }
+}
+
+.sidebar {
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .sidebar {
+    width: 250px;
+    flex-shrink: 0;
+  }
+}
+
+.tabNav {
+  display: flex;
+  flex-direction: row;
+  overflow-x: auto;
+  gap: 0.5rem;
+  padding-bottom: 0.5rem;
+  /* hide scrollbar */
+  scrollbar-width: none;
+}
+.tabNav::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .tabNav {
+    flex-direction: column;
+    overflow-x: visible;
+    padding-bottom: 0;
+  }
+}
+
+.tabBtn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.tabBtn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+}
+
+.activeTab {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: var(--text-main);
+  box-shadow: inset 2px 0 0 var(--primary);
+}
+
+@media (max-width: 767px) {
+  .activeTab {
+    box-shadow: inset 0 -2px 0 var(--primary);
+  }
+}
+
+.tabIcon {
+  color: inherit;
+  display: flex;
+  opacity: 0.8;
+}
+
+.contentArea {
+  flex: 1;
+  width: 100%;
+}
+
+.settingsCard {
+  padding: 2rem;
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .settingsCard {
+    padding: 3rem;
+  }
+}
+
+.tabPanel {
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.3s ease forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tabPanel h2 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.panelDesc {
+  color: var(--text-muted);
+  margin-bottom: 2.5rem;
 }
 
 .profileSection {
   display: flex;
-  align-items: center;
-  gap: 1.5rem;
+  flex-direction: column;
+  gap: 2rem;
 }
 
-.avatar {
-  width: 64px;
-  height: 64px;
+@media (min-width: 640px) {
+  .profileSection {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 3rem;
+  }
+}
+
+.avatarLarge {
+  width: 96px;
+  height: 96px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--accent), var(--primary));
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
+  font-size: 2.5rem;
   font-weight: 700;
-  box-shadow: 0 0 20px rgba(124, 58, 237, 0.4);
+  box-shadow: 0 0 30px rgba(124, 58, 237, 0.3);
+  flex-shrink: 0;
 }
 
-.profileInfo h2 {
-  font-size: 1.5rem;
-  margin-bottom: 0.25rem;
+.profileDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  flex: 1;
 }
 
-.profileInfo p {
+.infoGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.infoGroup label {
+  font-size: 0.875rem;
+  font-weight: 500;
   color: var(--text-muted);
-  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.infoValue {
+  font-size: 1.125rem;
+  color: var(--text-main);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
 }
 
 .statusSection {
@@ -152,6 +319,22 @@
 
 .actionBtn {
   width: 100%;
+}
+
+@media (min-width: 640px) {
+  .actionBtn {
+    width: auto;
+    align-self: flex-start;
+  }
+}
+
+.placeholderState {
+  padding: 3rem;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed var(--border);
+  border-radius: 16px;
+  color: var(--text-muted);
 }
 
 .loadingWrapper {
