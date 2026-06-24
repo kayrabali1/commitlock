@@ -505,7 +505,13 @@ export default function CommitScreen() {
     const formattedValue = metric === 'steps' || metric === 'calories' ? targetValue.toLocaleString() : targetValue;
     const isWeekly = targetScope === 'weekly';
     const key = `commit.statement_${isWeekly ? 'weekly' : 'daily'}_${metric}`;
-    return t(key, { value: formattedValue, period: '' });
+    
+    let daysStr = 'days';
+    if (i18n.language === 'tr') daysStr = 'gün';
+    else if (i18n.language === 'de') daysStr = 'Tagen';
+    else if (i18n.language === 'es') daysStr = 'días';
+    
+    return t(key, { value: formattedValue, period: `${durationDays} ${daysStr}` });
   };
 
   const getMetricIcon = (type: MetricType) => {
@@ -618,7 +624,7 @@ export default function CommitScreen() {
         {/* 3. Duration Row */}
         <View style={styles.dashboardSection}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionLabel}>DURATION ({durationDays} DAYS)</Text>
+            <Text style={styles.sectionLabel}>DURATION</Text>
             <View style={styles.scopeToggleContainerCompact}>
               {getStartDateOptions().map((opt) => {
                 const isSelected = startDateChoice === opt.id;
