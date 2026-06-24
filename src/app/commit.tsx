@@ -64,7 +64,11 @@ export default function CommitScreen() {
       if (debug_metricType) {
         setMetric(debug_metricType as any);
       }
-                              
+      setIsMetricSelected(true);
+      setIsTargetSelected(true);
+      setIsDurationSelected(true);
+      setIsStakeSelected(true);
+      
       const timer = setTimeout(() => {
         confirmPayment({
           targetScope: debug_targetScope as any,
@@ -77,36 +81,41 @@ export default function CommitScreen() {
   }, [debug_auto_commit, debug_targetScope, debug_targetValue, debug_metricType]);
   
   // Accordion Step State
-  
+  const [activeStep, setActiveStep] = useState<number>(0);
+
   // Scroll & Layout Tracking for Auto-Scroll
   const scrollViewRef = useRef<ScrollView>(null);
   const stepLayouts = useRef<{ [key: number]: number }>({});
 
-  
-  
+  const handleStepLayout = (stepNumber: number, y: number) => {
+    stepLayouts.current[stepNumber] = y;
+  };
+
+  useEffect(() => {
+    if (activeStep > 0 && stepLayouts.current[activeStep] !== undefined) {
+      const timer = setTimeout(() => {
+        scrollViewRef.current?.scrollTo({
+          y: Math.max(0, stepLayouts.current[activeStep] - 16),
+          animated: true,
+        });
+      }, 120);
+      return () => clearTimeout(timer);
+    }
+  }, [activeStep]);
 
   // Selection Interaction States
-        const [isStakeSelected, setIsStakeSelected] = useState<boolean>(!!rolloverStake);
+  const [isMetricSelected, setIsMetricSelected] = useState<boolean>(false);
+  const [isTargetSelected, setIsTargetSelected] = useState<boolean>(false);
+  const [isDurationSelected, setIsDurationSelected] = useState<boolean>(false);
+  const [isStakeSelected, setIsStakeSelected] = useState<boolean>(!!rolloverStake);
 
-  const allStepsReady = true;
+  const allStepsReady = isMetricSelected && isTargetSelected && isDurationSelected && isStakeSelected;
   
   // Selection States
   const [metric, setMetric] = useState<MetricType>('steps');
   const [targetScope, setTargetScope] = useState<'daily' | 'weekly'>('daily');
   const [targetValue, setTargetValue] = useState<number>(10000);
   const [durationDays, setDurationDays] = useState<number>(3);
-
-  // Layout states (No longer used for accordions, kept for TS compatibility in resetForm)
-  const activeStep = 0;
-  const setActiveStep = (step: number) => {};
-  const isMetricSelected = true;
-  const setIsMetricSelected = (val: boolean) => {};
-  const isTargetSelected = true;
-  const setIsTargetSelected = (val: boolean) => {};
-  const isDurationSelected = true;
-  const setIsDurationSelected = (val: boolean) => {};
-  
-
   const [startDateChoice, setStartDateChoice] = useState<'today' | 'tomorrow' | 'custom'>('today');
   const [customStartDate, setCustomStartDate] = useState<Date>(() => {
     const today = new Date();
@@ -178,7 +187,8 @@ export default function CommitScreen() {
         if (event.type === 'set') {
           setCustomStartDate(validatedDate);
           setStartDateChoice('custom');
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          setIsDurationSelected(true);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
       } else {
         // iOS / Web inline selection
@@ -196,7 +206,11 @@ export default function CommitScreen() {
   // Custom Stake options
   const customStakeOptions = [30, 40, 50, 100, 250];
 
-  
+  const toggleStep = (stepNumber: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setActiveStep(prev => prev === stepNumber ? 0 : stepNumber);
+  };
+
   const handleOpenCustomSheet = () => {
     const activeVal = customStakeOptions.includes(stake) ? stake : customStakeOptions[0];
     setTempStake(activeVal);
@@ -247,7 +261,8 @@ export default function CommitScreen() {
   const handleMetricChange = (selected: MetricType) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setMetric(selected);
-        const multiplier = targetScope === 'weekly' ? 7 : 1;
+    setIsMetricSelected(true);
+    const multiplier = targetScope === 'weekly' ? 7 : 1;
     if (selected === 'steps') setTargetValue(10000 * multiplier);
     else if (selected === 'run') setTargetValue(5 * multiplier);
     else if (selected === 'mindfulness') setTargetValue(15 * multiplier);
@@ -274,7 +289,8 @@ export default function CommitScreen() {
   const incrementTarget = (amount: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setTargetValue((prev) => Math.max(1, prev + amount));
-      };
+    setIsTargetSelected(true);
+  };
 
   const decrementTarget = (amount: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -287,13 +303,15 @@ export default function CommitScreen() {
     else if (metric === 'calories') minVal = isWeekly ? 700 : 100;
     else if (metric === 'activeTime') minVal = isWeekly ? 35 : 5;
     setTargetValue((prev) => Math.max(minVal, prev - amount));
-      };
+    setIsTargetSelected(true);
+  };
 
   const handleTargetScopeChange = (scope: 'daily' | 'weekly') => {
     if (scope === targetScope) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setTargetScope(scope);
-        if (scope === 'weekly') {
+    setIsTargetSelected(true);
+    if (scope === 'weekly') {
       // Multiply current daily target by 7 to yield weekly target, rounded cleanly
       setTargetValue((prev) => {
         const multiplied = prev * 7;
@@ -324,7 +342,8 @@ export default function CommitScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setStake(value);
     setCustomStake('');
-        
+    setIsStakeSelected(true);
+    
     // Collapse accordion as all steps are completed!
     setTimeout(() => {
       setActiveStep(0);
@@ -512,18 +531,19 @@ export default function CommitScreen() {
 
   return (
     <View style={styles.container}>
+      <AppHeader />
+      
       <View style={{ flex: 1 }}>
         <ScrollView
           ref={scrollViewRef}
           style={styles.scrollView}
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingTop: BASE_HEADER_HEIGHT + insets.top + Spacing.three }
+            { paddingTop: BASE_HEADER_HEIGHT + insets.top + 8, paddingBottom: 100 }
           ]}
           showsVerticalScrollIndicator={false}
         >
         
-        {/* Rollover Active Banner */}
         {rolloverFrom && rolloverStake && (
           <LinearGradient
             colors={['rgba(124, 58, 237, 0.15)', 'rgba(79, 70, 229, 0.05)']}
@@ -536,741 +556,156 @@ export default function CommitScreen() {
           </LinearGradient>
         )}
 
-        {/* Header (Compact) */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>{t('commit.headerTitle')}</Text>
-        </View>
-
-        {/* 1. Goal Setup */}
-        <View style={styles.cardContainer}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardIconBadge}>
-              <Text style={styles.stepNumberTextActive}>01</Text>
-            </View>
-            <Text style={styles.cardTitle}>{t('commit.step1Title')}</Text>
-          </View>
-
-          
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.metricScrollContent}
-              >
-                {(['steps', 'run', 'mindfulness'] as MetricType[]).map((type) => {
-                  const isActive = isMetricSelected && metric === type;
-                  const gradient = getMetricColor(type);
-                  
-                  const CardContent = (
-                    <View style={[styles.metricCardInner, !isActive && styles.metricCardInactive]}>
-                      <MaterialCommunityIcons
-                        name={getMetricIcon(type)}
-                        size={18}
-                        color={isActive ? '#FFFFFF' : '#94A3B8'}
-                      />
-                      <Text
-                        numberOfLines={1}
-                        adjustsFontSizeToFit
-                        minimumFontScale={0.7}
-                        style={[styles.metricCardLabel, isActive ? styles.textActive : styles.textInactive]}
-                      >
-                        {getMetricFullName(type)}
-                      </Text>
-                    </View>
-                  );
-
-                  return (
-                    <TouchableOpacity
-                      key={type}
-                      onPress={() => handleMetricChange(type)}
-                      style={styles.metricCardHorizontal}
-                      activeOpacity={0.8}
-                    >
-                      {isActive ? (
-                        <LinearGradient colors={gradient} style={styles.gradientFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-                          {CardContent}
-                        </LinearGradient>
-                      ) : (
-                        CardContent
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-
-              {/* TARGET SECTION (Moved to Step 1) */}
-              <View style={{ marginTop: 24 }}>
-                <View style={styles.targetCardHeader}>
-                  <View style={[styles.scopeToggleContainer, { width: '100%', justifyContent: 'center' }]} >
-                    <TouchableOpacity
-                      onPress={() => handleTargetScopeChange('daily')}
-                      style={[styles.scopeToggleButton, targetScope === 'daily' && styles.scopeToggleButtonActive]}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.scopeToggleText, targetScope === 'daily' && styles.scopeToggleTextActive]}>
-                        {t('commit.dailyTarget')}
-                      </Text>
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity
-                      onPress={() => handleTargetScopeChange('weekly')}
-                      style={[styles.scopeToggleButton, targetScope === 'weekly' && styles.scopeToggleButtonActive]}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.scopeToggleText, targetScope === 'weekly' && styles.scopeToggleTextActive]}>
-                        {t('commit.weeklyAccumulator')}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                <View style={styles.targetStepperRow}>
-                  <TouchableOpacity
-                    onPress={() => decrementTarget(getStepSize())}
-                    style={styles.stepperButton}
-                    activeOpacity={0.7}
-                  >
-                    <MaterialCommunityIcons name="minus" size={20} color="#FFFFFF" />
-                  </TouchableOpacity>
-
-                  <View style={styles.targetValueWrapper}>
-                    <Text style={styles.targetValueText}>
-                      {metric === 'steps' || metric === 'calories' ? targetValue.toLocaleString() : targetValue}
-                    </Text>
-                    <Text style={styles.targetValueLabel}>{getMetricLabel()}</Text>
-                  </View>
-
-                  <TouchableOpacity
-                    onPress={() => incrementTarget(getStepSize())}
-                    style={styles.stepperButton}
-                    activeOpacity={0.7}
-                  >
-                    <MaterialCommunityIcons name="plus" size={20} color="#FFFFFF" />
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.syncNoticeRow}>
-                  <MaterialCommunityIcons 
-                    name="checkbox-marked-circle-outline" 
-                    size={12} 
-                    color="#05D38E" 
-                  />
-                  <Text style={[styles.syncNoticeText, { flexShrink: 1, color: '#94A3B8' }]}>
-                    {getCommitmentStatement()}
+        {/* 1. Activity Row */}
+        <View style={styles.dashboardSection}>
+          <Text style={styles.sectionLabel}>ACTIVITY</Text>
+          <View style={styles.activityRow}>
+            {(['steps', 'run', 'mindfulness'] as MetricType[]).map((type) => {
+              const isActive = metric === type;
+              const gradient = getMetricColor(type);
+              const CardContent = (
+                <View style={[styles.metricCardInner, !isActive && styles.metricCardInactive]}>
+                  <MaterialCommunityIcons name={getMetricIcon(type)} size={18} color={isActive ? '#FFFFFF' : '#94A3B8'} />
+                  <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.metricCardLabel, isActive ? styles.textActive : styles.textInactive]}>
+                    {getMetricFullName(type)}
                   </Text>
                 </View>
-
-                <View style={styles.targetDivider} />
-                <TouchableOpacity
-                  style={styles.stepContinueButton}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                        setActiveStep(2);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.stepContinueButtonText}>{t('commit.continueToStartDuration')}</Text>
-                  <MaterialCommunityIcons name="arrow-right" size={14} color="#FFFFFF" />
+              );
+              return (
+                <TouchableOpacity key={type} onPress={() => handleMetricChange(type)} style={styles.metricCardHorizontal} activeOpacity={0.8}>
+                  {isActive ? (
+                    <LinearGradient colors={gradient} style={styles.gradientFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                      {CardContent}
+                    </LinearGradient>
+                  ) : CardContent}
                 </TouchableOpacity>
-              </View>
-
+              );
+            })}
+          </View>
         </View>
 
-{/* 2. Duration Setup */}
-        <View style={styles.cardContainer}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardIconBadge}>
-              <Text style={styles.stepNumberTextActive}>02</Text>
-            </View>
-            <Text style={styles.cardTitle}>{t('commit.step2Title')}</Text>
-          </View>
-
-          
-              {/* Duration Row */}
-              <View style={styles.periodRowCompact}>
-                <View style={styles.periodLeftColCompact}>
-                  <Text style={styles.periodTitleCompact}>{t('commit.durationLabel')}</Text>
-                  <Text style={styles.periodDescCompact}>Between 3 to 10 days</Text>
-                </View>
-                <View style={[styles.targetStepperRow, { backgroundColor: 'transparent', padding: 0 }]}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setDurationDays(v => Math.max(3, v - 1));
-                                          }}
-                    style={styles.stepperButton}
-                    activeOpacity={0.7}
-                  >
-                    <MaterialCommunityIcons name="minus" size={20} color="#FFFFFF" />
-                  </TouchableOpacity>
-                  
-                  <View style={{ alignItems: 'center', width: 60 }}>
-                    <Text style={[styles.targetValueText, { fontSize: 28 }]}>{durationDays}</Text>
-                    <Text style={[styles.targetValueLabel, { marginTop: 0 }]}>Days</Text>
-                  </View>
-                  
-                  <TouchableOpacity
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setDurationDays(v => Math.min(10, v + 1));
-                                          }}
-                    style={styles.stepperButton}
-                    activeOpacity={0.7}
-                  >
-                    <MaterialCommunityIcons name="plus" size={20} color="#FFFFFF" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-              
-              <View style={styles.targetDivider} />
-
-              {/* Start Date Row */}
-              <View style={styles.periodRowCompact}>
-                <View style={styles.periodLeftColCompact}>
-                  <Text style={styles.periodTitleCompact}>{t('commit.startDateLabel')}</Text>
-                  <Text style={styles.periodDescCompact}>
-                    {(() => {
-                      const dates = getCommitmentDates(startDateChoice, durationDays);
-                      return `${formatDisplayDate(dates.startDate)} - ${formatDisplayDate(dates.endDate)}`;
-                    })()}
-                  </Text>
-                </View>
-                <View style={styles.datePillContainer}>
-                  {getStartDateOptions().map((opt) => {
-                    const isSelected = startDateChoice === opt.id;
-                    return (
-                      <TouchableOpacity
-                        key={opt.id}
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          setStartDateChoice(opt.id);
-                                                  }}
-                        style={[
-                          styles.datePillCompact,
-                          isSelected && styles.datePillActiveCompact
-                        ]}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={[
-                          styles.datePillTextCompact,
-                          isSelected && styles.datePillTextActiveCompact
-                        ]}>
-                          {opt.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-
-              <View style={styles.targetDivider} />
-              <TouchableOpacity
-                style={styles.stepContinueButton}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                    setActiveStep(3);
-                }}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.stepContinueButtonText}>Continue to Pledge</Text>
-                <MaterialCommunityIcons name="arrow-right" size={14} color="#FFFFFF" />
+        {/* 2. Target Row */}
+        <View style={styles.dashboardSection}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionLabel}>TARGET</Text>
+            <View style={styles.scopeToggleContainerCompact}>
+              <TouchableOpacity onPress={() => handleTargetScopeChange('daily')} style={[styles.scopePillCompact, targetScope === 'daily' && styles.scopePillActiveCompact]}>
+                <Text style={[styles.scopePillTextCompact, targetScope === 'daily' && styles.scopeTextActive]}>Daily</Text>
               </TouchableOpacity>
-            
-        </View>
-
-        {/* 3. Stake Setup */}
-        <View style={styles.cardContainer}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardIconBadge}>
-              <Text style={styles.stepNumberTextActive}>03</Text>
+              <TouchableOpacity onPress={() => handleTargetScopeChange('weekly')} style={[styles.scopePillCompact, targetScope === 'weekly' && styles.scopePillActiveCompact]}>
+                <Text style={[styles.scopePillTextCompact, targetScope === 'weekly' && styles.scopeTextActive]}>Total</Text>
+              </TouchableOpacity>
             </View>
-            <Text style={styles.cardTitle}>{t('commit.step3Title')}</Text>
           </View>
 
-          
-              <View style={styles.pledgeHeaderRow}>
-                <View style={styles.parameterLeftCol}>
-                  <Text style={styles.parameterTitle}>{t('commit.pledgeAmountLabel')}</Text>
-                  <Text style={styles.parameterDesc}>{t('commit.pledgeAmountDesc')}</Text>
-                </View>
-                <View style={styles.pledgeStatusBadge}>
-                  <MaterialCommunityIcons name="lock-outline" size={12} color="#7C3AED" />
-                  <Text style={styles.pledgeStatusText}>{t('commit.securedLabel')}</Text>
-                </View>
-              </View>
+          <View style={styles.targetStepperRowCompact}>
+            <TouchableOpacity onPress={() => decrementTarget(getStepSize())} style={styles.stepperButtonCompact} activeOpacity={0.7}>
+              <MaterialCommunityIcons name="minus" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+            <View style={styles.targetValueWrapperCompact}>
+              <Text style={styles.targetValueTextCompact}>
+                {metric === 'steps' || metric === 'calories' ? targetValue.toLocaleString() : targetValue}
+              </Text>
+              <Text style={styles.targetValueLabelCompact}>{getMetricLabel()}</Text>
+            </View>
+            <TouchableOpacity onPress={() => incrementTarget(getStepSize())} style={styles.stepperButtonCompact} activeOpacity={0.7}>
+              <MaterialCommunityIcons name="plus" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        </View>
 
-              <View style={styles.largePledgeDisplay}>
-                <Text style={styles.largePledgeSymbol}>€</Text>
-                <Text style={styles.largePledgeAmount}>{stake}</Text>
-                <Text style={styles.largePledgeCents}>.00</Text>
-              </View>
+        {/* 3. Duration Row */}
+        <View style={styles.dashboardSection}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionLabel}>DURATION</Text>
+            <View style={styles.scopeToggleContainerCompact}>
+              {getStartDateOptions().map((opt) => {
+                const isSelected = startDateChoice === opt.id;
+                return (
+                  <TouchableOpacity key={opt.id} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setStartDateChoice(opt.id); }} style={[styles.scopePillCompact, isSelected && styles.scopePillActiveCompact]}>
+                    <Text style={[styles.scopePillTextCompact, isSelected && styles.scopeTextActive]}>{opt.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
 
-              <View style={styles.stakePillRow}>
-                {[5, 10, 20].map((amt) => {
-                  const isSelected = stake === amt && !customStake;
-                  return (
-                    <TouchableOpacity
-                      key={amt}
-                      onPress={() => handleStakeChange(amt)}
-                      style={[styles.stakePillExpanded, isSelected && styles.stakePillActive]}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.stakePillTextExpanded, isSelected && styles.stakePillTextActive]}>
-                        €{amt}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-                
-                <TouchableOpacity
-                  onPress={handleOpenCustomSheet}
-                  style={[styles.stakePillExpanded, !!customStake && styles.stakePillActive]}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.stakePillTextExpanded, !!customStake && styles.stakePillTextActive]}>
-                    {customStake ? `€${customStake}` : t('commit.startCustom')}
-                  </Text>
+          <View style={styles.targetStepperRowCompact}>
+            <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setDurationDays(v => Math.max(3, v - 1)); }} style={styles.stepperButtonCompact} activeOpacity={0.7}>
+              <MaterialCommunityIcons name="minus" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+            <View style={styles.targetValueWrapperCompact}>
+              <Text style={styles.targetValueTextCompact}>{durationDays}</Text>
+              <Text style={styles.targetValueLabelCompact}>Days</Text>
+            </View>
+            <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setDurationDays(v => Math.min(10, v + 1)); }} style={styles.stepperButtonCompact} activeOpacity={0.7}>
+              <MaterialCommunityIcons name="plus" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* 4. Stake Row */}
+        <View style={styles.dashboardSection}>
+          <Text style={styles.sectionLabel}>STAKE</Text>
+          <View style={styles.stakeGrid}>
+            {[5, 10, 20].map((amount) => {
+              const isSelected = stake === amount;
+              return (
+                <TouchableOpacity key={amount} style={[styles.stakeCardCompact, isSelected && styles.stakeCardActive]} onPress={() => handleStakeChange(amount)} activeOpacity={0.8}>
+                  <Text style={[styles.stakeAmountTextCompact, isSelected && styles.textActive]}>€{amount}</Text>
                 </TouchableOpacity>
-              </View>
-
-              <View style={styles.targetDivider} />
-              <TouchableOpacity
-                style={styles.stepContinueButton}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                    setActiveStep(0);
-                }}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.stepContinueButtonText}>{t('commit.readyToLock')}</Text>
-                <MaterialCommunityIcons name="check-bold" size={14} color="#FFFFFF" />
-              </TouchableOpacity>
-            
+              );
+            })}
+          </View>
         </View>
 
         </ScrollView>
-        <AppHeader />
       </View>
 
-      {/* Date Picker Modal (iOS / Web) / Dialog (Android) */}
-      {isDatePickerVisible && Platform.OS === 'android' && (
-        <DateTimePicker
-          value={customStartDate}
-          mode="date"
-          display="default"
-          minimumDate={minimumDatePickerDate}
-          maximumDate={maximumDatePickerDate}
-          onChange={handleDateChange}
-        />
-      )}
-
-      {isDatePickerVisible && Platform.OS !== 'android' && (
-        <Modal
-          visible={isDatePickerVisible}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => setIsDatePickerVisible(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <TouchableOpacity 
-              style={StyleSheet.absoluteFill}
-              activeOpacity={1}
-              onPress={() => setIsDatePickerVisible(false)}
-            />
-
-            <BlurView tint="dark" intensity={95} style={styles.modalContent}>
-              <View style={styles.sheetHeader}>
-                <View style={styles.sheetPullBar} />
-                <Text style={styles.customSheetTitle}>{t('commit.selectStartDateTitle')}</Text>
-                <Text style={styles.customSheetSubtitle}>{t('commit.selectStartDateDesc')}</Text>
-              </View>
-
-              <View style={styles.datePickerContainer}>
-                <DateTimePicker
-                  value={customStartDate}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                  themeVariant="dark"
-                  minimumDate={minimumDatePickerDate}
-                  maximumDate={maximumDatePickerDate}
-                  onChange={handleDateChange}
-                  textColor="#FFFFFF"
-                  accentColor="#7C3AED"
-                />
-              </View>
-
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                  setStartDateChoice('custom');
-                  setIsDatePickerVisible(false);
-                                  }}
-                style={styles.confirmCustomButton}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.confirmCustomButtonText}>{t('commit.confirmStartDate')}</Text>
-              </TouchableOpacity>
-            </BlurView>
-          </View>
-        </Modal>
-      )}
-
-      {/* Custom Stake Selector Bottom Sheet */}
-      <Modal
-        visible={isCustomSheetVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setIsCustomSheetVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity 
-            style={StyleSheet.absoluteFill}
-            activeOpacity={1}
-            onPress={() => setIsCustomSheetVisible(false)}
-          />
-
-          <BlurView tint="dark" intensity={95} style={styles.modalContent}>
-            <View style={styles.sheetHeader}>
-              <View style={styles.sheetPullBar} />
-              <Text style={styles.customSheetTitle}>{t('commit.selectCustomPledgeTitle')}</Text>
-              <Text style={styles.customSheetSubtitle}>{t('commit.selectCustomPledgeDesc')}</Text>
-            </View>
-
-            <View style={styles.customPickerContainer}>
-              {/* Highlight selection frame indicator */}
-              <View style={styles.pickerHighlight} />
-              
-              <ScrollView
-                ref={pickerScrollRef}
-                style={styles.customPickerScrollView}
-                contentContainerStyle={styles.customPickerScrollContent}
-                showsVerticalScrollIndicator={false}
-                snapToInterval={48}
-                decelerationRate="fast"
-                scrollEventThrottle={16}
-                onScroll={handlePickerScroll}
-              >
-                {customStakeOptions.map((val) => {
-                  const isSelected = tempStake === val;
-                  return (
-                    <TouchableOpacity
-                      key={val}
-                      onPress={() => handlePickerItemPress(val)}
-                      style={[
-                        styles.pickerItem,
-                        isSelected && styles.pickerItemActive
-                      ]}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[
-                        styles.pickerItemText,
-                        isSelected && styles.pickerItemTextActive
-                      ]}>
-                        €{val}.00
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
-
-            <TouchableOpacity
-              onPress={() => {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                setStake(tempStake);
-                setCustomStake(tempStake.toString());
-                setIsCustomSheetVisible(false);
-                                
-                // Collapse accordion as all steps are completed!
-                setTimeout(() => {
-                  setActiveStep(0);
-                }, 200);
-              }}
-              style={styles.confirmCustomButton}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.confirmCustomButtonText}>{t('commit.confirmCustomPledge', { stake: tempStake })}</Text>
-            </TouchableOpacity>
-          </BlurView>
-        </View>
-      </Modal>
-
-
-
-      {/* Ready Indicator (Above the footer line) */}
-      {activeStep === 0 && allStepsReady && (
-        <View style={styles.readyIndicatorAbove}>
-          <MaterialCommunityIcons name={"check-circle" as any} size={14} color="#05D38E" />
-          <Text style={styles.readyIndicatorText}>{t('commit.allStepsReady')}</Text>
-          <MaterialCommunityIcons name={"arrow-down" as any} size={14} color="#05D38E" />
-        </View>
-      )}
-
-      {/* Fixed Bottom Action Bar */}
-      <View style={styles.fixedBottomContainer}>
-        {/* Lock Commitment Button */}
-        <TouchableOpacity
-          onPress={allStepsReady ? triggerPaymentSheet : undefined}
-          style={[styles.submitButton, !allStepsReady && { opacity: 0.5 }]}
-          activeOpacity={allStepsReady ? 0.9 : 1}
-        >
+      <View style={[styles.fixedBottomContainer, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
+        <Text style={styles.summaryDateText}>
+          {(() => {
+            const dates = getCommitmentDates(startDateChoice, durationDays);
+            return `${formatDisplayDate(dates.startDate)} — ${formatDisplayDate(dates.endDate)}`;
+          })()}
+        </Text>
+        <TouchableOpacity onPress={triggerPaymentSheet} style={styles.submitButton} activeOpacity={0.9}>
           <LinearGradient colors={['#7C3AED', '#4F46E5']} style={styles.submitGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
             <MaterialCommunityIcons name="lock" size={18} color="#FFFFFF" />
             <Text style={styles.submitText}>{t('commit.pledgeAndLock', { stake })}</Text>
           </LinearGradient>
         </TouchableOpacity>
-
       </View>
-
-      {/* Native Tracking Disclaimer Modal */}
-      <Modal
-        visible={isDisclaimerVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setIsDisclaimerVisible(false)}
-      >
+      
+      <Modal visible={isDisclaimerVisible} transparent={true} animationType="fade">
         <View style={styles.modalOverlay}>
-          <TouchableOpacity 
-            style={StyleSheet.absoluteFill}
-            activeOpacity={1}
-            onPress={() => setIsDisclaimerVisible(false)}
-          />
-
-          <BlurView tint="dark" intensity={95} style={styles.modalContent}>
-            <View style={styles.sheetHeader}>
-              <View style={styles.sheetPullBar} />
-              <View style={styles.disclaimerHeaderRow}>
-                <View style={styles.disclaimerIconContainer}>
-                  <MaterialCommunityIcons name="shield-alert" size={24} color="#FF4A85" />
-                </View>
-                <Text style={styles.disclaimerTitle}>{t('commit.verificationNoticeTitle')}</Text>
-              </View>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <MaterialCommunityIcons name="shield-check" size={24} color="#05D38E" />
+              <Text style={styles.modalTitle}>{t('commit.healthAccessTitle')}</Text>
             </View>
-
-            <View style={styles.sheetBody}>
-              <View style={styles.disclaimerBox}>
-                <MaterialCommunityIcons name="radar" size={32} color="#7C3AED" style={styles.disclaimerBoxIcon} />
-                <Text style={styles.disclaimerHeading}>{t('commit.hardwareTrackingTitle')}</Text>
-                <Text style={styles.disclaimerDescription}>
-                  {t('commit.hardwareTrackingDesc')}
-                </Text>
-              </View>
-
-              <View style={styles.noticeList}>
-                <View style={styles.noticeItem}>
-                  <MaterialCommunityIcons name="close-circle-outline" size={18} color="#FF4A85" />
-                  <Text style={styles.noticeText}>
-                    {t('commit.noticeManual')}
-                  </Text>
-                </View>
-                <View style={styles.noticeItem}>
-                  <MaterialCommunityIcons name="check-circle-outline" size={18} color="#05D38E" />
-                  <Text style={styles.noticeText}>
-                    {t('commit.noticeHardware')}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Official Verification Guide Link */}
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setIsVerificationGuideVisible(true);
-                }}
-                style={styles.learnMoreLink}
-                activeOpacity={0.7}
-              >
-                <MaterialCommunityIcons name="shield-check-outline" size={16} color="#8B5CF6" />
-                <Text style={styles.learnMoreText}>{t('commit.readOfficialGuide')}</Text>
-              </TouchableOpacity>
-
-              {/* Checkbox for Consent */}
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setHasAcceptedDisclaimer(!hasAcceptedDisclaimer);
-                }}
-                style={styles.checkboxRow}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.checkbox, hasAcceptedDisclaimer && styles.checkboxChecked]}>
-                  {hasAcceptedDisclaimer && (
-                    <MaterialCommunityIcons name="check" size={14} color="#FFFFFF" />
-                  )}
-                </View>
-                <Text style={styles.checkboxLabel}>
-                  {t('commit.acceptConsentLabel')}
-                </Text>
-              </TouchableOpacity>
-
-              {/* Action Buttons */}
-              <View style={styles.disclaimerButtonRow}>
-                <TouchableOpacity
-                  onPress={() => setIsDisclaimerVisible(false)}
-                  style={styles.cancelDisclaimerButton}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.cancelDisclaimerButtonText}>{t('commit.cancelLabel')}</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={handleAcceptDisclaimer}
-                  disabled={!hasAcceptedDisclaimer}
-                  style={[
-                    styles.acceptDisclaimerButton,
-                    !hasAcceptedDisclaimer && styles.acceptDisclaimerButtonDisabled
-                  ]}
-                  activeOpacity={0.8}
-                >
-                  <LinearGradient
-                    colors={hasAcceptedDisclaimer ? ['#7C3AED', '#4F46E5'] : ['#1C1F30', '#1C1F30']}
-                    style={styles.acceptDisclaimerGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                  >
-                    <Text style={[
-                      styles.acceptDisclaimerButtonText,
-                      !hasAcceptedDisclaimer && styles.acceptDisclaimerButtonTextDisabled
-                    ]}>
-                      {t('commit.acceptContinue')}
-                    </Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </BlurView>
+            <Text style={styles.modalBody}>{t('commit.healthAccessDesc')}</Text>
+            <TouchableOpacity style={styles.modalButton} onPress={() => setIsDisclaimerVisible(false)}>
+              <Text style={styles.modalButtonText}>{t('commit.gotIt')}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </Modal>
-
-      {/* Simulated Apple Pay / Google Pay Bottom Sheet */}
-      <Modal
-        visible={isPaymentSheetVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setIsPaymentSheetVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity 
-            style={StyleSheet.absoluteFill}
-            activeOpacity={1}
-            onPress={() => paymentStep !== 'processing' && setIsPaymentSheetVisible(false)}
-          />
-
-          <BlurView tint="dark" intensity={95} style={styles.modalContent}>
-            
-            {/* Native Apple/Google Pay Header Mock */}
-            <View style={styles.sheetHeader}>
-              <View style={styles.sheetPullBar} />
-              <View style={styles.payLogoRow}>
-                <MaterialCommunityIcons 
-                  name={Platform.OS === 'ios' ? 'apple' : 'google'} 
-                  size={24} 
-                  color="#FFFFFF" 
-                />
-                <Text style={styles.payLogoText}>Pay</Text>
-              </View>
-            </View>
-
-            {paymentStep === 'idle' && (
-              <View style={styles.sheetBody}>
-                {/* Card and Transaction Details */}
-                <View style={styles.payRow}>
-                  <Text style={styles.payRowLabel}>{t('commit.payCard')}</Text>
-                  <Text style={styles.payRowValue}>•••• 4890</Text>
-                </View>
-
-                <View style={styles.payDivider} />
-
-                <View style={styles.payRow}>
-                  <Text style={styles.payRowLabel}>{t('commit.payMerchant')}</Text>
-                  <Text style={styles.payRowValue}>HabitContract Platform GmbH</Text>
-                </View>
-
-                <View style={styles.payDivider} />
-
-                <View style={styles.payRow}>
-                  <Text style={styles.payRowLabel}>{t('commit.payCommitment')}</Text>
-                  <Text style={styles.payRowValue}>
-                    {getMetricFullName(metric).toUpperCase()}: {targetValue.toLocaleString()} {getMetricLabel()}
-                  </Text>
-                </View>
-
-                <View style={styles.payDivider} />
-
-                <View style={styles.payRow}>
-                  <Text style={styles.payRowLabel}>{t('commit.payTotal')}</Text>
-                  <Text style={styles.payTotalValue}>€{stake}.00</Text>
-                </View>
-
-                {/* Double click side button prompt for iOS feel */}
-                {Platform.OS === 'ios' ? (
-                  <View style={styles.doubleClickWrapper}>
-                    <MaterialCommunityIcons name="gesture-double-tap" size={24} color="#7C3AED" />
-                    <Text style={styles.doubleClickText}>
-                      {t('commit.payDoubleClick')}
-                    </Text>
-                  </View>
-                ) : (
-                  <Text style={styles.fingerprintPrompt}>
-                    {t('commit.payFingerprint')}
-                  </Text>
-                )}
-
-                <TouchableOpacity 
-                  onPress={() => confirmPayment()} 
-                  style={styles.payButton}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.payButtonText}>
-                    {t('commit.payConfirm', { stake })}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {paymentStep === 'processing' && (
-              <View style={styles.sheetCenterBody}>
-                <ActivityIndicator size="large" color="#7C3AED" />
-                <Text style={styles.processingText}>{t('commit.payVerifying')}</Text>
-                <Text style={styles.processingSubtext}>{t('commit.paySecuring')}</Text>
-              </View>
-            )}
-
-            {paymentStep === 'success' && (
-              <View style={styles.sheetCenterBody}>
-                <View style={styles.successCircle}>
-                  <MaterialCommunityIcons name="check" size={48} color="#FFFFFF" />
-                </View>
-                <Text style={styles.successText}>{t('commit.paySuccess')}</Text>
-                <Text style={styles.successSubtext}>{t('commit.paySuccessDesc', { stake })}</Text>
-              </View>
-            )}
-
-          </BlurView>
-        </View>
-      </Modal>
-
-
-
-      {/* Verification Guide Modal */}
-      <VerificationGuideModal
-        visible={isVerificationGuideVisible}
-        onClose={() => setIsVerificationGuideVisible(false)}
-      />
-
+      
     </View>
   );
 }
 
-// Custom Fonts Fallback Helper for React Native Stylesheet compilation
-const Fonts = {
-  sans: Platform.select({ ios: 'System', android: 'sans-serif' }),
-  mono: Platform.select({ ios: 'Courier', android: 'monospace' }),
-};
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#06070B',
+    backgroundColor: '#0F111A',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 0,
   },
   rolloverBanner: {
     flexDirection: 'row',
@@ -1278,121 +713,72 @@ const styles = StyleSheet.create({
     gap: 8,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(124, 58, 237, 0.25)',
-    padding: Spacing.three,
-    marginBottom: Spacing.two,
-    marginTop: 10,
+    borderColor: 'rgba(124, 58, 237, 0.3)',
+    padding: 16,
+    marginBottom: 8,
+    marginHorizontal: 16,
   },
   rolloverBannerText: {
+    flex: 1,
+    fontSize: 13,
     color: '#E2E8F0',
-    fontSize: 12,
-    fontWeight: '600',
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: Spacing.four,
-    paddingBottom: 40,
-  },
-  fixedBottomContainer: {
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.two,
-    paddingBottom: (Platform.OS === 'ios' ? 88 : 64) + Spacing.three,
-    backgroundColor: '#06070B',
-    borderTopWidth: 1,
-    borderTopColor: '#181B28',
+    fontWeight: '500',
+    lineHeight: 18,
   },
   header: {
+    marginBottom: 16,
+    paddingHorizontal: 16,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+  },
+  dashboardSection: {
+    marginBottom: 20,
+    paddingHorizontal: 16,
+  },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#64748B',
+    letterSpacing: 1.5,
+    marginBottom: 10,
+    textTransform: 'uppercase',
+  },
+  sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
-  },
-  headerTitle: {
-    fontFamily: Fonts.sans,
-    color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: 'bold',
-  },
-  headerBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(5, 211, 142, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(5, 211, 142, 0.2)',
-  },
-  headerBadgeText: {
-    fontFamily: Fonts.mono,
-    color: '#05D38E',
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-  section: {
-    marginBottom: 12,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
     marginBottom: 10,
   },
-  stepNumberText: {
-    fontFamily: Fonts.mono,
-    color: '#7C3AED',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  stepTitleLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#181B28',
-    marginLeft: 8,
-  },
-  sectionTitle: {
-    fontFamily: Fonts.sans,
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  metricScrollContent: {
+  activityRow: {
     flexDirection: 'row',
-    gap: 6,
-    paddingVertical: 4,
+    gap: 8,
   },
   metricCardHorizontal: {
+    flex: 1,
     height: 44,
-    borderRadius: 14,
+    borderRadius: 12,
     overflow: 'hidden',
   },
-  gradientFill: {
-    height: '100%',
-    justifyContent: 'center',
-  },
   metricCardInner: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingHorizontal: 16,
-    height: '100%',
+    paddingHorizontal: 8,
   },
   metricCardInactive: {
-    backgroundColor: 'rgba(17, 19, 30, 0.6)',
+    backgroundColor: '#1E293B',
     borderWidth: 1,
-    borderColor: '#181B28',
-    borderRadius: 14,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
   metricCardLabel: {
-    fontSize: 11,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '600',
   },
   textActive: {
     color: '#FFFFFF',
@@ -1400,823 +786,167 @@ const styles = StyleSheet.create({
   textInactive: {
     color: '#94A3B8',
   },
-  targetCard: {
-    backgroundColor: 'rgba(17, 19, 30, 0.6)',
-    borderWidth: 1,
-    borderColor: '#181B28',
-    borderRadius: 20,
-    padding: 12,
+  gradientFill: {
+    ...StyleSheet.absoluteFill,
   },
-  targetCardHeader: {
+  scopeToggleContainerCompact: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  targetCardTitle: {
-    fontFamily: Fonts.sans,
-    color: '#576880',
-    fontSize: 10,
-    fontWeight: 'bold',
-    letterSpacing: 1.5,
-  },
-  scopeToggleContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#1C1F30',
+    backgroundColor: '#1E293B',
     borderRadius: 10,
-    padding: 2,
-    borderWidth: 1,
-    borderColor: '#181B28',
+    padding: 3,
   },
-  scopeToggleButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  scopeToggleButtonActive: {
-    backgroundColor: 'rgba(17, 19, 30, 0.6)',
-    borderWidth: 0.5,
-    borderColor: '#181B28',
-  },
-  scopeToggleText: {
-    fontFamily: Fonts.sans,
-    color: '#94A3B8',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  scopeToggleTextActive: {
-    color: '#7C3AED',
-  },
-  targetStepperRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginVertical: Spacing.two,
-  },
-  stepperButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#1C1F30',
-    borderWidth: 1,
-    borderColor: '#181B28',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  targetValueWrapper: {
-    alignItems: 'center',
-  },
-  targetValueText: {
-    color: '#FFFFFF',
-    fontSize: 28,
-    fontWeight: 'bold',
-  },
-  targetValueLabel: {
-    color: '#94A3B8',
-    fontSize: 11,
-    marginTop: 1,
-  },
-  syncNoticeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    marginTop: 2,
-  },
-  syncNoticeText: {
-    fontSize: 10,
-    color: '#576880',
-  },
-  targetDivider: {
-    height: 1,
-    backgroundColor: '#181B28',
-    marginVertical: 10,
-  },
-  periodRowCompact: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: Spacing.one,
-  },
-  periodLeftColCompact: {
-    flex: 1,
-  },
-  periodTitleCompact: {
-    fontFamily: Fonts.sans,
-    color: '#576880',
-    fontSize: 10,
-    fontWeight: 'bold',
-    letterSpacing: 1.5,
-    marginBottom: 2,
-  },
-  periodDescCompact: {
-    color: '#94A3B8',
-    fontSize: 11,
-  },
-  periodPillContainerCompact: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  periodPillCompact: {
-    backgroundColor: '#1C1F30',
-    borderWidth: 1,
-    borderColor: '#181B28',
-    borderRadius: 12,
+  scopePillCompact: {
+    paddingVertical: 5,
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    borderRadius: 7,
   },
-  periodPillActiveCompact: {
-    borderColor: '#7C3AED',
-    backgroundColor: 'rgba(124, 58, 237, 0.08)',
-  },
-  periodPillTextCompact: {
-    color: '#94A3B8',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  periodPillTextActiveCompact: {
-    color: '#7C3AED',
-  },
-  parametersCard: {
-    backgroundColor: 'rgba(17, 19, 30, 0.6)',
-    borderWidth: 1,
-    borderColor: '#181B28',
-    borderRadius: 20,
-    padding: 12,
-  },
-  parameterRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  parameterLeftCol: {
-    flex: 1,
-  },
-  parameterTitle: {
-    fontFamily: Fonts.sans,
-    color: '#576880',
-    fontSize: 10,
-    fontWeight: 'bold',
-    letterSpacing: 1.5,
-    marginBottom: 2,
-  },
-  parameterDesc: {
-    color: '#94A3B8',
-    fontSize: 11,
-  },
-  pledgeHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.two,
-  },
-  pledgeStatusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(124, 58, 237, 0.08)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(124, 58, 237, 0.15)',
-  },
-  pledgeStatusText: {
-    fontFamily: Fonts.mono,
-    color: '#7C3AED',
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-  largePledgeDisplay: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'baseline',
-    marginVertical: Spacing.two,
-  },
-  largePledgeSymbol: {
-    fontSize: 22,
-    color: '#7C3AED',
-    fontWeight: '600',
-    marginRight: 2,
-  },
-  largePledgeAmount: {
-    fontSize: 36,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-    letterSpacing: -1,
-  },
-  largePledgeCents: {
-    fontSize: 18,
-    color: '#94A3B8',
-    fontWeight: '600',
-  },
-  stakePillRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: Spacing.one,
-  },
-  stakePillExpanded: {
-    flex: 1,
-    backgroundColor: '#1C1F30',
-    borderWidth: 1,
-    borderColor: '#181B28',
-    borderRadius: 14,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  stakePillTextExpanded: {
-    color: '#94A3B8',
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
-  stakePillActive: {
-    borderColor: '#7C3AED',
-    backgroundColor: 'rgba(124, 58, 237, 0.08)',
-  },
-  stakePillTextActive: {
-    color: '#7C3AED',
-  },
-  customSheetTitle: {
-    fontFamily: Fonts.sans,
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  customSheetSubtitle: {
-    color: '#94A3B8',
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  customPickerContainer: {
-    height: 160,
-    marginVertical: Spacing.three,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  customPickerScrollView: {
-    width: '100%',
-    height: '100%',
-  },
-  customPickerScrollContent: {
-    paddingVertical: 56, // Allows items to scroll and snap to center (160 height - 48 item height) / 2 = 56
-  },
-  pickerItem: {
-    height: 48,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-    opacity: 0.4,
-  },
-  pickerItemActive: {
-    opacity: 1,
-  },
-  pickerItemText: {
-    fontFamily: Fonts.sans,
-    color: '#94A3B8',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  pickerItemTextActive: {
-    color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: 'bold',
-  },
-  pickerHighlight: {
-    position: 'absolute',
-    height: 48,
-    left: Spacing.four,
-    right: Spacing.four,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#7C3AED',
-    backgroundColor: 'rgba(124, 58, 237, 0.05)',
-  },
-  confirmCustomButton: {
+  scopePillActiveCompact: {
     backgroundColor: '#7C3AED',
-    height: 48,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: Spacing.four,
-    marginBottom: Spacing.two,
   },
-  confirmCustomButtonText: {
+  scopePillTextCompact: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  scopeTextActive: {
     color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: 'bold',
+  },
+  targetStepperRowCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  stepperButtonCompact: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  targetValueWrapperCompact: {
+    alignItems: 'center',
+  },
+  targetValueTextCompact: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontVariant: ['tabular-nums'],
+  },
+  targetValueLabelCompact: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#94A3B8',
+    marginTop: 2,
+    textTransform: 'uppercase',
+  },
+  stakeGrid: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  stakeCardCompact: {
+    flex: 1,
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  stakeCardActive: {
+    borderColor: '#7C3AED',
+    backgroundColor: 'rgba(124, 58, 237, 0.1)',
+  },
+  stakeAmountTextCompact: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#94A3B8',
+  },
+  summaryDateText: {
+    textAlign: 'center',
+    fontSize: 13,
+    color: '#94A3B8',
+    marginBottom: 10,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  fixedBottomContainer: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(17, 19, 30, 0.8)',
   },
   submitButton: {
-    marginTop: Spacing.one,
+    height: 56,
     borderRadius: 16,
     overflow: 'hidden',
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   submitGradient: {
-    height: 48,
+    flex: 1,
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    gap: Spacing.two,
+    justifyContent: 'center',
+    gap: 8,
   },
   submitText: {
     color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: 'bold',
-  },
-  disclaimerText: {
-    color: '#576880',
-    fontSize: 9,
-    textAlign: 'center',
-    marginTop: Spacing.two,
+    fontSize: 16,
+    fontWeight: '700',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
   },
   modalContent: {
-    borderTopLeftRadius: Spacing.four,
-    borderTopRightRadius: Spacing.four,
-    overflow: 'hidden',
-    paddingBottom: Platform.OS === 'ios' ? Spacing.five : Spacing.four,
-  },
-  sheetHeader: {
-    alignItems: 'center',
-    paddingTop: Spacing.two,
-    paddingBottom: Spacing.three,
-  },
-  sheetPullBar: {
-    width: 36,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#1C1F30',
-    marginBottom: Spacing.two,
-  },
-  payLogoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  payLogoText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '500',
-  },
-  sheetBody: {
-    paddingHorizontal: Spacing.four,
-    paddingBottom: Spacing.two,
-  },
-  payRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.two,
-  },
-  payRowLabel: {
-    color: '#576880',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  payRowValue: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    maxWidth: width * 0.65,
-    textAlign: 'right',
-  },
-  payTotalValue: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  payDivider: {
-    height: 1,
-    backgroundColor: '#181B28',
-  },
-  iapNoticeBox: {
-    backgroundColor: 'rgba(124, 58, 237, 0.06)',
-    borderRadius: Spacing.two,
-    padding: Spacing.two,
-    marginTop: Spacing.two,
-    marginBottom: Spacing.four,
-  },
-  iapNoticeText: {
-    color: '#7C3AED',
-    fontSize: 11,
-    textAlign: 'center',
-    lineHeight: 15,
-  },
-  doubleClickWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.one,
-    marginTop: Spacing.three,
-    marginBottom: Spacing.two,
-  },
-  doubleClickText: {
-    color: '#7C3AED',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  fingerprintPrompt: {
-    color: '#94A3B8',
-    fontSize: 13,
-    textAlign: 'center',
-    marginTop: Spacing.three,
-    marginBottom: Spacing.two,
-  },
-  payButton: {
-    backgroundColor: '#FFFFFF',
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  payButtonText: {
-    color: '#000000',
-    fontSize: 15,
-    fontWeight: 'bold',
-  },
-  sheetCenterBody: {
-    height: 350,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.two,
-  },
-  processingText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginTop: Spacing.two,
-  },
-  processingSubtext: {
-    color: '#576880',
-    fontSize: 12,
-  },
-  successCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#05D38E',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.two,
-  },
-  successText: {
-    color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: 'bold',
-  },
-  successSubtext: {
-    color: '#94A3B8',
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  disclaimerHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.two,
-  },
-  disclaimerIconContainer: {
-    backgroundColor: 'rgba(255, 74, 133, 0.1)',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  disclaimerTitle: {
-    fontFamily: Fonts.sans,
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  disclaimerBox: {
-    backgroundColor: 'rgba(124, 58, 237, 0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(124, 58, 237, 0.15)',
-    borderRadius: 16,
-    padding: Spacing.three,
-    alignItems: 'center',
-    marginBottom: Spacing.two,
-  },
-  disclaimerBoxIcon: {
-    marginBottom: Spacing.two,
-  },
-  disclaimerHeading: {
-    fontFamily: Fonts.mono,
-    color: '#7C3AED',
-    fontSize: 12,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-    marginBottom: Spacing.one,
-  },
-  disclaimerDescription: {
-    fontFamily: Fonts.sans,
-    color: '#94A3B8',
-    fontSize: 12,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  noticeList: {
-    gap: Spacing.two,
-    marginBottom: Spacing.four,
-  },
-  learnMoreLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.one,
-    paddingVertical: 12,
-    marginBottom: Spacing.four,
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.3)',
-    borderRadius: 12,
-    backgroundColor: 'rgba(139, 92, 246, 0.08)',
-  },
-  learnMoreText: {
-    fontFamily: Fonts.sans,
-    color: '#8B5CF6',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  noticeItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.two,
-    backgroundColor: '#0F111A',
-    borderRadius: 12,
-    padding: Spacing.two,
-  },
-  noticeText: {
-    fontFamily: Fonts.sans,
-    color: '#E2E8F0',
-    fontSize: 12,
-    flex: 1,
-    lineHeight: 17,
-  },
-  boldText: {
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    backgroundColor: 'rgba(124, 58, 237, 0.05)',
-    borderColor: 'rgba(124, 58, 237, 0.2)',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: Spacing.three,
-    marginBottom: Spacing.four,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#7C3AED',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: '#7C3AED',
-  },
-  checkboxLabel: {
-    fontFamily: Fonts.sans,
-    color: '#FFFFFF',
-    fontSize: 12,
-    flex: 1,
-    lineHeight: 16,
-    fontWeight: '500',
-  },
-  disclaimerButtonRow: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-    marginTop: Spacing.one,
-  },
-  cancelDisclaimerButton: {
-    flex: 1,
-    height: 48,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#1E293B',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelDisclaimerButtonText: {
-    fontFamily: Fonts.sans,
-    color: '#94A3B8',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  acceptDisclaimerButton: {
-    flex: 1,
-    height: 48,
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  acceptDisclaimerButtonDisabled: {
-    opacity: 0.6,
-  },
-  acceptDisclaimerGradient: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  acceptDisclaimerButtonText: {
-    fontFamily: Fonts.sans,
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  acceptDisclaimerButtonTextDisabled: {
-    color: '#475569',
-  },
-
-  payButtonDisabled: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  payButtonTextDisabled: {
-    color: '#64748B',
-  },
-  cardContainer: {
     backgroundColor: '#1E293B',
     borderRadius: 24,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(124, 58, 237, 0.1)',
-  },
-  accordionItem: {
-    backgroundColor: 'rgba(17, 19, 30, 0.6)',
-    borderWidth: 1,
-    borderColor: '#181B28',
-    borderRadius: 20,
-    marginBottom: 12,
-    overflow: 'hidden',
-  },
-  accordionItemActive: {
-    borderColor: '#7C3AED',
-    backgroundColor: 'rgba(17, 19, 30, 0.6)',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 12,
-  },
-  cardIconBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(124, 58, 237, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#F8FAFC',
-  },
-  accordionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  accordionHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  stepBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#1C1F30',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#181B28',
-  },
-  stepBadgeActive: {
-    backgroundColor: '#7C3AED',
-    borderColor: '#7C3AED',
-  },
-  stepBadgeCompleted: {
-    backgroundColor: '#05D38E',
-    borderColor: '#05D38E',
-  },
-  stepNumberTextActive: {
-    color: '#FFFFFF',
-  },
-  accordionTitle: {
-    fontFamily: Fonts.sans,
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  accordionSummary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1C1F30',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: '#181B28',
-    marginRight: 6,
-  },
-  accordionSummaryText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  chevronIcon: {
-    marginLeft: 2,
-  },
-  accordionContent: {
-    paddingHorizontal: 12,
-    paddingBottom: 16,
-  },
-  stepContinueButton: {
-    flexDirection: 'row',
-    backgroundColor: '#7C3AED',
-    height: 40,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
-  },
-  stepContinueButtonText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
-  readyIndicatorAbove: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(5, 211, 142, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(5, 211, 142, 0.25)',
-    borderRadius: 12,
-    paddingVertical: 8,
-    marginHorizontal: Spacing.four,
-    marginBottom: 12,
-  },
-  readyIndicatorText: {
-    fontFamily: Fonts.sans,
-    color: '#05D38E',
-    fontSize: 12,
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
-  },
-  datePillContainer: {
-    flexDirection: 'row',
-    flexWrap: 'nowrap',
-    gap: 6,
-    justifyContent: 'flex-end',
-    flex: 1.5,
-  },
-  datePillCompact: {
-    backgroundColor: '#1C1F30',
-    borderWidth: 1,
-    borderColor: '#181B28',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-  },
-  datePillActiveCompact: {
-    borderColor: '#7C3AED',
-    backgroundColor: 'rgba(124, 58, 237, 0.08)',
-  },
-  datePillTextCompact: {
-    color: '#94A3B8',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  datePillTextActiveCompact: {
-    color: '#7C3AED',
-  },
-  datePickerContainer: {
-    marginVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 24,
     width: '100%',
-    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 16,
+  },
+  modalBody: {
+    fontSize: 16,
+    color: '#94A3B8',
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  modalButton: {
+    backgroundColor: '#7C3AED',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
