@@ -2,6 +2,7 @@ import express, { Router } from 'express';
 import Stripe from 'stripe';
 import { db } from '../config/firestore';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
+import crypto from 'crypto';
 
 const router = Router();
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || 'sk_test_mock_key';
@@ -22,7 +23,7 @@ router.post('/create-setup-session', authenticateToken as any, async (req: Authe
     const userData = userDoc.data()!;
     let customerId = userData.stripeCustomerId;
 
-    // Create a new Stripe Customer if they don't have one
+    // Create a new Stripe Customer if they don't have one (for future actual stripe usage)
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: userData.email,
@@ -32,19 +33,64 @@ router.post('/create-setup-session', authenticateToken as any, async (req: Authe
       await db.collection('users').doc(userId).update({ stripeCustomerId: customerId });
     }
 
-    // Create a Checkout Session in 'setup' mode
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      mode: 'setup',
-      customer: customerId,
-      success_url: `${process.env.WEBSITE_URL || 'http://localhost:3000'}/setup/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.WEBSITE_URL || 'http://localhost:3000'}/setup/cancel`,
-      metadata: { userId }, // Pass userId for the webhook
+    // Generate a unique session ID
+    const sessionId = crypto.randomBytes(16).toString('hex');
+
+    // Store the session in Firestore
+    await db.collection('paymentSessions').doc(sessionId).set({
+      userId,
+      createdAt: new Date().toISOString(),
+      status: 'pending',
     });
 
-    return res.status(200).json({ url: session.url });
+    // Return the URL to the web app for the mock payment flow
+    const websiteUrl = process.env.WEBSITE_URL || 'http://localhost:3000';
+    const sessionUrl = `${websiteUrl}/add-payment?session_id=${sessionId}`;
+
+    return res.status(200).json({ url: sessionUrl });
   } catch (err: any) {
     console.error('Error creating Stripe setup session:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Mock Save Payment Handler (called by the website)
+router.post('/mock-save-payment', async (req: express.Request, res: any) => {
+  try {
+    const { sessionId, paymentMethod } = req.body;
+
+    if (!sessionId) {
+      return res.status(400).json({ error: 'Missing session ID' });
+    }
+
+    const sessionRef = db.collection('paymentSessions').doc(sessionId);
+    const sessionDoc = await sessionRef.get();
+
+    if (!sessionDoc.exists) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const sessionData = sessionDoc.data()!;
+    if (sessionData.status !== 'pending') {
+      return res.status(400).json({ error: 'Session is no longer valid' });
+    }
+
+    const userId = sessionData.userId;
+
+    // Update user to mark that they have a payment method
+    await db.collection('users').doc(userId).update({
+      hasPaymentMethod: true,
+      // We could store masked card info or payment method here if we wanted to
+      mockPaymentMethod: paymentMethod || 'credit_card'
+    });
+
+    // Mark session as completed
+    await sessionRef.update({ status: 'completed' });
+
+    console.log(`Mock payment method saved successfully for user ${userId}`);
+    return res.status(200).json({ success: true });
+  } catch (err: any) {
+    console.error('Error in mock-save-payment:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -102,3 +148,4 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req: a
 });
 
 export default router;
+

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   View,
@@ -17,6 +18,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
+import * as WebBrowser from 'expo-web-browser';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, { 
   FadeInDown, 
@@ -38,13 +40,13 @@ import { Spacing } from '@/constants/theme';
 import { HealthDataService, MetricType } from '@/services/health';
 import { VerificationGuideModal } from '@/components/VerificationGuideModal';
 import AppHeader, { BASE_HEADER_HEIGHT } from '@/components/AppHeader';
-import { useAuth } from '@/services/auth';
+import { useAuth, API_URL } from '@/services/auth';
 
 const { width } = Dimensions.get('window');
 
 export default function CommitScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const insets = useSafeAreaInsets();
   const { t, i18n } = useTranslation();
   
@@ -394,11 +396,41 @@ export default function CommitScreen() {
 
   async function confirmPayment(overrides?: { targetScope?: 'daily' | 'weekly'; targetValue?: number; metricType?: MetricType }) {
     if (!user?.hasPaymentMethod) {
-      Alert.alert(
-        'Payment Method Required',
-        'Apple does not allow us to process this payment in-app. Please visit our website to securely authorize your payment method with Stripe. You only need to do this once.',
-        [{ text: 'OK', style: 'default' }]
-      );
+      try {
+        setPaymentStep('processing'); // Show loading state while getting session
+        const token = await AsyncStorage.getItem('@habitcontract_jwt_token');
+        const response = await fetch(`${API_URL}/api/stripe/create-setup-session`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        const data = await response.json();
+        
+        if (data.url) {
+          setIsPaymentSheetVisible(false); // Hide the bottom sheet if we show the browser
+          const result = await WebBrowser.openAuthSessionAsync(data.url, 'commitlock://payment-success');
+          
+          if (result.type === 'success') {
+            // User returned from browser, refresh user to check if they completed payment
+            if (refreshUser) {
+              await refreshUser();
+            }
+            // If they still don't have a payment method after refresh, we can abort
+            // (We might need a small delay or the refreshUser should ideally return the updated user)
+          } else {
+            // Browser was dismissed or cancelled
+            setPaymentStep('idle');
+          }
+        } else {
+          Alert.alert('Error', 'Could not initiate payment setup.');
+          setPaymentStep('idle');
+        }
+      } catch (err) {
+        console.error('Error starting payment flow:', err);
+        Alert.alert('Error', 'Failed to connect to payment server.');
+        setPaymentStep('idle');
+      }
       return;
     }
 
