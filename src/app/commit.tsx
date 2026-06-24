@@ -25,7 +25,12 @@ import Animated, {
   ZoomIn, 
   ZoomOut,
   FadeInRight,
-  FadeOutRight
+  FadeOutRight,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  withSequence,
+  useAnimatedStyle
 } from 'react-native-reanimated';
 
 import { useTranslation } from 'react-i18next';
@@ -110,6 +115,30 @@ export default function CommitScreen() {
   const [isStakeSelected, setIsStakeSelected] = useState<boolean>(!!rolloverStake);
 
   const allStepsReady = isMetricSelected && isTargetSelected && isDurationSelected && isStakeSelected;
+
+  const glowOpacity = useSharedValue(0);
+  
+  useEffect(() => {
+    if (allStepsReady) {
+      glowOpacity.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: 1500 }),
+          withTiming(0.4, { duration: 1500 })
+        ),
+        -1, // infinite
+        true // reverse
+      );
+    } else {
+      glowOpacity.value = withTiming(0, { duration: 300 });
+    }
+  }, [allStepsReady]);
+
+  const animatedGlowStyle = useAnimatedStyle(() => {
+    return {
+      opacity: glowOpacity.value,
+      transform: [{ scale: 1 + (glowOpacity.value * 0.05) }],
+    };
+  });
   
   // Selection States
   const [metric, setMetric] = useState<MetricType>('steps');
@@ -668,11 +697,11 @@ export default function CommitScreen() {
 
 
         {/* Glowing Statement */}
-        <View style={styles.statementContainer}>
+        <Animated.View style={[styles.statementContainer, animatedGlowStyle]}>
           <Text style={styles.statementText}>
             {getCommitmentStatement()}
           </Text>
-        </View>
+        </Animated.View>
         </ScrollView>
       </View>
 
@@ -683,10 +712,22 @@ export default function CommitScreen() {
             return `${formatDisplayDate(dates.startDate)} — ${formatDisplayDate(dates.endDate)}`;
           })()}
         </Text>
-        <TouchableOpacity onPress={triggerPaymentSheet} style={styles.submitButton} activeOpacity={0.9}>
-          <LinearGradient colors={['#7C3AED', '#4F46E5']} style={styles.submitGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-            <MaterialCommunityIcons name="lock" size={18} color="#FFFFFF" />
-            <Text style={styles.submitText}>{t('commit.pledgeAndLock', { stake })}</Text>
+        <TouchableOpacity 
+          onPress={triggerPaymentSheet} 
+          style={[styles.submitButton, !allStepsReady && styles.submitButtonDisabled]} 
+          activeOpacity={0.9}
+          disabled={!allStepsReady}
+        >
+          <LinearGradient 
+            colors={allStepsReady ? ['#7C3AED', '#4F46E5'] : ['#1E293B', '#0F172A']} 
+            style={styles.submitGradient} 
+            start={{ x: 0, y: 0 }} 
+            end={{ x: 1, y: 0 }}
+          >
+            <MaterialCommunityIcons name="lock" size={18} color={allStepsReady ? "#FFFFFF" : "#475569"} />
+            <Text style={[styles.submitText, !allStepsReady && styles.submitTextDisabled]}>
+              {t('commit.pledgeAndLock', { stake })}
+            </Text>
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -980,5 +1021,13 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(124, 58, 237, 0.8)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 15,
+  },
+
+  submitButtonDisabled: {
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  submitTextDisabled: {
+    color: '#64748B',
   },
 });
