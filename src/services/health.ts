@@ -31,6 +31,17 @@ if (Platform.OS === 'ios') {
   }
 }
 
+let HealthConnect: any;
+if (Platform.OS === 'android') {
+  try {
+    HealthConnect = require('react-native-health-connect');
+    console.log('[HealthDataService] Successfully loaded react-native-health-connect');
+  } catch (e) {
+    console.warn('[HealthDataService] react-native-health-connect could not be loaded:', e);
+  }
+}
+
+
 
 export type MetricType = 'steps' | 'run' | 'mindfulness' | 'cycle' | 'calories' | 'activeTime';
 
@@ -44,9 +55,8 @@ export interface Commitment {
   endDate: string; // Sunday date string (YYYY-MM-DD)
   status: 'active' | 'success' | 'failed';
   createdAt: string;
-  targetScope?: 'daily' | 'weekly'; // 'daily' or 'weekly'
   performanceData?: DailyHealthData[];
-  refundMethod?: 'wallet' | 'bank';
+  refundMethod?: 'wallet' | 'bank' | 'pass';
   resolvedAt?: string;
 }
 
@@ -139,10 +149,35 @@ export class HealthDataService {
    */
   static async requestPermissions(): Promise<boolean> {
     try {
-      if (__DEV__) {
+      const isSupported = 
+        (Platform.OS === 'ios' && AppleHealthKit && typeof AppleHealthKit.initHealthKit === 'function') ||
+        (Platform.OS === 'android' && HealthConnect);
+
+      if (__DEV__ && !isSupported) {
         console.log('[HealthDataService] Dev mock: Auto-granting health permissions');
         return true;
       }
+      if (Platform.OS === 'android') {
+        if (!HealthConnect) {
+          console.warn('[HealthDataService] HealthConnect not loaded/available on Android.');
+          return false;
+        }
+        const isInitialized = await HealthConnect.initialize();
+        if (!isInitialized) {
+          console.warn('[HealthDataService] Health Connect initialization failed.');
+          return false;
+        }
+        const granted = await HealthConnect.requestPermission([
+          { accessType: 'read', recordType: 'Steps' },
+          { accessType: 'read', recordType: 'Distance' },
+          { accessType: 'read', recordType: 'ActiveCaloriesBurned' },
+          { accessType: 'read', recordType: 'TotalCaloriesBurned' },
+          { accessType: 'read', recordType: 'ExerciseSession' },
+        ]);
+        console.log('[HealthDataService] Health Connect permissions requested:', granted);
+        return true;
+      }
+
       if (Platform.OS !== 'ios' || !AppleHealthKit || typeof AppleHealthKit.initHealthKit !== 'function') {
         console.log('[HealthDataService] Mocking permission request on non-iOS or native module not loaded');
         return true;
@@ -199,7 +234,11 @@ export class HealthDataService {
    * Helper to query a single day's metric from native HealthKit
    */
   static async querySingleDayMetric(metric: MetricType, dateStr: string): Promise<number> {
-    if (__DEV__) {
+    const isSupported = 
+      (Platform.OS === 'ios' && AppleHealthKit && typeof AppleHealthKit.getDailyStepCountSamples === 'function') ||
+      (Platform.OS === 'android' && HealthConnect);
+
+    if (__DEV__ && !isSupported) {
       const dateObj = this.parseLocalDate(dateStr);
       const days: ('Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun')[] = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       const dayName = days[dateObj.getDay()];
@@ -207,6 +246,116 @@ export class HealthDataService {
       const match = mockList.find(d => d.dayName === dayName);
       return match ? match.value : 0;
     }
+    if (Platform.OS === 'android') {
+      if (!HealthConnect) return 0;
+      try {
+        const startDate = this.parseLocalDate(dateStr, 0, 0, 0);
+        const endDate = this.parseLocalDate(dateStr, 23, 59, 59);
+        const timeRangeFilter = {
+          operator: 'between',
+          startTime: startDate.toISOString(),
+          endTime: endDate.toISOString(),
+        };
+
+        switch (metric) {
+          case 'steps': {
+            const result = await HealthConnect.readRecords('Steps', { timeRangeFilter });
+            const totalSteps = result.records.reduce((sum: number, cur: any) => sum + (cur.count || 0), 0);
+            return totalSteps;
+          }
+          case 'calories': {
+            const result = await HealthConnect.readRecords('ActiveCaloriesBurned', { timeRangeFilter });
+            const totalCalories = result.records.reduce((sum: number, cur: any) => sum + (cur.energy?.inKilocalories || 0), 0);
+            return totalCalories;
+          }
+          case 'run': {
+            const result = await HealthConnect.readRecords('ExerciseSession', { timeRangeFilter });
+            const runningSessions = result.records.filter((session: any) => {
+              const type = session.exerciseType || session.type || '';
+              return String(type).toLowerCase().includes('running') || String(type).toLowerCase().includes('run') || type === 56 || type === 'running';
+            });
+            const distResult = await HealthConnect.readRecords('Distance', { timeRangeFilter });
+            let runningDistanceMeters = 0;
+            distResult.records.forEach((record: any) => {
+              const recordStart = new Date(record.startTime).getTime();
+              const recordEnd = new Date(record.endTime).getTime();
+              const isOverlap = runningSessions.some((session: any) => {
+                const sessionStart = new Date(session.startTime).getTime();
+                const sessionEnd = new Date(session.endTime).getTime();
+                return recordStart >= sessionStart && recordEnd <= sessionEnd;
+              });
+              if (isOverlap) {
+                runningDistanceMeters += record.distance?.inMeters || record.distance || 0;
+              }
+            });
+            return runningDistanceMeters / 1000;
+          }
+          case 'cycle': {
+            const result = await HealthConnect.readRecords('ExerciseSession', { timeRangeFilter });
+            const cyclingSessions = result.records.filter((session: any) => {
+              const type = session.exerciseType || session.type || '';
+              return String(type).toLowerCase().includes('cycling') || String(type).toLowerCase().includes('cycle') || type === 8 || type === 9 || type === 'biking' || type === 'cycling';
+            });
+            const distResult = await HealthConnect.readRecords('Distance', { timeRangeFilter });
+            let cyclingDistanceMeters = 0;
+            distResult.records.forEach((record: any) => {
+              const recordStart = new Date(record.startTime).getTime();
+              const recordEnd = new Date(record.endTime).getTime();
+              const isOverlap = cyclingSessions.some((session: any) => {
+                const sessionStart = new Date(session.startTime).getTime();
+                const sessionEnd = new Date(session.endTime).getTime();
+                return recordStart >= sessionStart && recordEnd <= sessionEnd;
+              });
+              if (isOverlap) {
+                cyclingDistanceMeters += record.distance?.inMeters || record.distance || 0;
+              }
+            });
+            return cyclingDistanceMeters / 1000;
+          }
+          case 'activeTime': {
+            const result = await HealthConnect.readRecords('ExerciseSession', { timeRangeFilter });
+            const totalDurationMins = result.records.reduce((sum: number, cur: any) => {
+              const start = new Date(cur.startTime).getTime();
+              const end = new Date(cur.endTime).getTime();
+              return sum + (end - start) / (1000 * 60);
+            }, 0);
+            return totalDurationMins;
+          }
+          case 'mindfulness': {
+            let totalMins = 0;
+            try {
+              const result = await HealthConnect.readRecords('MindfulnessSession', { timeRangeFilter });
+              totalMins = result.records.reduce((sum: number, cur: any) => {
+                const start = new Date(cur.startTime).getTime();
+                const end = new Date(cur.endTime).getTime();
+                return sum + (end - start) / (1000 * 60);
+              }, 0);
+            } catch (err) {
+              const result = await HealthConnect.readRecords('ExerciseSession', { timeRangeFilter });
+              const mindfulSessions = result.records.filter((session: any) => {
+                const type = session.exerciseType || session.type || '';
+                return String(type).toLowerCase().includes('yoga') || 
+                       String(type).toLowerCase().includes('pilates') ||
+                       String(type).toLowerCase().includes('meditation') ||
+                       type === 87 || type === 53;
+              });
+              totalMins = mindfulSessions.reduce((sum: number, cur: any) => {
+                const start = new Date(cur.startTime).getTime();
+                const end = new Date(cur.endTime).getTime();
+                return sum + (end - start) / (1000 * 60);
+              }, 0);
+            }
+            return totalMins;
+          }
+          default:
+            return 0;
+        }
+      } catch (error) {
+        console.error(`[HealthDataService] Error querying Android Health Connect for ${metric}:`, error);
+        return 0;
+      }
+    }
+
     if (Platform.OS !== 'ios' || !AppleHealthKit || typeof AppleHealthKit.getDailyStepCountSamples !== 'function') {
       return 0;
     }
@@ -219,7 +368,7 @@ export class HealthDataService {
           startDate: startDate.toISOString().replace('Z', '+0000'),
           endDate: endDate.toISOString().replace('Z', '+0000'),
           ascending: true,
-          includeManuallyAdded: true,
+          includeManuallyAdded: false,
         };
 
         const callback = (err: any, results: any) => {
@@ -351,7 +500,11 @@ export class HealthDataService {
    * Queries daily health data for a specific metric over a date range from native HealthKit
    */
   static async queryHealthDataDaily(metric: MetricType, startDateStr: string, endDateStr: string): Promise<Record<string, number>> {
-    if (Platform.OS !== 'ios' || !AppleHealthKit || typeof AppleHealthKit.getDailyStepCountSamples !== 'function') {
+    const isSupported = 
+      (Platform.OS === 'ios' && AppleHealthKit && typeof AppleHealthKit.getDailyStepCountSamples === 'function') ||
+      (Platform.OS === 'android' && HealthConnect);
+
+    if (!isSupported) {
       return {};
     }
 
@@ -387,32 +540,17 @@ export class HealthDataService {
   }
 
   /**
-   * Log health data directly to the backend API
+   * (Removed logHealthData as all data stays strictly on the device for privacy)
    */
-  static async logHealthData(metric: MetricType, dateStr: string, value: number): Promise<void> {
-    try {
-      const response = await this.authenticatedFetch('/api/health/log', {
-        method: 'POST',
-        body: JSON.stringify({
-          metricType: metric,
-          dateString: dateStr,
-          value: Number(value),
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update daily metric on backend');
-      }
-    } catch (e) {
-      console.error('[HealthDataService] Error logging health data to backend:', e);
-    }
-  }
-
   /**
    * Synchronizes active commitments with Apple HealthKit (called on index screen focus)
    */
   static async syncActiveCommitmentsWithHealthKit(commitments: Commitment[]): Promise<void> {
-    if (Platform.OS !== 'ios' || !AppleHealthKit || typeof AppleHealthKit.initHealthKit !== 'function') {
+    const isSupported = 
+      (Platform.OS === 'ios' && AppleHealthKit && typeof AppleHealthKit.initHealthKit === 'function') ||
+      (Platform.OS === 'android' && HealthConnect);
+
+    if (!isSupported) {
       return;
     }
 
@@ -437,8 +575,8 @@ export class HealthDataService {
 
       // Upload to backend
       for (const dateStr of dates) {
-        const value = dailyData[dateStr] || 0;
-        await this.logHealthData(commitment.metricType, dateStr, value);
+        // Only keeping data local, not logging to backend anymore
+        // await this.logHealthData(commitment.metricType, dateStr, value);
       }
     }
     await this.syncWidgets();
@@ -451,7 +589,11 @@ export class HealthDataService {
     value: number;
     status: 'granted' | 'denied' | 'unsupported';
   }> {
-    if (Platform.OS !== 'ios' || !AppleHealthKit || typeof AppleHealthKit.getDailyStepCountSamples !== 'function') {
+    const isSupported = 
+      (Platform.OS === 'ios' && AppleHealthKit && typeof AppleHealthKit.getDailyStepCountSamples === 'function') ||
+      (Platform.OS === 'android' && HealthConnect);
+
+    if (!isSupported) {
       // Mock/fallback values if running on Web / Android / Expo Go
       const defaults: Record<string, number> = {
         steps: 7420,
@@ -482,12 +624,38 @@ export class HealthDataService {
     value: number;
     status: 'granted' | 'denied' | 'unsupported';
   }> {
-    if (__DEV__) {
+    const isSupported = 
+      (Platform.OS === 'ios' && AppleHealthKit && typeof AppleHealthKit.getDistanceWalkingRunning === 'function') ||
+      (Platform.OS === 'android' && HealthConnect);
+
+    if (__DEV__ && !isSupported) {
       return {
         value: 5.4,
-        status: 'granted',
+        status: 'unsupported',
       };
     }
+    if (Platform.OS === 'android') {
+      if (!HealthConnect) {
+        return {
+          value: 5.4,
+          status: 'unsupported',
+        };
+      }
+      try {
+        const todayStr = this.getTodayDateString();
+        const value = await this.querySingleDayMetric('run', todayStr);
+        return {
+          value,
+          status: 'granted',
+        };
+      } catch (err) {
+        return {
+          value: 0,
+          status: 'denied',
+        };
+      }
+    }
+
     if (Platform.OS !== 'ios' || !AppleHealthKit || typeof AppleHealthKit.getDistanceWalkingRunning !== 'function') {
       return {
         value: 5.4, // Default mock/fallback value in km
@@ -499,7 +667,7 @@ export class HealthDataService {
       const options = {
         date: new Date().toISOString(),
         unit: 'meter',
-        includeManuallyAdded: true,
+        includeManuallyAdded: false,
       };
 
       const value = await new Promise<number>((resolve, reject) => {
@@ -536,18 +704,15 @@ export class HealthDataService {
    */
   static async queryTodayMetrics(): Promise<{
     steps: { value: number; status: 'granted' | 'denied' | 'unsupported' };
-    calories: { value: number; status: 'granted' | 'denied' | 'unsupported' };
     mindfulness: { value: number; status: 'granted' | 'denied' | 'unsupported' };
     distance: { value: number; status: 'granted' | 'denied' | 'unsupported' };
   }> {
     const stepsData = await this.queryTodayMetricWithStatus('steps');
-    const caloriesData = await this.queryTodayMetricWithStatus('calories');
     const mindfulnessData = await this.queryTodayMetricWithStatus('mindfulness');
-    const distanceData = await this.queryTodayDistanceWalkingRunning();
+    const distanceData = await this.queryTodayMetricWithStatus('run');
 
     return {
       steps: stepsData,
-      calories: caloriesData,
       mindfulness: mindfulnessData,
       distance: distanceData,
     };
@@ -611,16 +776,20 @@ export class HealthDataService {
         dates = this.getWeekDates();
       }
 
-      // 1. Fetch from local HealthKit directly if available on iOS
+      // 1. Fetch from local HealthKit / Health Connect directly if available
       let localHealthData: Record<string, number> = {};
-      if (Platform.OS === 'ios' && AppleHealthKit && typeof AppleHealthKit.getDailyStepCountSamples === 'function') {
+      const hasLocalHealth = 
+        (Platform.OS === 'ios' && AppleHealthKit && typeof AppleHealthKit.getDailyStepCountSamples === 'function') ||
+        (Platform.OS === 'android' && HealthConnect);
+
+      if (hasLocalHealth) {
         try {
           const todayStr = this.getTodayDateString();
           const startDateStr = dates[0];
           const endDateStr = dates[dates.length - 1] > todayStr ? todayStr : dates[dates.length - 1];
           localHealthData = await this.queryHealthDataDaily(metric, startDateStr, endDateStr);
         } catch (err) {
-          console.error('[HealthDataService] Error querying local HealthKit data inside fetchWeeklyData:', err);
+          console.error('[HealthDataService] Error querying local health data inside fetchWeeklyData:', err);
         }
       }
 
@@ -631,8 +800,20 @@ export class HealthDataService {
       
       const backendLogs: any[] = response.ok ? await response.json() : [];
 
+      // 3. Load local cache to prevent data drops when background fetch is denied
+      const CACHE_KEY = `@health_cache_${metric}_${commitment?.id || 'general'}`;
+      let cachedData: Record<string, number> = {};
+      try {
+        const cachedStr = await AsyncStorage.getItem(CACHE_KEY);
+        if (cachedStr) {
+          cachedData = JSON.parse(cachedStr);
+        }
+      } catch (e) {
+        console.error('Failed to load health cache', e);
+      }
+
       // Map response to our daily data layout, prioritizing live local HealthKit data
-      return dates.map((dateStr, index) => {
+      const result = dates.map((dateStr, index) => {
         const match = backendLogs.find(log => log.dateString === dateStr);
         const dateObj = this.parseLocalDate(dateStr);
         const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' }) as DailyHealthData['dayName'];
@@ -646,12 +827,28 @@ export class HealthDataService {
           value = localHealthData[dateStr];
         }
 
+        // Never decrease a past day's value if HealthKit returned 0 (e.g. device locked)
+        if (cachedData[dateStr] !== undefined && value < cachedData[dateStr]) {
+          value = cachedData[dateStr];
+        }
+        
+        // Update cache with the best known value
+        cachedData[dateStr] = value;
+
         return {
           dayName,
           value,
           dateString: dateStr,
         };
       });
+
+      try {
+        await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(cachedData));
+      } catch (e) {
+        console.error('Failed to save health cache', e);
+      }
+
+      return result;
     } catch (e) {
       console.error('Error fetching health data from backend', e);
       return [];
@@ -667,20 +864,7 @@ export class HealthDataService {
       const dayIndex = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(dayName);
       
       if (dayIndex !== -1 && dates[dayIndex]) {
-        const dateStr = dates[dayIndex];
-        
-        const response = await this.authenticatedFetch('/api/health/log', {
-          method: 'POST',
-          body: JSON.stringify({
-            metricType: metric,
-            dateString: dateStr,
-            value: Number(value),
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to update daily metric on backend');
-        }
+        // We no longer send this to the backend
       }
       
       await this.syncWidgets();
@@ -701,13 +885,12 @@ export class HealthDataService {
    */
   static async resetAllData(): Promise<void> {
     try {
-      const commitments = await this.getActiveCommitments();
-      for (const c of commitments) {
-        await this.authenticatedFetch(`/api/commitments/${c.id}`, {
-          method: 'DELETE',
-        });
-      }
+      await this.authenticatedFetch('/api/user/reset-sandbox', {
+        method: 'POST',
+      });
       await AsyncStorage.removeItem(STORAGE_KEYS.SELECTED_COMMITMENT_ID);
+      await AsyncStorage.removeItem('@onboarding_completed');
+      await AsyncStorage.removeItem('@commitlock_welcome_shown');
       await this.syncWidgets();
     } catch (e) {
       console.error('Failed to reset backend data:', e);
@@ -721,7 +904,10 @@ export class HealthDataService {
       const response = await this.authenticatedFetch('/api/commitments');
       if (response.ok) {
         const list = await response.json();
-        return list.filter((c: any) => c.status === 'active');
+        return list.filter((c: any) => c.status === 'active').map((c: any) => ({
+          ...c,
+          durationDays: c.durationDays || c.period || 7
+        }));
       }
       return [];
     } catch {
@@ -759,11 +945,11 @@ export class HealthDataService {
         body: JSON.stringify({
           metricType: commitment.metricType,
           targetValue: commitment.targetValue,
+          period: commitment.durationDays,
           durationDays: commitment.durationDays,
           stakeAmount: commitment.stakeAmount,
           startDate: commitment.startDate,
           endDate: commitment.endDate,
-          targetScope: commitment.targetScope || 'daily',
         }),
       });
 
@@ -778,6 +964,33 @@ export class HealthDataService {
       await this.syncWidgets();
     } catch (e) {
       console.error('Error saving active commitment', e);
+      throw e;
+    }
+  }
+
+  static async updateActiveCommitment(id: string, updates: Partial<Commitment>): Promise<void> {
+    try {
+      const response = await this.authenticatedFetch(`/api/commitments/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          metricType: updates.metricType,
+          targetValue: updates.targetValue,
+          period: updates.durationDays,
+          durationDays: updates.durationDays,
+          stakeAmount: updates.stakeAmount,
+          startDate: updates.startDate,
+          endDate: updates.endDate,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to update active commitment');
+      }
+
+      await this.syncWidgets();
+    } catch (e) {
+      console.error('Error updating active commitment', e);
       throw e;
     }
   }
@@ -918,24 +1131,6 @@ export class HealthDataService {
 
     let overallProgress = 0;
 
-    if (commitment.targetScope === 'weekly') {
-      const dailyAverage = commitment.targetValue / 7;
-      const totalCommitmentTarget = dailyAverage * totalDays;
-      let accumulated = 0;
-      
-      allDays.forEach((dateStr) => {
-        if (dateStr <= todayDateStr) {
-          const dayData = weeklyDataList.find(d => d.dateString === dateStr);
-          if (dayData) {
-            accumulated += dayData.value;
-          } else if (dateStr < todayDateStr) {
-            accumulated += dailyAverage;
-          }
-        }
-      });
-      
-      overallProgress = Math.min(Math.round((accumulated / totalCommitmentTarget) * 100), 100);
-    } else {
       let sumProgress = 0;
       
       allDays.forEach((dateStr) => {
@@ -950,12 +1145,11 @@ export class HealthDataService {
       });
       
       overallProgress = Math.min(Math.round((sumProgress / totalDays) * 100), 100);
-    }
 
     let completed = 0;
     let failed = 0;
     pastAndTodayData.forEach((day) => {
-      const dayTarget = commitment.targetScope === 'weekly' ? commitment.targetValue / 7 : commitment.targetValue;
+      const dayTarget = commitment.targetValue;
       if (day.value >= dayTarget) {
         completed++;
       } else {
@@ -975,9 +1169,7 @@ export class HealthDataService {
 
   static hasFailedSoFar(commitment: Commitment, weeklyDataList: DailyHealthData[]) {
     if (!commitment || !weeklyDataList || weeklyDataList.length === 0) return false;
-    if (commitment.targetScope === 'weekly') {
-      return false;
-    }
+
     const todayDateStr = this.getTodayDateString();
     return weeklyDataList.some(
       (day) => day.dateString < todayDateStr && day.value < commitment.targetValue
@@ -985,46 +1177,26 @@ export class HealthDataService {
   }
 
   static getCommitmentSentence(commitment: Commitment): string {
-    const isWeekly = commitment.targetScope === 'weekly';
-        const targetValue = commitment.targetValue;
+    const targetValue = commitment.targetValue;
     const metric = commitment.metricType;
     
     const formattedValue = metric === 'steps' || metric === 'calories' ? targetValue.toLocaleString() : targetValue;
 
-    if (isWeekly) {
-      switch (metric) {
-        case 'steps':
-          return `I commit to walk more than total ${formattedValue} steps in the the duration.`;
-        case 'run':
-          return `I commit to run more than total ${formattedValue} km in the the duration.`;
-        case 'mindfulness':
-          return `I commit to practice mindfulness for more than total ${formattedValue} mins in the the duration.`;
-        case 'cycle':
-          return `I commit to cycle more than total ${formattedValue} km in the the duration.`;
-        case 'calories':
-          return `I commit to burn more than total ${formattedValue} active kcal in the the duration.`;
-        case 'activeTime':
-          return `I commit to exercise for more than total ${formattedValue} mins in the the duration.`;
-        default:
-          return `I commit to achieve more than total ${formattedValue} in the the duration.`;
-      }
-    } else {
-      switch (metric) {
-        case 'steps':
-          return `I commit to walk more than ${formattedValue} steps everyday for the duration.`;
-        case 'run':
-          return `I commit to run more than ${formattedValue} km everyday for the duration.`;
-        case 'mindfulness':
-          return `I commit to practice mindfulness for more than ${formattedValue} mins everyday for the duration.`;
-        case 'cycle':
-          return `I commit to cycle more than ${formattedValue} km everyday for the duration.`;
-        case 'calories':
-          return `I commit to burn more than ${formattedValue} active kcal everyday for the duration.`;
-        case 'activeTime':
-          return `I commit to exercise for more than ${formattedValue} mins everyday for the duration.`;
-        default:
-          return `I commit to achieve more than ${formattedValue} everyday for the duration.`;
-      }
+    switch (metric) {
+      case 'steps':
+        return `I commit to walk more than ${formattedValue} steps everyday for the duration.`;
+      case 'run':
+        return `I commit to run more than ${formattedValue} km everyday for the duration.`;
+      case 'mindfulness':
+        return `I commit to practice mindfulness for more than ${formattedValue} mins everyday for the duration.`;
+      case 'cycle':
+        return `I commit to cycle more than ${formattedValue} km everyday for the duration.`;
+      case 'calories':
+        return `I commit to burn more than ${formattedValue} active kcal everyday for the duration.`;
+      case 'activeTime':
+        return `I commit to exercise for more than ${formattedValue} mins everyday for the duration.`;
+      default:
+        return `I commit to achieve more than ${formattedValue} everyday for the duration.`;
     }
   }
 
@@ -1058,16 +1230,12 @@ export class HealthDataService {
         segments.push('future');
       } else if (dateStr === todayDateStr) {
         const isGoalMet = dayData
-          ? (commitment.targetScope === 'weekly'
-            ? dayData.value > 0
-            : dayData.value >= commitment.targetValue)
+          ? dayData.value >= commitment.targetValue
           : false;
         segments.push(isGoalMet ? 'today_success' : 'today_pending');
       } else {
         const isGoalMet = dayData
-          ? (commitment.targetScope === 'weekly'
-            ? dayData.value > 0
-            : dayData.value >= commitment.targetValue)
+          ? dayData.value >= commitment.targetValue
           : true;
         
         segments.push(isGoalMet ? 'success' : 'failed');
@@ -1085,7 +1253,11 @@ export class HealthDataService {
       if (Platform.OS === 'android') {
         try {
           const { requestWidgetUpdate } = require('react-native-android-widget');
-          requestWidgetUpdate();
+          requestWidgetUpdate({
+            widgetName: 'CommitmentsProgressWidgetAndroid',
+            renderWidget: () => null,
+            widgetTaskHandler: require('@/widgets/android').androidWidgetTaskHandler,
+          });
         } catch (e) {
           console.error('Failed to trigger Android widget update', e);
         }
@@ -1112,7 +1284,7 @@ export class HealthDataService {
               unit: this.getMetricUnit(commitment.metricType),
               remainingDays: this.getRemainingDaysString(commitment, weeklyDataList),
               isBroken,
-              targetScope: commitment.targetScope || 'daily',
+
               stakeAmount: commitment.stakeAmount,
               segments,
               sentence: this.getCommitmentSentence(commitment),

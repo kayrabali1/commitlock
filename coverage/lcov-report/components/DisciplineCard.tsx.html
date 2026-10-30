@@ -32,7 +32,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/60</span>
+                <span class='fraction'>0/54</span>
             </div>
         
             
@@ -1522,7 +1522,7 @@ export function <span class="fstat-no" title="function not covered" >calculateDi
 <span class="cstat-no" title="statement not covered" >  if (commitment.performanceData &amp;&amp; commitment.performanceData.length &gt; 0) {</span>
     const totalAchieved = <span class="cstat-no" title="statement not covered" >commitment.performanceData.reduce(<span class="fstat-no" title="function not covered" >(a</span>cc, d) =&gt; <span class="cstat-no" title="statement not covered" >acc + d.value,</span> 0);</span>
     const targetVal = <span class="cstat-no" title="statement not covered" >commitment.targetValue;</span>
-    const totalTarget = <span class="cstat-no" title="statement not covered" >commitment.targetScope === 'weekly' ? targetVal : targetVal * 7;</span>
+    const totalTarget = <span class="cstat-no" title="statement not covered" >targetVal * 7;</span>
 &nbsp;
 <span class="cstat-no" title="statement not covered" >    if (totalAchieved &gt; totalTarget) {</span>
       const pctOver = <span class="cstat-no" title="statement not covered" >(totalAchieved - totalTarget) / totalTarget;</span>
@@ -1654,7 +1654,7 @@ export function <span class="fstat-no" title="function not covered" >DisciplineC
   const performance = <span class="cstat-no" title="statement not covered" >commitment.performanceData || [];</span>
   const totalAchieved = <span class="cstat-no" title="statement not covered" >performance.reduce(<span class="fstat-no" title="function not covered" >(a</span>cc, d) =&gt; <span class="cstat-no" title="statement not covered" >acc + d.value,</span> 0);</span>
   const targetVal = <span class="cstat-no" title="statement not covered" >commitment.targetValue;</span>
-  const totalTarget = <span class="cstat-no" title="statement not covered" >commitment.targetScope === 'weekly' ? targetVal : targetVal * 7;</span>
+  const totalTarget = <span class="cstat-no" title="statement not covered" >targetVal * 7;</span>
   const pctCompleted = <span class="cstat-no" title="statement not covered" >totalTarget &gt; 0 ? Math.round((totalAchieved / totalTarget) * 100) : 100;</span>
   
   const { score, rank, grade, description } = <span class="cstat-no" title="statement not covered" >calculateDisciplineScore(commitment, activeStreak);</span>
@@ -1690,17 +1690,17 @@ export function <span class="fstat-no" title="function not covered" >DisciplineC
 <span class="cstat-no" title="statement not covered" >    setTimeout(<span class="fstat-no" title="function not covered" >as</span>ync () =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >      setShareStatus('shared');</span>
       
-      const shareMessage = <span class="cstat-no" title="statement not covered" >`🔥 HABITCONTRACT DISCIPLINE CARD\n\n` +</span>
+      const shareMessage = <span class="cstat-no" title="statement not covered" >`🔥 COMMITLOCK DISCIPLINE CARD\n\n` +</span>
         `Discipline Score: ${score}/100 (${rank} Rank, Grade ${grade})\n` +
         `Active Streak: ${activeStreak} Weeks\n` +
-        `Goal: ${commitment.targetValue.toLocaleString()} ${getMetricUnit(commitment.metricType)}${commitment.targetScope === 'weekly' ? '/wk' : '/day'} (${pctCompleted}% achieved!)\n` +
-        `Stake Saved: €${commitment.stakeAmount}.00\n\n` +
-        `Reframing fitness. Pledging money to lock habits. Join the elite at habitcontract.app`;
+        `Goal: ${commitment.targetValue.toLocaleString()} ${getMetricUnit(commitment.metricType)}${'/day'} (${pctCompleted}% achieved!)\n` +
+        `Challenge Pass Saved: €${commitment.stakeAmount} Pass\n\n` +
+        `Reframing fitness. Locking passes to build commitments. Join the elite at commitlock.app`;
 &nbsp;
 <span class="cstat-no" title="statement not covered" >      try {</span>
 <span class="cstat-no" title="statement not covered" >        await Share.share({</span>
           message: shareMessage,
-          title: `HabitContract Discipline Card - Score: ${score}`,
+          title: `CommitLock Discipline Card - Score: ${score}`,
         });
       } catch (error) {
 <span class="cstat-no" title="statement not covered" >        console.log('Error sharing:', error);</span>
@@ -1797,7 +1797,7 @@ export function <span class="fstat-no" title="function not covered" >DisciplineC
             &lt;View style={styles.headerLeft}&gt;
               &lt;MaterialCommunityIcons name="shield-lock" size={16} color={theme.accentColor} /&gt;
               &lt;Text style={[styles.headerLogo, { color: theme.accentColor }]}&gt;
-                HABITCONTRACT // POW
+                COMMITLOCK // POW
               &lt;/Text&gt;
             &lt;/View&gt;
             &lt;View style={[styles.gradeBadge, { backgroundColor: theme.badgeBg }]}&gt;
@@ -1832,10 +1832,10 @@ export function <span class="fstat-no" title="function not covered" >DisciplineC
             &lt;View style={styles.statCell}&gt;
               &lt;View style={styles.statTitleRow}&gt;
                 &lt;MaterialCommunityIcons name="shield-check" size={14} color={theme.accentColor} /&gt;
-                &lt;Text style={[styles.statLabelText, { color: theme.secondaryAccent }]}&gt;PLEDGE STATUS&lt;/Text&gt;
+                &lt;Text style={[styles.statLabelText, { color: theme.secondaryAccent }]}&gt;PASS STATUS&lt;/Text&gt;
               &lt;/View&gt;
               &lt;Text style={[styles.statValText, { color: theme.textColor }]}&gt;
-                €{commitment.stakeAmount}.00 SAVED
+                €{commitment.stakeAmount} PASS SECURED
               &lt;/Text&gt;
 &nbsp;
             &lt;/View&gt;
@@ -2206,7 +2206,7 @@ const styles = <span class="cstat-no" title="statement not covered" >StyleSheet.
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-06-24T17:13:40.501Z
+                at 2026-07-18T09:58:42.516Z
             </div>
         <script src="../prettify.js"></script>
         <script>

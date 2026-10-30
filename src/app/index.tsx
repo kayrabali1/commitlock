@@ -24,6 +24,10 @@ import { VerificationGuideModal } from '@/components/VerificationGuideModal';
 import AppHeader, { BASE_HEADER_HEIGHT } from '@/components/AppHeader';
 import { NotificationService } from '@/services/notifications';
 import { useTranslation } from 'react-i18next';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '@/services/auth';
+import WelcomePassesModal from '@/components/WelcomePassesModal';
+import ClaimCoinSuccessModal from '@/components/ClaimCoinSuccessModal';
 
 function generateRandomId() {
   return Math.random().toString(36).substring(2, 11);
@@ -31,10 +35,13 @@ function generateRandomId() {
 
 export default function TrackerDashboard() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const { user, refundPassValue, purchasePasses, refreshUser } = useAuth();
+  const insets = useSafeAreaInsets();
   
   // State
+  const [isWelcomeVisible, setIsWelcomeVisible] = useState(false);
+  const [isClaiming, setIsClaiming] = useState(false);
   const [activeCommitments, setActiveCommitments] = useState<Commitment[]>([]);
   const [commitmentsWeeklyData, setCommitmentsWeeklyData] = useState<Record<string, DailyHealthData[]>>({});
   const [expandedLogs, setExpandedLogs] = useState<Record<string, boolean>>({});
@@ -43,13 +50,35 @@ export default function TrackerDashboard() {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [logsLoading, setLogsLoading] = useState<Record<string, boolean>>({});
   const [isResolving, setIsResolving] = useState<Record<string, boolean>>({});
+  const [claimingCommitment, setClaimingCommitment] = useState<Commitment | null>(null);
   
   // Simulator Panel Visibility & Target Commitment
   const [simulatingCommitment, setSimulatingCommitment] = useState<Commitment | null>(null);
 
+  const handleClaimStarterPack = async () => {
+    setIsClaiming(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      await purchasePasses(3);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        "Starter Pack Unlocked!",
+        "We've added 3 Challenge Passes to your accountability balance for free. Use them to establish your first habits!"
+      );
+    } catch (e) {
+      console.error(e);
+      Alert.alert("Error", "Could not claim your free passes. Please try again.");
+    } finally {
+      setIsClaiming(false);
+    }
+  };
+
   // Load state from local storage and sync HealthKit
   const loadData = async () => {
     try {
+      if (refreshUser) {
+        await refreshUser();
+      }
       const commitments = await HealthDataService.getActiveCommitments();
       setActiveCommitments(commitments);
 
@@ -103,6 +132,30 @@ export default function TrackerDashboard() {
       console.error('Failed to load tracking data', error);
     } finally {
       setIsInitialLoading(false);
+    }
+  };
+
+  // Check welcome passes modal
+  useEffect(() => {
+    const checkWelcome = async () => {
+      if (user) {
+        const welcomeShown = await AsyncStorage.getItem('@commitlock_welcome_shown');
+        if (!welcomeShown) {
+          setIsWelcomeVisible(true);
+        }
+      }
+    };
+    checkWelcome();
+  }, [user]);
+
+  const handleWelcomeClaim = async () => {
+    try {
+      // Actually credit the 3 passes
+      await purchasePasses(3);
+      await AsyncStorage.setItem('@commitlock_welcome_shown', 'true');
+      setIsWelcomeVisible(false);
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -235,25 +288,6 @@ export default function TrackerDashboard() {
 
     let overallProgress = 0;
 
-    if (commitment.targetScope === 'weekly') {
-      const dailyAverage = commitment.targetValue / 7;
-      const totalCommitmentTarget = dailyAverage * totalDays;
-      let accumulated = 0;
-      
-      allDays.forEach((dateStr) => {
-        if (dateStr <= todayDateStr) {
-          const dayData = weeklyDataList.find(d => d.dateString === dateStr);
-          if (dayData) {
-            accumulated += dayData.value;
-          } else if (dateStr < todayDateStr) {
-            // Assume daily target met in past weeks
-            accumulated += dailyAverage;
-          }
-        }
-      });
-      
-      overallProgress = Math.min(Math.round((accumulated / totalCommitmentTarget) * 100), 100);
-    } else {
       let sumProgress = 0;
       
       allDays.forEach((dateStr) => {
@@ -269,12 +303,11 @@ export default function TrackerDashboard() {
       });
       
       overallProgress = Math.min(Math.round((sumProgress / totalDays) * 100), 100);
-    }
 
     let completed = 0;
     let failed = 0;
     pastAndTodayData.forEach((day) => {
-      const dayTarget = commitment.targetScope === 'weekly' ? commitment.targetValue / 7 : commitment.targetValue;
+      const dayTarget = commitment.targetValue;
       if (day.value >= dayTarget) {
         completed++;
       } else {
@@ -295,9 +328,7 @@ export default function TrackerDashboard() {
   // Check if any day has failed up to today
   const hasFailedSoFar = (commitment: Commitment, weeklyDataList: DailyHealthData[]) => {
     if (!commitment || !weeklyDataList || weeklyDataList.length === 0) return false;
-    if (commitment.targetScope === 'weekly') {
-      return false;
-    }
+
     const todayDateStr = HealthDataService.getTodayDateString();
     // For tracking loss aversion: check if any resolved day (before today) has failed
     return weeklyDataList.some(
@@ -377,7 +408,7 @@ export default function TrackerDashboard() {
         endDate: formatLocalDate(newEndDateObj),
         status: 'active' as const,
         createdAt: new Date().toISOString(),
-        targetScope: commitment.targetScope,
+
       };
       
       await HealthDataService.saveActiveCommitment(newCommitment);
@@ -386,7 +417,7 @@ export default function TrackerDashboard() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(
         'Goal Prolonged!',
-        `Your €${commitment.stakeAmount} pledge has been rolled over to next week (${newCommitment.startDate} to ${newCommitment.endDate}).`
+        `Your Challenge Pass has been rolled over to next week (${newCommitment.startDate} to ${newCommitment.endDate}).`
       );
       
       await loadData();
@@ -409,33 +440,48 @@ export default function TrackerDashboard() {
     });
   };
 
-  const handleBankRefund = async (commitment: Commitment, weeklyDataList: DailyHealthData[]) => {
+  const handleEdit = (commitment: Commitment) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push({
+      pathname: '/commit',
+      params: {
+        editId: commitment.id,
+      }
+    });
+  };
+
+  const handlePassRefund = async (commitment: Commitment, weeklyDataList: DailyHealthData[]) => {
     try {
       setIsResolving(prev => ({ ...prev, [commitment.id]: true }));
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       
-      // 1. Resolve old commitment as success with refundMethod: 'bank'
+      // 1. Resolve old commitment as success with refundMethod: 'pass'
       const resolvedCommitment: Commitment = {
         ...commitment,
         status: 'success',
         performanceData: weeklyDataList,
-        refundMethod: 'bank',
+        refundMethod: 'pass',
       };
       await HealthDataService.addHistoryEntry(resolvedCommitment);
       
       // 2. Clear active commitment slot
       await HealthDataService.clearActiveCommitment(commitment.id);
+
+      // Refund the pass value back to user's available list
+      if (refundPassValue) {
+        await refundPassValue(commitment.stakeAmount);
+      }
       
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(
-        'Refund Process Started',
-        `Your pledge of €${commitment.stakeAmount} will be returned to your bank account. Please allow 3-5 business days for processing.`
+        'Pass Returned!',
+        `Your Challenge Pass has been returned to your balance.`
       );
       
       await loadData();
     } catch (e) {
       console.error(e);
-      Alert.alert('Error', 'Failed to process bank refund. Please try again.');
+      Alert.alert('Error', 'Failed to process pass refund. Please try again.');
     } finally {
       setIsResolving(prev => ({ ...prev, [commitment.id]: false }));
     }
@@ -460,7 +506,7 @@ export default function TrackerDashboard() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert(
         'Forfeiture Acknowledged',
-        `€${commitment.stakeAmount} has been processed as platform revenue. Keep trying!`
+        `The Challenge Pass spent on this goal has been lost. Keep trying!`
       );
       
       await loadData();
@@ -502,27 +548,138 @@ export default function TrackerDashboard() {
           }
         >
 
-        {activeCommitments.length === 0 ? (
-          /* EMPTY STATE - NO ACTIVE COMMITMENTS */
-          <View style={styles.emptyContainer}>
-            <LinearGradient
-              colors={['#141722', '#0C0E14']}
-              style={styles.emptyCard}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-            >
+          {activeCommitments.length === 0 ? (
+            /* EMPTY STATE - NO ACTIVE COMMITMENTS */
+            <View style={styles.emptyContainer}>
+              {/* Welcome Banner */}
+              <View style={styles.welcomeBanner}>
+                <Text style={styles.welcomeSubtitle}>READY FOR A CHALLENGE?</Text>
+                <Text style={styles.welcomeTitle}>
+                  {user?.name ? `Hello, ${user.name}!` : "Welcome!"}
+                </Text>
+              </View>
+
+              {/* Passes Balance Indicator */}
               <LinearGradient
-                colors={['rgba(124, 58, 237, 0.15)', 'rgba(79, 70, 229, 0.08)']}
-                style={styles.lockIconOuter}
+                colors={['#141722', '#0C0E14']}
+                style={styles.passesCard}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
               >
-                <MaterialCommunityIcons name="lock-open-outline" size={26} color="#7C3AED" />
+                <View style={styles.passesCardHeader}>
+                  <View style={styles.passesCardIconBg}>
+                    <Text style={styles.passesCardIcon}>🎫</Text>
+                  </View>
+                  <View style={styles.passesCardTextCol}>
+                    <Text style={styles.passesCardLabel}>YOUR ACCOUNTABILITY ACCOUNT</Text>
+                    <Text style={styles.passesCardTitle}>
+                      {t('active.availablePasses', { count: user?.passes ?? 0 })}
+                    </Text>
+                  </View>
+                </View>
+                
+                {user?.passes && user.passes > 0 ? (
+                  <Text style={styles.passesCardDesc}>
+                    You have passes ready to secure a new commitment. Meet your daily target every day of the duration to keep your pass!
+                  </Text>
+                ) : (
+                  <View style={styles.claimContainer}>
+                    <Text style={styles.claimWelcomeText}>
+                      🎁 Get started with your Welcome Pack! Claim 3 free coins to secure your first habit commitment now.
+                    </Text>
+                    <TouchableOpacity 
+                      style={styles.claimBtn} 
+                      onPress={handleClaimStarterPack}
+                      disabled={isClaiming}
+                      activeOpacity={0.85}
+                    >
+                      {isClaiming ? (
+                        <ActivityIndicator size="small" color="#000000" />
+                      ) : (
+                        <>
+                          <MaterialCommunityIcons name="gift-outline" size={16} color="#000000" />
+                          <Text style={styles.claimBtnText}>CLAIM 3 FREE COINS</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
               </LinearGradient>
 
-              <Text style={styles.emptyTitle}>{t('active.noPledgeLocked')}</Text>
-              <Text style={styles.emptyText}>
-                {t('active.setGoalPrompt')}
-              </Text>
+              {/* Rules Section directly embedded for simpler logic understanding - REDUCED TO 3 STEPS */}
+              <LinearGradient
+                colors={['#0F111A', '#08090D']}
+                style={styles.rulesCard}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+              >
+                <View style={styles.rulesCardHeader}>
+                  <View style={styles.rulesCardIconBg}>
+                    <MaterialCommunityIcons name="shield-check" size={18} color="#05D38E" />
+                  </View>
+                  <View>
+                    <Text style={styles.rulesCardTitle}>{t('active.howItWorksTitle')}</Text>
+                    <Text style={styles.rulesCardSubtitle}>{t('active.howItWorksSubtitle')}</Text>
+                  </View>
+                </View>
 
+                <View style={styles.rulesTimeline}>
+                  {/* Step 1 */}
+                  <View style={styles.timelineRow}>
+                    <View style={styles.timelineLeftCol}>
+                      <View style={styles.timelineStepIconBg}>
+                        <MaterialCommunityIcons name="ticket-confirmation-outline" size={14} color="#05D38E" />
+                      </View>
+                      <View style={styles.timelineLine} />
+                    </View>
+                    <View style={styles.timelineRightCol}>
+                      <Text style={styles.timelineStepTitle}>1. Choose your Stake</Text>
+                      <Text style={styles.timelineStepDesc}>Pick steps, running, or mindfulness, select your daily target, and stake 1 coin to back it.</Text>
+                    </View>
+                  </View>
+
+                  {/* Step 2 */}
+                  <View style={styles.timelineRow}>
+                    <View style={styles.timelineLeftCol}>
+                      <View style={styles.timelineStepIconBg}>
+                        <MaterialCommunityIcons name="calendar-sync-outline" size={14} color="#05D38E" />
+                      </View>
+                      <View style={styles.timelineLine} />
+                    </View>
+                    <View style={styles.timelineRightCol}>
+                      <Text style={styles.timelineStepTitle}>2. Verify Daily Tasks</Text>
+                      <Text style={styles.timelineStepDesc}>Hit your target every day. The app automatically syncs with Apple Health in the background.</Text>
+                    </View>
+                  </View>
+
+                  {/* Step 3 */}
+                  <View style={styles.timelineRow}>
+                    <View style={styles.timelineLeftCol}>
+                      <View style={styles.timelineStepIconBg}>
+                        <MaterialCommunityIcons name="sync" size={14} color="#05D38E" />
+                      </View>
+                    </View>
+                    <View style={styles.timelineRightCol}>
+                      <Text style={styles.timelineStepTitle}>3. Succeed and Reclaim</Text>
+                      <Text style={styles.timelineStepDesc}>Hit your targets to reclaim your coin. Succeed consistently to build your streak scores!</Text>
+                    </View>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setIsVerificationGuideVisible(true);
+                  }}
+                  style={styles.rulesLearnMoreBtn}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.rulesLearnMoreText}>Tap for full verification details</Text>
+                  <MaterialCommunityIcons name="arrow-right" size={12} color="#05D38E" />
+                </TouchableOpacity>
+              </LinearGradient>
+
+              {/* Start Commitment CTA Button - MOVED TO VERY BOTTOM */}
               <TouchableOpacity
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -536,17 +693,12 @@ export default function TrackerDashboard() {
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                 >
+                  <MaterialCommunityIcons name="lock-plus-outline" size={18} color="#FFFFFF" />
                   <Text style={styles.emptyButtonText}>{t('active.lockDownNow')}</Text>
                   <MaterialCommunityIcons name="arrow-right" size={16} color="#FFFFFF" />
                 </LinearGradient>
               </TouchableOpacity>
-            </LinearGradient>
-
-            <HowItWorksPane onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setIsVerificationGuideVisible(true);
-            }} />
-          </View>
+            </View>
         ) : (
           /* DETAILED COMMITMENTS LIST */
           <View style={styles.activeContainer}>
@@ -563,10 +715,11 @@ export default function TrackerDashboard() {
               const endMidnight = new Date(end.getFullYear(), end.getMonth(), end.getDate());
               const diffMs = endMidnight.getTime() - todayMidnight.getTime();
               const isCompleted = diffMs < 0;
-
-              const isSuccess = commitment.targetScope === 'weekly'
-                ? totalAccumulated >= commitment.targetValue
-                : weeklyDataList.length === 7 && weeklyDataList.every((d) => d.value >= commitment.targetValue);
+              const allDaysList = getCommitmentDaysList(commitment);
+              const isSuccess = allDaysList.length > 0 && allDaysList.every(dateStr => {
+                const dayData = weeklyDataList.find(d => d.dateString === dateStr);
+                return (dayData ? dayData.value : 0) >= commitment.targetValue;
+              });
 
               let graceDiffHours = 0;
               if (isCompleted) {
@@ -578,6 +731,15 @@ export default function TrackerDashboard() {
 
               const isLogLoading = logsLoading[commitment.id] !== false && 
                 (commitmentsWeeklyData[commitment.id] === undefined || logsLoading[commitment.id] === true);
+
+              const isBronze = commitment.stakeAmount === 5 || commitment.stakeAmount === 1.99;
+              const isSilver = commitment.stakeAmount === 10 || commitment.stakeAmount === 4.99;
+              const isGold = commitment.stakeAmount === 20 || commitment.stakeAmount === 9.99;
+
+              const coinColor = isBronze ? '#CD7F32' : isSilver ? '#BDC3C7' : isGold ? '#FBBF24' : '#94A3B8';
+              const coinIconName = isBronze ? 'shield' : isSilver ? 'medal' : isGold ? 'crown' : 'ticket-confirmation';
+              const coinLabel = isBronze ? 'Bronze' : isSilver ? 'Silver' : isGold ? 'Gold' : 'Pass';
+              const coinColors = isBronze ? ['#4A2E1B', '#2A170C'] : isSilver ? ['#2D3748', '#1A202C'] : isGold ? ['#3B2C1A', '#1F150C'] : ['#1E293B', '#0F172A'];
 
               return (
                 <View key={commitment.id} style={styles.commitmentCardContainer}>
@@ -603,16 +765,55 @@ export default function TrackerDashboard() {
                           </Text>
                         </View>
                         <Text style={styles.commitmentPeriodSubtitle}>
-                          {commitment.targetScope === 'weekly' ? t('active.weeklyTarget') : t('active.dailyTarget')} • {commitment.targetValue.toLocaleString()} {getMetricUnit(commitment.metricType)}
+                          {t('active.dailyTarget')} • {commitment.targetValue.toLocaleString()} {getMetricUnit(commitment.metricType)}
                         </Text>
                         <Text style={[styles.commitmentPeriodSubtitle, { opacity: 0.8, marginTop: 4, fontStyle: 'italic' }]} numberOfLines={2}>
                           {HealthDataService.getCommitmentSentence(commitment)}
                         </Text>
+                        {/* Edit Button if not started */}
+                        {commitment.startDate > HealthDataService.getTodayDateString() && (
+                          <TouchableOpacity 
+                            style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 4 }}
+                            onPress={() => handleEdit(commitment)}
+                          >
+                            <MaterialCommunityIcons name="pencil-outline" size={14} color="#7C3AED" />
+                            <Text style={{ color: '#7C3AED', fontSize: 12, fontWeight: 'bold' }}>Edit Commitment</Text>
+                          </TouchableOpacity>
+                        )}
                       </View>
 
-                      <View style={styles.commitmentHeaderRight}>
-                        <Text style={styles.commitmentPledgeAmount}>€{commitment.stakeAmount}</Text>
-                        <Text style={styles.commitmentPledgeLabel}>{t('active.pledged')}</Text>
+                      <View style={styles.commitmentHeaderRightMini}>
+                        {/* 3D-styled circular coin base */}
+                        <View style={[
+                          styles.miniCoinBase, 
+                          { 
+                            shadowColor: coinColor,
+                            borderColor: isBronze || isSilver || isGold ? coinColor : 'rgba(255,255,255,0.1)',
+                          }
+                        ]}>
+                          <LinearGradient
+                            colors={coinColors}
+                            style={styles.miniCoinGradient}
+                            start={{ x: 0.1, y: 0.1 }}
+                            end={{ x: 0.9, y: 0.9 }}
+                          >
+                            <View style={styles.coinGlossyOverlay} />
+                            <MaterialCommunityIcons 
+                              name={coinIconName as any} 
+                              size={14} 
+                              color={coinColor} 
+                            />
+                          </LinearGradient>
+                        </View>
+                        {/* Coin Label */}
+                        <Text style={[
+                          styles.miniCoinLabel, 
+                          { 
+                            color: coinColor 
+                          }
+                        ]}>
+                          {coinLabel}
+                        </Text>
                       </View>
                     </View>
 
@@ -620,7 +821,7 @@ export default function TrackerDashboard() {
                     <View style={styles.commitmentStatusRow}>
                       <View style={styles.statusLabelContainer}>
                         <MaterialCommunityIcons 
-                          name={isBroken ? "alert-circle" : (commitment.targetScope === 'weekly' ? "shield-check" : "check-circle")} 
+                          name={isBroken ? "alert-circle" : "check-circle"} 
                           size={14} 
                           color={isBroken ? '#FF4655' : '#05D38E'} 
                         />
@@ -630,7 +831,7 @@ export default function TrackerDashboard() {
                         ]}>
                           {isBroken 
                             ? t('active.brokenCommitment') 
-                            : (commitment.targetScope === 'weekly' ? t('active.weeklySafe') : t('active.onTrack'))}
+                            : t('active.onTrack')}
                         </Text>
                       </View>
 
@@ -645,20 +846,13 @@ export default function TrackerDashboard() {
                       <View style={styles.progressBarHeader}>
                         <Text style={styles.progressBarLabel}>{t('active.goalProgress')} ({overallProgress}%)</Text>
                         <Text style={styles.progressBarValue}>
-                          {commitment.targetScope === 'weekly'
-                            ? `${Math.round(totalAccumulated).toLocaleString()} / ${commitment.targetValue.toLocaleString()} ${getMetricUnit(commitment.metricType)}`
-                            : `${overallProgress}% ${t('active.completed')}`}
+                          {`${overallProgress}% ${t('active.completed')}`}
                         </Text>
                       </View>
                       
                       <View style={styles.slicedBarContainer}>
-                        {commitment.targetScope === 'weekly' ? (
-                          <View style={{ flex: 1, height: '100%', backgroundColor: '#1E293B', borderRadius: 3.5, overflow: 'hidden', flexDirection: 'row' }}>
-                            <View style={{ width: `${overallProgress}%`, height: '100%', backgroundColor: '#05D38E', borderRadius: 3.5 }} />
-                          </View>
-                        ) : (
-                          getCommitmentDaysList(commitment).map((dateStr) => {
-                            const todayDateStr = HealthDataService.getTodayDateString();
+                        {getCommitmentDaysList(commitment).map((dateStr) => {
+                          const todayDateStr = HealthDataService.getTodayDateString();
                             const dayData = weeklyDataList.find(d => d.dateString === dateStr);
                             
                             let sliceColor = '#1E293B'; // Default/Future (Dark slate)
@@ -669,7 +863,7 @@ export default function TrackerDashboard() {
                               const isGoalMet = dayData
                                 ? dayData.value >= commitment.targetValue
                                 : false;
-                              sliceColor = isGoalMet ? '#05D38E' : '#FFB74D'; // Solid green if achieved, soft amber if not
+                              sliceColor = isGoalMet ? '#05D38E' : '#FACC15'; // Solid green if achieved, yellow if not
                             } else {
                               // Past Day
                               const isGoalMet = dayData
@@ -688,8 +882,7 @@ export default function TrackerDashboard() {
                                 ]}
                               />
                             );
-                          })
-                        )}
+                          })}
                       </View>
                     </View>
 
@@ -741,14 +934,10 @@ export default function TrackerDashboard() {
                                 
                                 if (currentWeekDay) {
                                   value = currentWeekDay.value;
-                                  isGoalMet = commitment.targetScope === 'weekly'
-                                    ? currentWeekDay.value > 0
-                                    : currentWeekDay.value >= commitment.targetValue;
+                                  isGoalMet = currentWeekDay.value >= commitment.targetValue;
                                 } else if (!isFuture) {
                                   // Past day outside current week: assume completed successfully
-                                  value = commitment.targetScope === 'weekly'
-                                    ? commitment.targetValue / 7
-                                    : commitment.targetValue;
+                                  value = commitment.targetValue;
                                   isGoalMet = true;
                                 }
                                 
@@ -768,7 +957,7 @@ export default function TrackerDashboard() {
                                 } else if (isGoalMet) {
                                   dayBgColor = 'rgba(5, 211, 142, 0.05)';
                                   borderColor = 'rgba(5, 211, 142, 0.15)';
-                                  iconName = commitment.targetScope === 'weekly' ? 'plus-circle' : 'checkbox-marked-circle';
+                                  iconName = 'checkbox-marked-circle';
                                   iconColor = '#05D38E';
                                 } else {
                                   dayBgColor = 'rgba(255, 70, 85, 0.05)';
@@ -804,15 +993,9 @@ export default function TrackerDashboard() {
                                           ? Math.round(value).toString()
                                           : value.toFixed(1)}
                                       </Text>
-                                      {commitment.targetScope !== 'weekly' ? (
                                         <Text style={styles.dayTargetText}>
                                           / {commitment.targetValue} {getMetricUnit(commitment.metricType)}
                                         </Text>
-                                      ) : (
-                                        <Text style={styles.dayTargetText}>
-                                          {' '}{getMetricUnit(commitment.metricType)}
-                                        </Text>
-                                      )}
                                     </View>
                                   </View>
                                 );
@@ -829,61 +1012,34 @@ export default function TrackerDashboard() {
                         {isLogLoading ? (
                           <ActivityIndicator size="small" color="#7C3AED" style={{ marginVertical: 12 }} />
                         ) : isCompleted && isSuccess && graceDiffHours > 0 ? (
-                          <LinearGradient
-                            colors={['rgba(124, 58, 237, 0.15)', 'rgba(79, 70, 229, 0.05)']}
-                            style={styles.decisionSuccessCard}
+                          <TouchableOpacity 
+                            onPress={() => {
+                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                              setClaimingCommitment(commitment);
+                            }}
+                            activeOpacity={0.9}
+                            style={{ marginBottom: Spacing.two }}
                           >
-                            <View style={styles.decisionHeaderRow}>
-                              <MaterialCommunityIcons name="trophy-outline" size={20} color="#05D38E" />
-                              <Text style={styles.decisionTitle}>Goal Achieved! Refund Available</Text>
-                            </View>
-                            <Text style={styles.decisionSubtitle}>
-                              You have a {graceDiffHours}h grace period to decide:
-                            </Text>
-
-                            {isResolving[commitment.id] ? (
-                              <View style={{ paddingVertical: 12, alignItems: 'center' }}>
-                                <ActivityIndicator size="small" color="#7C3AED" />
-                                <Text style={styles.loadingText}>Processing decision...</Text>
+                            <LinearGradient
+                              colors={['rgba(5, 211, 142, 0.15)', 'rgba(2, 179, 119, 0.05)']}
+                              style={[styles.decisionSuccessCard, { borderColor: 'rgba(5, 211, 142, 0.3)', borderWidth: 1 }]}
+                            >
+                              <View style={{ alignItems: 'center', paddingVertical: Spacing.two }}>
+                                <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(5, 211, 142, 0.2)', justifyContent: 'center', alignItems: 'center', marginBottom: Spacing.two }}>
+                                  <MaterialCommunityIcons name="medal-outline" size={24} color="#05D38E" />
+                                </View>
+                                <Text style={[styles.decisionTitle, { color: '#05D38E', fontSize: 18, marginBottom: 4 }]}>Goal Conquered!</Text>
+                                <Text style={[styles.decisionSubtitle, { textAlign: 'center', marginBottom: Spacing.three }]}>
+                                  You proved your discipline. Tap here to claim your {coinLabel} coin back to your vault.
+                                </Text>
+                                
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#05D38E', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20 }}>
+                                  <MaterialCommunityIcons name="hand-pointing-up" size={16} color="#FFFFFF" />
+                                  <Text style={{ color: '#FFFFFF', fontWeight: 'bold', fontSize: 14 }}>Tap to Claim</Text>
+                                </View>
                               </View>
-                            ) : (
-                              <View style={styles.decisionActionsCol}>
-                                <TouchableOpacity
-                                  style={styles.prolongButton}
-                                  onPress={() => handleProlong(commitment, weeklyDataList)}
-                                  activeOpacity={0.8}
-                                >
-                                  <LinearGradient
-                                    colors={['#7C3AED', '#4F46E5']}
-                                    style={styles.prolongGradient}
-                                    start={{ x: 0, y: 0 }}
-                                    end={{ x: 1, y: 0 }}
-                                  >
-                                    <MaterialCommunityIcons name="sync" size={16} color="#FFFFFF" />
-                                    <Text style={styles.prolongText}>Prolong Goal (+1 Week)</Text>
-                                  </LinearGradient>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                  style={styles.rolloverButton}
-                                  onPress={() => handleRollover(commitment)}
-                                  activeOpacity={0.8}
-                                >
-                                  <MaterialCommunityIcons name="swap-horizontal" size={16} color="#FFFFFF" />
-                                  <Text style={styles.rolloverText}>Rollover Stake to New Goal</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                  style={styles.refundButton}
-                                  onPress={() => handleBankRefund(commitment, weeklyDataList)}
-                                  activeOpacity={0.8}
-                                >
-                                  <MaterialCommunityIcons name="cash-refund" size={16} color="#94A3B8" />
-                                  <Text style={styles.refundText}>Send Refund to Bank Account</Text>
-                                </TouchableOpacity>
-                              </View>
-                            )}
-                          </LinearGradient>
+                            </LinearGradient>
+                          </TouchableOpacity>
                         ) : (
                           <LinearGradient
                             colors={['rgba(255, 70, 85, 0.15)', 'rgba(210, 0, 59, 0.05)']}
@@ -891,7 +1047,7 @@ export default function TrackerDashboard() {
                           >
                             <View style={styles.decisionHeaderRow}>
                               <MaterialCommunityIcons name="alert-circle-outline" size={20} color="#FF4655" />
-                              <Text style={[styles.decisionTitle, { color: '#FF4655' }]}>Goal Failed: Pledge Forfeited</Text>
+                              <Text style={[styles.decisionTitle, { color: '#FF4655' }]}>Goal Failed: Pass Lost</Text>
                             </View>
                             <Text style={styles.decisionSubtitle}>
                               {isCompleted 
@@ -935,6 +1091,28 @@ export default function TrackerDashboard() {
         onClose={() => setIsVerificationGuideVisible(false)}
       />
 
+      {/* Welcome passes celebration modal */}
+      <WelcomePassesModal
+        visible={isWelcomeVisible}
+        onClaim={handleWelcomeClaim}
+      />
+
+      {/* Claim Coin Success Modal */}
+      <ClaimCoinSuccessModal
+        visible={claimingCommitment !== null}
+        coinType={
+          claimingCommitment?.stakeAmount === 5 || claimingCommitment?.stakeAmount === 1.99 ? 'Bronze' :
+          claimingCommitment?.stakeAmount === 10 || claimingCommitment?.stakeAmount === 4.99 ? 'Silver' :
+          claimingCommitment?.stakeAmount === 20 || claimingCommitment?.stakeAmount === 9.99 ? 'Gold' : 'Pass'
+        }
+        onClaim={() => {
+          if (claimingCommitment) {
+            handlePassRefund(claimingCommitment, commitmentsWeeklyData[claimingCommitment.id] || []);
+            setClaimingCommitment(null);
+          }
+        }}
+      />
+
     </View>
   );
 }
@@ -971,44 +1149,105 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   emptyContainer: {
-    gap: 10,
+    gap: Spacing.four,
+    paddingBottom: BottomTabInset + Spacing.four,
   },
-  emptyCard: {
+  welcomeBanner: {
+    marginTop: Spacing.two,
+    marginBottom: Spacing.one,
+  },
+  welcomeSubtitle: {
+    color: '#A855F7',
+    fontSize: 11,
+    fontWeight: 'bold',
+    letterSpacing: 1.5,
+    fontFamily: Fonts.sans,
+    marginBottom: 4,
+  },
+  welcomeTitle: {
+    color: '#FFFFFF',
+    fontSize: 26,
+    fontWeight: '800',
+    fontFamily: Fonts.sans,
+    letterSpacing: -0.5,
+  },
+  passesCard: {
     borderRadius: Spacing.three,
-    padding: Spacing.three,
-    alignItems: 'center',
+    padding: Spacing.four,
     borderWidth: 1,
-    borderColor: '#181B28',
+    borderColor: '#1E293B',
+    gap: Spacing.three,
   },
-  lockIconOuter: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+  passesCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  passesCardIconBg: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(124, 58, 237, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(124, 58, 237, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
   },
-  emptyTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
+  passesCardIcon: {
+    fontSize: 20,
+  },
+  passesCardTextCol: {
+    flex: 1,
+    gap: 2,
+  },
+  passesCardLabel: {
+    color: '#64748B',
+    fontSize: 9,
     fontWeight: 'bold',
-    marginBottom: 6,
-    textAlign: 'center',
+    letterSpacing: 1,
   },
-  emptyText: {
+  passesCardTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: 'bold',
+  },
+  passesCardDesc: {
     color: '#94A3B8',
     fontSize: 12.5,
-    textAlign: 'center',
-    lineHeight: 17,
-    marginBottom: 16,
+    lineHeight: 18,
+  },
+  outOfPassesContainer: {
+    gap: 8,
+  },
+  outOfPassesBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  outOfPassesBadgeText: {
+    color: '#F87171',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   emptyButton: {
     width: '100%',
-    borderRadius: Spacing.two,
+    borderRadius: Spacing.three,
     overflow: 'hidden',
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   emptyButtonGradient: {
-    height: 40,
+    height: 52,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1016,8 +1255,103 @@ const styles = StyleSheet.create({
   },
   emptyButtonText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: 'bold',
+    letterSpacing: 0.2,
+  },
+  rulesCard: {
+    borderRadius: Spacing.three,
+    padding: Spacing.four,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    gap: Spacing.four,
+  },
+  rulesCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E293B',
+    paddingBottom: Spacing.three,
+  },
+  rulesCardIconBg: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: 'rgba(5, 211, 142, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(5, 211, 142, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  rulesCardTitle: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  rulesCardSubtitle: {
+    color: '#64748B',
+    fontSize: 11,
+    marginTop: 1,
+  },
+  rulesTimeline: {
+    gap: 0,
+  },
+  timelineRow: {
+    flexDirection: 'row',
+    gap: 14,
+  },
+  timelineLeftCol: {
+    alignItems: 'center',
+    width: 22,
+  },
+  timelineStepIconBg: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(5, 211, 142, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(5, 211, 142, 0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  timelineLine: {
+    width: 1.5,
+    backgroundColor: 'rgba(5, 211, 142, 0.12)',
+    flex: 1,
+    marginVertical: 2,
+    minHeight: 24,
+  },
+  timelineRightCol: {
+    flex: 1,
+    paddingBottom: 20,
+  },
+  timelineStepTitle: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  timelineStepDesc: {
+    color: '#94A3B8',
+    fontSize: 12,
+    lineHeight: 16.5,
+  },
+  rulesLearnMoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#1E293B',
+    paddingTop: Spacing.three,
+    marginTop: Spacing.one,
+  },
+  rulesLearnMoreText: {
+    color: '#05D38E',
+    fontSize: 12,
+    fontWeight: '600',
   },
   activeContainer: {
     gap: Spacing.three,
@@ -1034,7 +1368,7 @@ const styles = StyleSheet.create({
   commitmentHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     borderBottomWidth: 1,
     borderBottomColor: '#181B28',
     paddingBottom: Spacing.three,
@@ -1386,6 +1720,71 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     fontSize: 11,
     marginTop: 4,
+  },
+  claimContainer: {
+    marginTop: Spacing.two,
+    gap: Spacing.three,
+  },
+  claimWelcomeText: {
+    color: '#E2E8F0',
+    fontSize: 12.5,
+    lineHeight: 18,
+  },
+  claimBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#05D38E',
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  claimBtnText: {
+    color: '#000000',
+    fontSize: 12.5,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  commitmentHeaderRightMini: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  miniCoinBase: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1.2,
+    backgroundColor: '#0F111A',
+    justifyContent: 'center',
+    alignItems: 'center',
+    // Glow effect
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  miniCoinGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 13,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  miniCoinLabel: {
+    fontSize: 7.5,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  coinGlossyOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
 });
 

@@ -8,7 +8,7 @@ async function seed() {
   
   await usersRef.doc('demo_user_id').set({
     name: 'Kayra Bali',
-    email: 'demo@habitcontract.com',
+    email: 'demo@commitlock.com',
     passwordHash,
     avatar: 'https://ui-avatars.com/api/?name=Kayra+Bali&background=8B5CF6&color=fff&bold=true',
     tier: 'High Accountability (Tier 3)',

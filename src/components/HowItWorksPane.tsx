@@ -11,24 +11,24 @@ interface HowItWorksPaneProps {
 export default function HowItWorksPane({ onPress }: HowItWorksPaneProps) {
   const steps = [
     {
-      icon: 'target',
-      title: '1. Set Your Goal',
-      description: 'Choose steps, run distance, active calories, or mindfulness and set your target.',
+      icon: 'ticket-confirmation-outline',
+      title: '1. Lock a Challenge Pass',
+      description: 'Choose a daily fitness goal and lock 1 Challenge Pass to establish the commitment.',
     },
     {
-      icon: 'lock-outline',
-      title: '2. Commit & Pledge',
-      description: 'Stake a pledge amount (e.g. €5, €10) to secure your accountability.',
+      icon: 'calendar-sync-outline',
+      title: '2. Hit Target Daily',
+      description: 'You must achieve your target every single day. A single missed day fails the commitment.',
     },
     {
-      icon: 'heart-pulse',
-      title: '3. Track with Sensors',
-      description: 'Only physical device sensor data counts. Manual entries are ignored.',
+      icon: 'watch-variant',
+      title: '3. Hardware Sensors Only',
+      description: 'Only physical smartwatch, band, or built-in phone sensor data is verified. Manual entries are ignored.',
     },
     {
-      icon: 'scale-balance',
-      title: '4. Refund or Forfeit',
-      description: 'Succeed to get a refund. Fail, and your stake is forfeited to operations.',
+      icon: 'sync',
+      title: '4. Sync & Recover',
+      description: 'Open the app to sync your data within 48 hours after finishing to claim your pass refund. Otherwise it is lost.',
     },
   ];
 
@@ -47,7 +47,7 @@ export default function HowItWorksPane({ onPress }: HowItWorksPaneProps) {
             </View>
           </View>
           <View style={styles.headerTextContainer}>
-            <Text style={styles.title}>How HabitContract Works</Text>
+            <Text style={styles.title}>How CommitLock Works</Text>
             <Text style={styles.subtitle}>Four simple steps to verified accountability</Text>
           </View>
         </View>

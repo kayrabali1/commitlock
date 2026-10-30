@@ -21,7 +21,6 @@ interface SyncVerificationModalProps {
   onClose: () => void;
   metrics: {
     steps: { value: number; status: 'granted' | 'denied' | 'unsupported' };
-    calories: { value: number; status: 'granted' | 'denied' | 'unsupported' };
     mindfulness: { value: number; status: 'granted' | 'denied' | 'unsupported' };
     distance: { value: number; status: 'granted' | 'denied' | 'unsupported' };
   };
@@ -57,14 +56,6 @@ export function SyncVerificationModal({ visible, onClose, metrics }: SyncVerific
       bgColor: 'rgba(16, 185, 129, 0.1)',
     },
     {
-      icon: 'fire',
-      label: t('modals.caloriesToday'),
-      value: `${Math.round(metrics.calories.value)} ${t('metrics.calories_unit')}`,
-      status: metrics.calories.status,
-      color: '#EF4444',
-      bgColor: 'rgba(239, 68, 68, 0.1)',
-    },
-    {
       icon: 'spa',
       label: t('modals.mindfulMinutesToday'),
       value: `${Math.round(metrics.mindfulness.value)} ${t('metrics.mindfulness_unit')}`,
@@ -85,13 +76,11 @@ export function SyncVerificationModal({ visible, onClose, metrics }: SyncVerific
   // Calculate overall state
   const allGranted = 
     metrics.steps.status === 'granted' &&
-    metrics.calories.status === 'granted' &&
     metrics.mindfulness.status === 'granted' &&
     metrics.distance.status === 'granted';
 
   const anyDenied = 
     metrics.steps.status === 'denied' ||
-    metrics.calories.status === 'denied' ||
     metrics.mindfulness.status === 'denied' ||
     metrics.distance.status === 'denied';
 

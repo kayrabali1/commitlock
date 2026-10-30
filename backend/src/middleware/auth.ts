@@ -17,7 +17,10 @@ export const authenticateToken = (
     return res.status(401).json({ error: 'Authentication token required' });
   }
 
-  const jwtSecret = process.env.JWT_SECRET || 'habitcontract_secret_key_testing_499812';
+  const jwtSecret = process.env.JWT_SECRET || (process.env.NODE_ENV === 'test' ? 'test_secret' : undefined);
+  if (!jwtSecret) {
+    return res.status(500).json({ error: 'Server misconfiguration: missing JWT_SECRET' });
+  }
 
   jwt.verify(token, jwtSecret, (err, decoded: any) => {
     if (err) {

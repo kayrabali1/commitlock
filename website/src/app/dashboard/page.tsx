@@ -23,7 +23,8 @@ export default function DashboardPage() {
       }
 
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/profile`, {
+        const apiUrl = typeof window !== 'undefined' ? `http://${window.location.hostname}:8080` : 'http://localhost:8080';
+        const res = await fetch(`${apiUrl}/api/user/profile`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -33,13 +34,14 @@ export default function DashboardPage() {
             router.push('/');
             return;
           }
-          throw new Error('Failed to fetch profile');
+          console.error('Failed to fetch profile:', res.status);
+          return;
         }
 
         const data = await res.json();
         setProfile(data);
       } catch (err) {
-        console.error(err);
+        console.error('Error fetching profile:', err);
       } finally {
         setLoading(false);
       }
@@ -52,7 +54,8 @@ export default function DashboardPage() {
     setSetupLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stripe/create-setup-session`, {
+      const apiUrl = typeof window !== 'undefined' ? `http://${window.location.hostname}:8080` : 'http://localhost:8080';
+      const res = await fetch(`${apiUrl}/api/stripe/create-setup-session`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

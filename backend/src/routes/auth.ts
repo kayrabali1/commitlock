@@ -6,7 +6,55 @@ import { db } from '../config/firestore';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'habitcontract_secret_key_testing_499812';
+const getJwtSecret = () => {
+  const secret = process.env.JWT_SECRET || (process.env.NODE_ENV === 'test' ? 'test_secret' : undefined);
+  if (!secret) throw new Error('JWT_SECRET is not configured');
+  return secret;
+};
+
+/**
+ * One-time migration for legacy users who have `passes` but no tier-specific fields.
+ * Distributes remaining passes across tiers (bronze first, then silver, then gold)
+ * and writes them back to Firestore so subsequent reads are correct.
+ */
+async function migrateTierPasses(
+  docId: string,
+  userData: FirebaseFirestore.DocumentData
+): Promise<{ bronzePasses: number; silverPasses: number; goldPasses: number }> {
+  const hasTierFields =
+    userData.bronzePasses !== undefined ||
+    userData.silverPasses !== undefined ||
+    userData.goldPasses !== undefined;
+
+  if (hasTierFields) {
+    // Tier fields exist — no migration needed, return as-is
+    return {
+      bronzePasses: userData.bronzePasses ?? 0,
+      silverPasses: userData.silverPasses ?? 0,
+      goldPasses: userData.goldPasses ?? 0,
+    };
+  }
+
+  // Legacy user: distribute total passes across tiers (1 each, bronze first)
+  const totalPasses = typeof userData.passes === 'number' ? userData.passes : 0;
+  const bronze = totalPasses >= 1 ? 1 : 0;
+  const silver = totalPasses >= 2 ? 1 : 0;
+  const gold = totalPasses >= 3 ? 1 : 0;
+
+  // Write back to Firestore so this migration only runs once
+  try {
+    await db.collection('users').doc(docId).update({
+      bronzePasses: bronze,
+      silverPasses: silver,
+      goldPasses: gold,
+    });
+    console.log(`[Migration] Set tier passes for user ${docId}: bronze=${bronze}, silver=${silver}, gold=${gold}`);
+  } catch (e) {
+    console.error(`[Migration] Failed to write tier passes for user ${docId}:`, e);
+  }
+
+  return { bronzePasses: bronze, silverPasses: silver, goldPasses: gold };
+}
 
 // Register a new user
 router.post('/register', async (req: any, res: any) => {
@@ -45,6 +93,10 @@ router.post('/register', async (req: any, res: any) => {
       passwordHash,
       avatar,
       tier: 'High Accountability (Tier 3)',
+      passes: 0,
+      bronzePasses: 0,
+      silverPasses: 0,
+      goldPasses: 0,
       createdAt: new Date().toISOString(),
     };
 
@@ -52,7 +104,7 @@ router.post('/register', async (req: any, res: any) => {
     const userId = docRef.id;
 
     // Create JWT token
-    const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: '30d' });
+    const token = jwt.sign({ userId }, getJwtSecret(), { expiresIn: '30d' });
 
     return res.status(201).json({
       token,
@@ -62,6 +114,10 @@ router.post('/register', async (req: any, res: any) => {
         email: normEmail,
         avatar,
         tier: newUser.tier,
+        passes: 0,
+        bronzePasses: 0,
+        silverPasses: 0,
+        goldPasses: 0,
         provider: 'email',
       },
     });
@@ -82,47 +138,6 @@ router.post('/login', async (req: any, res: any) => {
 
     const normEmail = email.toLowerCase().trim();
 
-    // Check default demo user if the database is empty or user is requesting it
-    if (normEmail === 'demo@habitcontract.com' && password === 'password') {
-      const usersRef = db.collection('users');
-      const demoQuery = await usersRef.where('email', '==', 'demo@habitcontract.com').get();
-      
-      let userId: string;
-      let userDoc: any;
-
-      if (demoQuery.empty) {
-        // Create the demo user profile in Firestore if it doesn't exist yet
-        const salt = await bcrypt.genSalt(10);
-        const passwordHash = await bcrypt.hash('password', salt);
-        userDoc = {
-          name: 'Kayra Bali',
-          email: 'demo@habitcontract.com',
-          passwordHash,
-          avatar: 'https://ui-avatars.com/api/?name=Kayra+Bali&background=8B5CF6&color=fff&bold=true',
-          tier: 'High Accountability (Tier 3)',
-          createdAt: new Date().toISOString(),
-        };
-        const docRef = await usersRef.add(userDoc);
-        userId = docRef.id;
-      } else {
-        const doc = demoQuery.docs[0];
-        userId = doc.id;
-        userDoc = doc.data();
-      }
-
-      const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: '30d' });
-      return res.status(200).json({
-        token,
-        user: {
-          id: userId,
-          name: userDoc.name,
-          email: userDoc.email,
-          avatar: userDoc.avatar,
-          tier: userDoc.tier,
-          provider: 'email',
-        },
-      });
-    }
 
     // Normal login query
     const usersRef = db.collection('users');
@@ -140,7 +155,9 @@ router.post('/login', async (req: any, res: any) => {
       return res.status(400).json({ error: 'Invalid email or password' });
     }
 
-    const token = jwt.sign({ userId: userDoc.id }, JWT_SECRET, { expiresIn: '30d' });
+    const token = jwt.sign({ userId: userDoc.id }, getJwtSecret(), { expiresIn: '30d' });
+
+    const tierPasses = await migrateTierPasses(userDoc.id, user);
 
     return res.status(200).json({
       token,
@@ -150,6 +167,8 @@ router.post('/login', async (req: any, res: any) => {
         email: user.email,
         avatar: user.avatar,
         tier: user.tier,
+        passes: user.passes !== undefined ? user.passes : 3,
+        ...tierPasses,
         provider: 'email',
       },
     });
@@ -173,6 +192,8 @@ router.get('/validate', authenticateToken as any, async (req: AuthenticatedReque
     }
 
     const user = userDoc.data()!;
+    const tierPasses = await migrateTierPasses(userDoc.id, user);
+
     return res.status(200).json({
       user: {
         id: userDoc.id,
@@ -180,6 +201,8 @@ router.get('/validate', authenticateToken as any, async (req: AuthenticatedReque
         email: user.email,
         avatar: user.avatar,
         tier: user.tier,
+        passes: user.passes !== undefined ? user.passes : 3,
+        ...tierPasses,
         provider: 'email',
       },
     });
@@ -235,6 +258,10 @@ router.post('/google', async (req: any, res: any) => {
           googleId: sub,
           avatar,
           tier: 'High Accountability (Tier 3)',
+          passes: 3,
+          bronzePasses: 1,
+          silverPasses: 1,
+          goldPasses: 1,
           createdAt: new Date().toISOString(),
           provider: 'google',
         };
@@ -248,7 +275,9 @@ router.post('/google', async (req: any, res: any) => {
       userData = userDoc.data();
     }
 
-    const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: '30d' });
+    const token = jwt.sign({ userId }, getJwtSecret(), { expiresIn: '30d' });
+    const tierPasses = await migrateTierPasses(userId, userData);
+
     return res.status(200).json({
       token,
       user: {
@@ -257,6 +286,8 @@ router.post('/google', async (req: any, res: any) => {
         email: userData.email,
         avatar: userData.avatar,
         tier: userData.tier,
+        passes: userData.passes !== undefined ? userData.passes : 3,
+        ...tierPasses,
         provider: 'google',
       },
     });
@@ -275,10 +306,15 @@ router.post('/apple', async (req: any, res: any) => {
     }
 
     const clientID = 'com.habitcontract.app';
-    const appleUserData = await appleSignin.verifyIdToken(identityToken, {
-      audience: clientID,
-      ignoreExpiration: false,
-    });
+    let appleUserData;
+    try {
+      appleUserData = await appleSignin.verifyIdToken(identityToken, {
+        audience: clientID,
+        ignoreExpiration: false,
+      });
+    } catch (verifyErr) {
+      return res.status(401).json({ error: 'Invalid Apple identity token' });
+    }
 
     const sub = appleUserData.sub;
     const email = appleUserData.email;
@@ -307,6 +343,10 @@ router.post('/apple', async (req: any, res: any) => {
           appleId: sub,
           avatar,
           tier: 'High Accountability (Tier 3)',
+          passes: 3,
+          bronzePasses: 1,
+          silverPasses: 1,
+          goldPasses: 1,
           createdAt: new Date().toISOString(),
           provider: 'apple',
         };
@@ -320,7 +360,9 @@ router.post('/apple', async (req: any, res: any) => {
       userData = userDoc.data();
     }
 
-    const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: '30d' });
+    const token = jwt.sign({ userId }, getJwtSecret(), { expiresIn: '30d' });
+    const tierPasses = await migrateTierPasses(userId, userData);
+
     return res.status(200).json({
       token,
       user: {
@@ -329,6 +371,8 @@ router.post('/apple', async (req: any, res: any) => {
         email: userData.email,
         avatar: userData.avatar,
         tier: userData.tier,
+        passes: userData.passes !== undefined ? userData.passes : 3,
+        ...tierPasses,
         provider: 'apple',
       },
     });

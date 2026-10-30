@@ -62,7 +62,7 @@ function PaymentForm() {
 
     try {
       // Use the actual backend API to save the mock payment method
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+      const apiUrl = typeof window !== 'undefined' ? `http://${window.location.hostname}:8080` : 'http://localhost:8080';
       const response = await fetch(`${apiUrl}/api/stripe/mock-save-payment`, {
         method: 'POST',
         headers: {

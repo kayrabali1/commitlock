@@ -24,7 +24,6 @@ export interface CommitmentWidgetData {
   unit: string;
   remainingDays: string;
   isBroken: boolean;
-  targetScope: string;
   stakeAmount: number;
   segments: ('future' | 'success' | 'failed' | 'today_success' | 'today_pending')[];
   sentence?: string;
@@ -49,36 +48,12 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
       case 'success': return '#05D38E';
       case 'failed': return '#FF4655';
       case 'today_success': return '#05D38E';
-      case 'today_pending': return '#F5A623';
+      case 'today_pending': return '#FACC15';
       default: return '#2A2D3A';
     }
   };
 
-  const renderSlicedProgressBar = (segments: string[], overallProgress: number, targetScope: string) => {
-    if (targetScope === 'weekly') {
-      return (
-        <HStack spacing={0} modifiers={[
-          cornerRadius(4),
-          frame({ height: 8 }),
-          clipShape('capsule')
-        ]}>
-          {Array.from({ length: 20 }).map((_, i) => {
-            const segmentValue = i * 5;
-            const isFilled = segmentValue < overallProgress;
-            return (
-              <Rectangle
-                key={i}
-                modifiers={[
-                  foregroundStyle(isFilled ? '#05D38E' : '#2A2D3A'),
-                  opacity(isFilled ? 1.0 : 0.4),
-                  frame({ height: 8 })
-                ]}
-              />
-            );
-          })}
-        </HStack>
-      );
-    }
+  const renderSlicedProgressBar = (segments: string[], overallProgress: number) => {
     return (
       <HStack spacing={6}>
         {(segments || ['future', 'future', 'future', 'future', 'future', 'future', 'future']).map((status, index) => {
@@ -120,6 +95,18 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
     }
   };
 
+  const getCoinInfo = (stakeAmount: number) => {
+    const isBronze = stakeAmount === 5 || stakeAmount === 1.99;
+    const isSilver = stakeAmount === 10 || stakeAmount === 4.99;
+    const isGold = stakeAmount === 20 || stakeAmount === 9.99;
+    return {
+      label: isBronze ? 'Bronze' : isSilver ? 'Silver' : isGold ? 'Gold' : 'Pass',
+      color: isBronze ? '#CD7F32' : isSilver ? '#BDC3C7' : isGold ? '#FBBF24' : '#94A3B8',
+      emoji: isBronze ? '🛡️' : isSilver ? '🥈' : isGold ? '👑' : '🎟️',
+      bgColor: isBronze ? '#2D1B10' : isSilver ? '#212529' : isGold ? '#251D0A' : '#111827'
+    };
+  };
+
   const commitments = props.commitments || [];
   const family = context?.widgetFamily || context?.family || 'systemSmall';
 
@@ -137,7 +124,7 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
         >
           <Spacer />
           <Text modifiers={[font({ size: 16, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
-            HabitContract 🔒
+            CommitLock 🔒
           </Text>
           <Text modifiers={[font({ size: 12 }), foregroundColor('#8F93A3')]}>
             No active commitments.
@@ -159,7 +146,8 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
     const statusColor = commitment.isBroken ? '#FF4655' : '#05D38E';
     const statusText = commitment.isBroken
       ? '⚠️ BROKEN'
-      : (commitment.targetScope === 'weekly' ? '🛡️ SAFE' : '● ON TRACK');
+      : '● ON TRACK';
+    const coinInfo = getCoinInfo(commitment.stakeAmount);
 
     return (
       <Host>
@@ -188,23 +176,18 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
             </Text>
             <Text modifiers={[
               font({ size: 9, weight: 'bold' }),
-              foregroundColor('#F5A623'),
+              foregroundColor(coinInfo.color),
               padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
-              background('#1F1A0A'),
+              background(coinInfo.bgColor),
               cornerRadius(6)
             ]}>
-              €{commitment.stakeAmount}
+              {coinInfo.emoji} {coinInfo.label}
             </Text>
           </HStack>
 
-          {/* Subtitle: DAILY PLEDGE */}
-          <Text modifiers={[font({ size: 9, weight: 'semibold' }), foregroundColor('#8F93A3')]}>
-            {commitment.targetScope === 'weekly' ? 'WEEKLY' : 'DAILY'} PLEDGE
-          </Text>
-
           {/* Commitment sentence */}
           {commitment.sentence && (
-            <Text modifiers={[font({ size: 9 }), foregroundColor('#8F93A3'), lineLimit(2)]}>
+            <Text modifiers={[font({ size: 9 }), foregroundColor('#8F93A3'), lineLimit(3)]}>
               {commitment.sentence}
             </Text>
           )}
@@ -212,7 +195,7 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
           <Spacer />
 
           {/* Progress bar - centered */}
-          {renderSlicedProgressBar(commitment.segments, commitment.overallProgress, commitment.targetScope)}
+          {renderSlicedProgressBar(commitment.segments, commitment.overallProgress)}
 
           <Spacer />
 
@@ -227,11 +210,6 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
               </Text>
             </VStack>
             <Spacer />
-            {commitments.length > 1 ? (
-              <Button target="next" modifiers={[buttonStyle('plain')]}>
-                <Text modifiers={[font({ size: 24, weight: 'bold' }), foregroundColor('#8F93A3')]}>›</Text>
-              </Button>
-            ) : null}
           </HStack>
         </VStack>
       </Host>
@@ -246,7 +224,8 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
     const statusColor = commitment.isBroken ? '#FF4655' : '#05D38E';
     const statusText = commitment.isBroken
       ? '⚠️ BROKEN'
-      : (commitment.targetScope === 'weekly' ? '🛡️ SAFE' : '● ON TRACK');
+      : '● ON TRACK';
+    const coinInfo = getCoinInfo(commitment.stakeAmount);
 
     return (
       <Host>
@@ -275,23 +254,18 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
             </Text>
             <Text modifiers={[
               font({ size: 9, weight: 'bold' }),
-              foregroundColor('#F5A623'),
+              foregroundColor(coinInfo.color),
               padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
-              background('#1F1A0A'),
+              background(coinInfo.bgColor),
               cornerRadius(6)
             ]}>
-              €{commitment.stakeAmount}
+              {coinInfo.emoji} {coinInfo.label}
             </Text>
           </HStack>
 
-          {/* Row 2: DAILY PLEDGE subtitle */}
-          <Text modifiers={[font({ size: 10, weight: 'semibold' }), foregroundColor('#8F93A3')]}>
-            {commitment.targetScope === 'weekly' ? 'WEEKLY' : 'DAILY'} PLEDGE
-          </Text>
-
           {/* Commitment sentence */}
           {commitment.sentence && (
-            <Text modifiers={[font({ size: 11 }), foregroundColor('#8F93A3'), lineLimit(1)]}>
+            <Text modifiers={[font({ size: 11 }), foregroundColor('#8F93A3'), lineLimit(3)]}>
               {commitment.sentence}
             </Text>
           )}
@@ -299,7 +273,7 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
           <Spacer />
 
           {/* Progress bar - centered vertically */}
-          {renderSlicedProgressBar(commitment.segments, commitment.overallProgress, commitment.targetScope)}
+          {renderSlicedProgressBar(commitment.segments, commitment.overallProgress)}
 
           <Spacer />
 
@@ -330,11 +304,6 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
                 {commitment.remainingDays}
               </Text>
             </VStack>
-            {commitments.length > 1 ? (
-              <Button target="next" modifiers={[buttonStyle('plain'), padding({ leading: 8 })]}>
-                <Text modifiers={[font({ size: 24, weight: 'bold' }), foregroundColor('#8F93A3')]}>›</Text>
-              </Button>
-            ) : null}
           </HStack>
         </VStack>
       </Host>
@@ -373,7 +342,8 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
           const statusColor = commitment.isBroken ? '#FF4655' : '#05D38E';
           const statusText = commitment.isBroken
             ? '⚠️ Broken'
-            : (commitment.targetScope === 'weekly' ? '🛡️ Safe' : '● On Track');
+            : '● On Track';
+          const coinInfo = getCoinInfo(commitment.stakeAmount);
 
           return (
             <VStack
@@ -388,10 +358,10 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
                     {emoji} {commitment.label}
                   </Text>
                   <Text modifiers={[font({ size: 10 }), foregroundColor('#8F93A3')]}>
-                    {commitment.targetScope === 'weekly' ? 'Weekly' : 'Daily'} • {commitment.targetValue.toLocaleString()} {commitment.unit}
+                    Daily • {commitment.targetValue.toLocaleString()} {commitment.unit}
                   </Text>
                   {commitment.sentence && (
-                    <Text modifiers={[font({ size: 9 }), foregroundColor('#6B7280'), lineLimit(1)]}>
+                    <Text modifiers={[font({ size: 9 }), foregroundColor('#6B7280'), lineLimit(2)]}>
                       {commitment.sentence}
                     </Text>
                   )}
@@ -404,8 +374,8 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
                     <Text modifiers={[font({ size: 11, weight: 'bold' }), foregroundColor(statusColor)]}>
                       {statusText}
                     </Text>
-                    <Text modifiers={[font({ size: 11, weight: 'bold' }), foregroundColor('#F5A623')]}>
-                      €{commitment.stakeAmount}
+                    <Text modifiers={[font({ size: 11, weight: 'bold' }), foregroundColor(coinInfo.color)]}>
+                      {coinInfo.emoji} {coinInfo.label}
                     </Text>
                   </HStack>
                   <Text modifiers={[font({ size: 9 }), foregroundColor('#8F93A3')]}>

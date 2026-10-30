@@ -351,7 +351,7 @@ export default function AuthScreen() {
               <View style={styles.demoHintBox}>
                 <MaterialCommunityIcons name="information" size={14} color="#8B5CF6" />
                 <Text style={styles.demoHintText}>
-                  {t('auth.demoHintPrefix')}<Text style={styles.boldText}>demo@habitcontract.com</Text>{t('auth.demoHintSuffix')}<Text style={styles.boldText}>password</Text>
+                  {t('auth.demoHintPrefix')}<Text style={styles.boldText}>demo@commitlock.com</Text>{t('auth.demoHintSuffix')}<Text style={styles.boldText}>password</Text>
                 </Text>
               </View>
             )}

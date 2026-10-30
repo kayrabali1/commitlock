@@ -5,9 +5,9 @@ import { HealthDataService, Commitment, DailyHealthData } from './health';
 
 const MOTIVATION_MESSAGES = [
   "Stop slacking. Go hit your daily [targetVal] [unit] [metricLabel] target now.",
-  "Your €[stakeAmount] stake is on the line. Get up and hit your [metricLabel] goal!",
-  "Zero progress today is not an option. Move now to save your €[stakeAmount] pledge.",
-  "Don't let laziness cost you €[stakeAmount]. Run your [metricLabel] goal right now.",
+  "Your Challenge Pass is on the line. Get up and hit your [metricLabel] goal!",
+  "Zero progress today is not an option. Move now to save your Challenge Pass.",
+  "Don't let laziness cost you your Challenge Pass. Run your [metricLabel] goal right now.",
   "Discipline check. Go complete your daily [metricLabel] target of [targetVal] [unit]."
 ];
 
@@ -86,9 +86,7 @@ export class NotificationService {
 
       for (const commitment of commitments) {
         // Daily target calculation
-        const targetVal = commitment.targetScope === 'weekly' 
-          ? commitment.targetValue / 7 
-          : commitment.targetValue;
+        const targetVal = commitment.targetValue;
         
         const metricLabel = HealthDataService.getMetricLabel(commitment.metricType);
 
@@ -159,8 +157,8 @@ export class NotificationService {
 
               await Notifications.scheduleNotificationAsync({
                 content: {
-                  title: `Refund Awaiting! 💰`,
-                  body: `Your ${metricLabel} commitment has ended! Open the app now and approve your refund of €${commitment.stakeAmount} before it's forfeited.`,
+                  title: `Challenge Pass Awaiting! 🎟️`,
+                  body: `Your ${metricLabel} commitment has ended! Open the app now to claim your Challenge Pass back before it's lost.`,
                   data: {
                     type: 'gracePeriod',
                     commitmentId: commitment.id,
@@ -201,9 +199,7 @@ export class NotificationService {
       }
 
       // 2. Check target scope
-      const targetVal = commitment.targetScope === 'weekly' 
-        ? commitment.targetValue / 7 
-        : commitment.targetValue;
+      const targetVal = commitment.targetValue;
       
       const isCompleted = todayValue >= targetVal;
       if (!isCompleted) {
@@ -234,7 +230,7 @@ export class NotificationService {
       await Notifications.scheduleNotificationAsync({
         content: {
           title: `Goal Achieved! 🎉`,
-          body: `You've successfully hit your daily ${metricLabel} target today! Your €${commitment.stakeAmount} stake is safe.`,
+          body: `You've successfully hit your daily ${metricLabel} target today! Your Challenge Pass is safe.`,
           data: {
             type: 'achievement',
             commitmentId: commitment.id,

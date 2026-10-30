@@ -33,7 +33,7 @@ export function calculateDisciplineScore(
   if (commitment.performanceData && commitment.performanceData.length > 0) {
     const totalAchieved = commitment.performanceData.reduce((acc, d) => acc + d.value, 0);
     const targetVal = commitment.targetValue;
-    const totalTarget = commitment.targetScope === 'weekly' ? targetVal : targetVal * 7;
+    const totalTarget = targetVal * 7;
 
     if (totalAchieved > totalTarget) {
       const pctOver = (totalAchieved - totalTarget) / totalTarget;
@@ -165,7 +165,7 @@ export function DisciplineCard({
   const performance = commitment.performanceData || [];
   const totalAchieved = performance.reduce((acc, d) => acc + d.value, 0);
   const targetVal = commitment.targetValue;
-  const totalTarget = commitment.targetScope === 'weekly' ? targetVal : targetVal * 7;
+  const totalTarget = targetVal * 7;
   const pctCompleted = totalTarget > 0 ? Math.round((totalAchieved / totalTarget) * 100) : 100;
   
   const { score, rank, grade, description } = calculateDisciplineScore(commitment, activeStreak);
@@ -201,17 +201,17 @@ export function DisciplineCard({
     setTimeout(async () => {
       setShareStatus('shared');
       
-      const shareMessage = `🔥 HABITCONTRACT DISCIPLINE CARD\n\n` +
+      const shareMessage = `🔥 COMMITLOCK DISCIPLINE CARD\n\n` +
         `Discipline Score: ${score}/100 (${rank} Rank, Grade ${grade})\n` +
         `Active Streak: ${activeStreak} Weeks\n` +
-        `Goal: ${commitment.targetValue.toLocaleString()} ${getMetricUnit(commitment.metricType)}${commitment.targetScope === 'weekly' ? '/wk' : '/day'} (${pctCompleted}% achieved!)\n` +
-        `Stake Saved: €${commitment.stakeAmount}.00\n\n` +
-        `Reframing fitness. Pledging money to lock habits. Join the elite at habitcontract.app`;
+        `Goal: ${commitment.targetValue.toLocaleString()} ${getMetricUnit(commitment.metricType)}${'/day'} (${pctCompleted}% achieved!)\n` +
+        `Challenge Pass Saved: €${commitment.stakeAmount} Pass\n\n` +
+        `Reframing fitness. Locking passes to build commitments. Join the elite at commitlock.app`;
 
       try {
         await Share.share({
           message: shareMessage,
-          title: `HabitContract Discipline Card - Score: ${score}`,
+          title: `CommitLock Discipline Card - Score: ${score}`,
         });
       } catch (error) {
         console.log('Error sharing:', error);
@@ -308,7 +308,7 @@ export function DisciplineCard({
             <View style={styles.headerLeft}>
               <MaterialCommunityIcons name="shield-lock" size={16} color={theme.accentColor} />
               <Text style={[styles.headerLogo, { color: theme.accentColor }]}>
-                HABITCONTRACT // POW
+                COMMITLOCK // POW
               </Text>
             </View>
             <View style={[styles.gradeBadge, { backgroundColor: theme.badgeBg }]}>
@@ -343,10 +343,10 @@ export function DisciplineCard({
             <View style={styles.statCell}>
               <View style={styles.statTitleRow}>
                 <MaterialCommunityIcons name="shield-check" size={14} color={theme.accentColor} />
-                <Text style={[styles.statLabelText, { color: theme.secondaryAccent }]}>PLEDGE STATUS</Text>
+                <Text style={[styles.statLabelText, { color: theme.secondaryAccent }]}>PASS STATUS</Text>
               </View>
               <Text style={[styles.statValText, { color: theme.textColor }]}>
-                €{commitment.stakeAmount}.00 SAVED
+                €{commitment.stakeAmount} PASS SECURED
               </Text>
 
             </View>

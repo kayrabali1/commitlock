@@ -45,24 +45,6 @@ export default function HistoryScreen() {
     const days: ('Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun')[] = 
       ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     
-    if (item.targetScope === 'weekly') {
-      const baseValue = target / 7;
-      const multiplier = isSuccess ? 1.12 : 0.82;
-      return days.map((day, i) => {
-        // Deterministic pseudo-random variation based on item ID
-        const charCodeSum = item.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        const seed = Math.sin(charCodeSum + i) * 10000;
-        const randomFactor = 0.8 + (seed - Math.floor(seed)) * 0.4;
-        
-        let value = baseValue * multiplier * randomFactor;
-        value = item.metricType === 'steps' || item.metricType === 'calories' ? Math.round(value) : Math.round(value * 10) / 10;
-        return {
-          dayName: day,
-          value,
-          dateString: `${item.startDate.substring(0, 8)}${String(i + 1).padStart(2, '0')}`,
-        };
-      });
-    } else {
       return days.map((day, i) => {
         // Deterministic pseudo-random variation based on item ID
         const charCodeSum = item.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -90,7 +72,6 @@ export default function HistoryScreen() {
           dateString: `${item.startDate.substring(0, 8)}${String(i + 1).padStart(2, '0')}`,
         };
       });
-    }
   };
 
   const loadHistory = async () => {
@@ -183,9 +164,9 @@ export default function HistoryScreen() {
               });
 
               const targetVal = item.targetValue;
-              const dailyTargetVal = item.targetScope === 'weekly' ? targetVal / 7 : targetVal;
+              const dailyTargetVal = targetVal;
               const failedDays = performance.filter(d => 
-                item.targetScope === 'weekly' ? false : d.value < targetVal
+                d.value < targetVal
               );
               const failedDaysCount = failedDays.length;
               const failedDayNames = failedDays.map(d => d.dayName).join(' & ');
@@ -212,7 +193,7 @@ export default function HistoryScreen() {
                       </View>
                       <View style={styles.logDetails}>
                         <Text style={styles.logGoalTitle}>
-                          {t(`metrics.${item.metricType}`).toUpperCase()}: {item.targetValue.toLocaleString()} {getMetricUnit(item.metricType)}{item.targetScope === 'weekly' ? t('metrics.per_week') : t('metrics.per_day')}
+                          {t(`metrics.${item.metricType}`).toUpperCase()}: {item.targetValue.toLocaleString()} {getMetricUnit(item.metricType)}{t('metrics.per_day')}
                         </Text>
                         <Text style={styles.logDates}>
                           {item.startDate} {t('history.to')} {item.endDate}
@@ -244,18 +225,14 @@ export default function HistoryScreen() {
                         <View style={styles.highlightBannerSuccess}>
                           <MaterialCommunityIcons name="checkbox-marked-circle" size={16} color="#05D38E" />
                           <Text style={styles.highlightTextSuccess}>
-                            {item.targetScope === 'weekly'
-                              ? t('history.bannerWeeklySuccess', { diff: Math.round(totalAchieved - targetVal).toLocaleString(), unit: getMetricUnit(item.metricType), stake: item.stakeAmount })
-                              : t('history.bannerDailySuccess', { target: targetVal.toLocaleString(), unit: getMetricUnit(item.metricType), stake: item.stakeAmount })}
+                            {t('history.bannerDailySuccess', { target: targetVal.toLocaleString(), unit: getMetricUnit(item.metricType), stake: item.stakeAmount })}
                           </Text>
                         </View>
                       ) : (
                         <View style={styles.highlightBannerFailed}>
                           <MaterialCommunityIcons name="alert-circle" size={16} color="#FF4655" />
                           <Text style={styles.highlightTextFailed}>
-                            {item.targetScope === 'weekly'
-                              ? t('history.bannerWeeklyFailure', { diff: Math.round(targetVal - totalAchieved).toLocaleString(), unit: getMetricUnit(item.metricType), stake: item.stakeAmount })
-                              : t('history.bannerDailyFailure', { count: failedDaysCount, plural: failedDaysCount > 1 ? (i18n.language === 'tr' ? '' : 's') : '', days: failedDayNames, stake: item.stakeAmount })}
+                            {t('history.bannerDailyFailure', { count: failedDaysCount, plural: failedDaysCount > 1 ? (i18n.language === 'tr' ? '' : 's') : '', days: failedDayNames, stake: item.stakeAmount })}
                           </Text>
                         </View>
                       )}

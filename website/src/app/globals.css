@@ -1,26 +1,36 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
 
+/* ═══════════════════════════════════════════════════
+   DESIGN TOKENS
+═══════════════════════════════════════════════════ */
 :root {
   --background: #09090b;
-  --surface: #121214;
-  --surface-hover: #1c1c1f;
-  --surface-glass: rgba(18, 18, 20, 0.6);
-  --surface-glass-light: rgba(255, 255, 255, 0.03);
+  --surface: #111114;
+  --surface-hover: #1c1c20;
+  --surface-glass: rgba(16, 16, 20, 0.65);
+  --surface-glass-light: rgba(255, 255, 255, 0.025);
   --primary: #7c3aed;
   --primary-hover: #6d28d9;
   --secondary: #0ea5e9;
   --accent: #22d3ee;
-  --text-main: #f8fafc;
-  --text-muted: #a1a1aa;
-  --border: rgba(255, 255, 255, 0.08);
-  --border-light: rgba(255, 255, 255, 0.15);
+  --text-main: #f4f4f5;
+  --text-muted: #71717a;
+  --border: rgba(255, 255, 255, 0.07);
+  --border-light: rgba(255, 255, 255, 0.14);
   --success: #10b981;
   --danger: #ef4444;
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --nav-height: 72px;
+  --font-heading: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --nav-height: 68px;
+  --radius-card: 20px;
 }
 
-* {
+/* ═══════════════════════════════════════════════════
+   RESET
+═══════════════════════════════════════════════════ */
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   padding: 0;
   margin: 0;
@@ -28,6 +38,7 @@
 
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -43,10 +54,18 @@ body {
   position: relative;
 }
 
-/* Deep Sleek Grid Background */
+/* ═══════════════════════════════════════════════════
+   BACKGROUND GRID
+═══════════════════════════════════════════════════ */
 @keyframes gridPulse {
-  0%, 100% { mask-image: radial-gradient(ellipse at top, black 20%, transparent 70%); -webkit-mask-image: radial-gradient(ellipse at top, black 20%, transparent 70%); }
-  50% { mask-image: radial-gradient(ellipse at top, black 30%, transparent 75%); -webkit-mask-image: radial-gradient(ellipse at top, black 30%, transparent 75%); }
+  0%, 100% {
+    mask-image: radial-gradient(ellipse at 50% -10%, black 15%, transparent 65%);
+    -webkit-mask-image: radial-gradient(ellipse at 50% -10%, black 15%, transparent 65%);
+  }
+  50% {
+    mask-image: radial-gradient(ellipse at 50% -10%, black 25%, transparent 72%);
+    -webkit-mask-image: radial-gradient(ellipse at 50% -10%, black 25%, transparent 72%);
+  }
 }
 
 body::before {
@@ -57,56 +76,76 @@ body::before {
   width: 100vw;
   height: 100vh;
   z-index: -1;
-  background-image: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 50px 50px;
-  mask-image: radial-gradient(ellipse at top, black 20%, transparent 70%);
-  -webkit-mask-image: radial-gradient(ellipse at top, black 20%, transparent 70%);
-  animation: gridPulse 8s ease-in-out infinite;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse at 50% -10%, black 15%, transparent 65%);
+  -webkit-mask-image: radial-gradient(ellipse at 50% -10%, black 15%, transparent 65%);
+  animation: gridPulse 10s ease-in-out infinite;
   pointer-events: none;
 }
 
+/* ═══════════════════════════════════════════════════
+   LINKS
+═══════════════════════════════════════════════════ */
 a {
   color: inherit;
   text-decoration: none;
   transition: color 0.2s ease;
 }
 
-/* Glassmorphism Utilities */
+/* ═══════════════════════════════════════════════════
+   GLASSMORPHISM CARDS
+═══════════════════════════════════════════════════ */
 .glass {
   background: var(--surface-glass);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border);
 }
 
 .glass-card {
   background: var(--surface-glass);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 2.5rem;
-  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
-  transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  border-radius: var(--radius-card);
+  padding: 2rem;
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.05) inset,
+    0 20px 50px -15px rgba(0, 0, 0, 0.5);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.3s ease,
+              box-shadow 0.3s ease;
 }
 
 .glass-card:hover {
   border-color: var(--border-light);
-  transform: translateY(-2px);
-  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.6);
+  transform: translateY(-3px);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.07) inset,
+    0 28px 60px -15px rgba(0, 0, 0, 0.6);
 }
 
-/* Typography Utilities */
+/* ═══════════════════════════════════════════════════
+   TYPOGRAPHY
+═══════════════════════════════════════════════════ */
 h1, h2, h3, h4, h5 {
+  font-family: var(--font-heading);
   font-weight: 700;
   line-height: 1.1;
   letter-spacing: -0.02em;
+  color: var(--text-main);
+}
+
+p {
+  line-height: 1.65;
+  color: var(--text-muted);
 }
 
 .text-gradient {
-  background: linear-gradient(135deg, #fff 30%, #94a3b8 100%);
+  background: linear-gradient(135deg, #fff 30%, rgba(255,255,255,0.45) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -114,19 +153,16 @@ h1, h2, h3, h4, h5 {
 }
 
 .text-gradient-primary {
-  background: linear-gradient(135deg, var(--accent), var(--primary));
+  background: linear-gradient(135deg, var(--accent) 0%, #a78bfa 50%, var(--primary) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   color: transparent;
 }
 
-p {
-  line-height: 1.6;
-  color: var(--text-muted);
-}
-
-/* Buttons */
+/* ═══════════════════════════════════════════════════
+   BUTTONS
+═══════════════════════════════════════════════════ */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -134,53 +170,64 @@ p {
   gap: 8px;
   border-radius: 999px;
   padding: 12px 28px;
-  font-size: 1rem;
-  font-weight: 500;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: var(--font-sans);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   border: none;
   text-decoration: none;
+  white-space: nowrap;
 }
 
+/* Primary – white pill */
 .btn-primary {
-  background: var(--text-main);
-  color: var(--background);
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+  background: #f4f4f5;
+  color: #09090b;
+  box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
 }
 
 .btn-primary:hover {
-  background: #e2e8f0;
+  background: #ffffff;
   transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(255, 255, 255, 0.2);
+  box-shadow: 0 6px 24px rgba(255, 255, 255, 0.15);
 }
 
 .btn-primary:active {
   transform: translateY(0);
+  box-shadow: none;
 }
 
 .btn-primary:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
   transform: none;
 }
 
+/* Secondary – glass */
 .btn-secondary {
-  background: var(--surface-glass-light);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--text-main);
   border: 1px solid var(--border);
   backdrop-filter: blur(8px);
 }
 
 .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.09);
   border-color: var(--border-light);
   transform: translateY(-2px);
 }
 
-/* Inputs */
+.btn-secondary:active {
+  transform: translateY(0);
+}
+
+/* ═══════════════════════════════════════════════════
+   INPUTS
+═══════════════════════════════════════════════════ */
 .input-field {
   width: 100%;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.25);
   border: 1px solid var(--border);
   color: var(--text-main);
   padding: 14px 16px;
@@ -188,13 +235,17 @@ p {
   font-size: 1rem;
   font-family: inherit;
   transition: all 0.2s ease;
+  outline: none;
+}
+
+.input-field::placeholder {
+  color: var(--text-muted);
 }
 
 .input-field:focus {
-  outline: none;
-  border-color: var(--primary);
+  border-color: rgba(124, 58, 237, 0.5);
   background: rgba(0, 0, 0, 0.4);
-  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
 }
 
 .label {
@@ -205,16 +256,25 @@ p {
   color: var(--text-muted);
 }
 
-/* Layout Utilities */
+/* ═══════════════════════════════════════════════════
+   LAYOUT UTILITIES
+═══════════════════════════════════════════════════ */
 .container {
   width: 100%;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 20px;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 640px) {
   .container {
-    padding: 0 5vw;
+    padding: 0 32px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    padding: 0 48px;
   }
 }
 
@@ -232,32 +292,38 @@ p {
   padding: 4rem 24px;
 }
 
-/* Animations */
+/* ═══════════════════════════════════════════════════
+   ANIMATIONS
+═══════════════════════════════════════════════════ */
 @keyframes fadeInUp {
-  from { 
-    opacity: 0; 
-    transform: translateY(20px); 
+  from {
+    opacity: 0;
+    transform: translateY(24px);
   }
-  to { 
-    opacity: 1; 
-    transform: translateY(0); 
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
 .animate-fade-up {
   opacity: 0;
-  animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeInUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+.delay-50  { animation-delay: 50ms; }
 .delay-100 { animation-delay: 100ms; }
 .delay-200 { animation-delay: 200ms; }
 .delay-300 { animation-delay: 300ms; }
-.delay-400 { animation-delay: 400ms; }
+.delay-400 { animation-delay: 450ms; }
+.delay-500 { animation-delay: 600ms; }
 
-/* Grid systems */
+/* ═══════════════════════════════════════════════════
+   GRID UTILITIES
+═══════════════════════════════════════════════════ */
 .grid {
   display: grid;
-  gap: 2rem;
+  gap: 1.5rem;
 }
 
 @media (min-width: 768px) {

@@ -11,7 +11,6 @@ export interface Commitment {
   endDate: string;
   status: 'active' | 'success' | 'failed';
   createdAt: string;
-  targetScope?: 'daily' | 'weekly';
   sentence?: string;
 }
 
@@ -89,6 +88,17 @@ const getCommitmentDaysList = (commitment: Commitment) => {
   }
 };
 
+const getCoinInfo = (stakeAmount: number) => {
+  const isBronze = stakeAmount === 5 || stakeAmount === 1.99;
+  const isSilver = stakeAmount === 10 || stakeAmount === 4.99;
+  const isGold = stakeAmount === 20 || stakeAmount === 9.99;
+  return {
+    label: isBronze ? 'Bronze' : isSilver ? 'Silver' : isGold ? 'Gold' : 'Pass',
+    color: isBronze ? '#CD7F32' : isSilver ? '#BDC3C7' : isGold ? '#FBBF24' : '#94A3B8',
+    emoji: isBronze ? '🛡️' : isSilver ? '🥈' : isGold ? '👑' : '🎟️',
+  };
+};
+
 const simulatedTodayIndex = 2; // Simulated Wednesday index
 
 export default function AndroidCommitmentsWidget({ commitments = [], weeklyData = {} }: AndroidCommitmentsWidgetProps) {
@@ -110,7 +120,7 @@ export default function AndroidCommitmentsWidget({ commitments = [], weeklyData 
         }}
       >
         <TextWidget
-          text="HabitContract 🔒"
+          text="CommitLock 🔒"
           style={{
             fontSize: 16,
             fontWeight: 'bold',
@@ -163,7 +173,7 @@ export default function AndroidCommitmentsWidget({ commitments = [], weeklyData 
         }}
       >
         <TextWidget
-          text="HABITCONTRACT ACTIVE PROGRESS"
+          text="COMMITLOCK ACTIVE PROGRESS"
           style={{
             fontSize: 10,
             fontWeight: 'bold',
@@ -171,7 +181,7 @@ export default function AndroidCommitmentsWidget({ commitments = [], weeklyData 
           }}
         />
         <TextWidget
-          text="🔒 PLEDGED"
+          text="🔒 LOCKED"
           style={{
             fontSize: 10,
             fontWeight: 'bold',
@@ -180,11 +190,11 @@ export default function AndroidCommitmentsWidget({ commitments = [], weeklyData 
         />
       </FlexWidget>
 
-      {/* Commitments List */}
       {listItems.map((commitment, index) => {
         const weeklyDataList = weeklyData[commitment.id] || [];
         const emoji = getMetricEmoji(commitment.metricType);
         const label = getMetricLabel(commitment.metricType);
+        const coinInfo = getCoinInfo(commitment.stakeAmount);
         
         // Calculate stats
         let overallProgress = 0;
@@ -199,43 +209,22 @@ export default function AndroidCommitmentsWidget({ commitments = [], weeklyData 
           const totalDays = allDays.length || 7;
           const todayDateStr = weeklyDataList?.[simulatedTodayIndex]?.dateString;
 
-          if (commitment.targetScope === 'weekly') {
-            const dailyAverage = commitment.targetValue / 7;
-            const totalCommitmentTarget = dailyAverage * totalDays;
-            let accumulated = 0;
-            
-            allDays.forEach((dateStr) => {
-              if (todayDateStr && dateStr <= todayDateStr) {
-                const dayData = weeklyDataList.find(d => d.dateString === dateStr);
-                if (dayData) {
-                  accumulated += dayData.value;
-                } else if (dateStr < todayDateStr) {
-                  accumulated += dailyAverage;
-                }
+          let sumProgress = 0;
+          allDays.forEach((dateStr) => {
+            if (todayDateStr && dateStr <= todayDateStr) {
+              const dayData = weeklyDataList.find(d => d.dateString === dateStr);
+              if (dayData) {
+                sumProgress += Math.min(dayData.value / commitment.targetValue, 1);
+              } else if (dateStr < todayDateStr) {
+                sumProgress += 1.0;
               }
-            });
-            overallProgress = Math.min(Math.round((accumulated / totalCommitmentTarget) * 100), 100);
-          } else {
-            let sumProgress = 0;
-            allDays.forEach((dateStr) => {
-              if (todayDateStr && dateStr <= todayDateStr) {
-                const dayData = weeklyDataList.find(d => d.dateString === dateStr);
-                if (dayData) {
-                  sumProgress += Math.min(dayData.value / commitment.targetValue, 1);
-                } else if (dateStr < todayDateStr) {
-                  sumProgress += 1.0;
-                }
-              }
-            });
-            overallProgress = Math.min(Math.round((sumProgress / totalDays) * 100), 100);
-          }
+            }
+          });
+          overallProgress = Math.min(Math.round((sumProgress / totalDays) * 100), 100);
 
-          // Check if broken
-          if (commitment.targetScope !== 'weekly') {
-            isBroken = weeklyDataList.slice(0, simulatedTodayIndex).some(
-              (day) => day.value < commitment.targetValue
-            );
-          }
+          isBroken = weeklyDataList.slice(0, simulatedTodayIndex).some(
+            (day) => day.value < commitment.targetValue
+          );
         }
 
         // Calculate remaining days
@@ -266,7 +255,7 @@ export default function AndroidCommitmentsWidget({ commitments = [], weeklyData 
               style={{
                 flexDirection: 'row',
                 justifyContent: 'space-between',
-                alignItems: 'center',
+                alignment: 'center',
                 width: 'match_parent',
                 marginBottom: 2,
               }}
@@ -280,10 +269,10 @@ export default function AndroidCommitmentsWidget({ commitments = [], weeklyData 
                 }}
               />
               <TextWidget
-                text={isBroken ? '⚠️ Broken' : `€${commitment.stakeAmount} Pledged`}
+                text={isBroken ? '⚠️ Failed' : `${coinInfo.emoji} ${coinInfo.label} Locked`}
                 style={{
                   fontSize: 12,
-                  color: isBroken ? '#FF4655' : '#05D38E',
+                  color: isBroken ? '#FF4655' : coinInfo.color,
                 }}
               />
             </FlexWidget>
@@ -298,70 +287,42 @@ export default function AndroidCommitmentsWidget({ commitments = [], weeklyData 
                 marginBottom: 4,
               }}
             >
-              {commitment.targetScope === 'weekly' ? (
-                <FlexWidget
-                  style={{
-                    flex: 1,
-                    height: 'match_parent',
-                    backgroundColor: '#1E293B',
-                    borderRadius: 2,
-                    flexDirection: 'row',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <FlexWidget
-                    style={{
-                      flex: overallProgress,
-                      height: 'match_parent',
-                      backgroundColor: '#05D38E',
-                      borderRadius: 2,
-                    }}
-                  />
-                  <FlexWidget
-                    style={{
-                      flex: 100 - overallProgress,
-                      height: 'match_parent',
-                      backgroundColor: '#00000000',
-                    }}
-                  />
-                </FlexWidget>
-              ) : (
-                getCommitmentDaysList(commitment).map((dateStr, segmentIdx) => {
-                  const todayDateStr = weeklyDataList?.[simulatedTodayIndex]?.dateString;
-                  const dayData = weeklyDataList.find(d => d.dateString === dateStr);
-                  
-                  let segmentColor = '#1E293B'; // Default future slate
-                  
-                  if (todayDateStr) {
-                    if (dateStr > todayDateStr) {
-                      segmentColor = '#1E293B';
-                    } else if (dateStr === todayDateStr) {
-                      segmentColor = '#7C3AED'; // Purple highlight for today
-                    } else {
-                      const isGoalMet = dayData
-                        ? (commitment.targetScope === 'weekly'
-                          ? dayData.value > 0
-                          : dayData.value >= commitment.targetValue)
-                        : true;
-                      
-                      segmentColor = isGoalMet ? '#05D38E' : '#FF4655';
-                    }
+              {getCommitmentDaysList(commitment).map((dateStr, segmentIdx) => {
+                const todayDateStr = weeklyDataList?.[simulatedTodayIndex]?.dateString;
+                const dayData = weeklyDataList.find(d => d.dateString === dateStr);
+                
+                let segmentColor = '#1E293B'; // Default future slate
+                
+                if (todayDateStr) {
+                  if (dateStr > todayDateStr) {
+                    segmentColor = '#1E293B';
+                  } else if (dateStr === todayDateStr) {
+                    const isGoalMet = dayData
+                      ? dayData.value >= commitment.targetValue
+                      : false;
+                    segmentColor = isGoalMet ? '#05D38E' : '#FACC15'; // Green if achieved, yellow if not
+                  } else {
+                    const isGoalMet = dayData
+                      ? dayData.value >= commitment.targetValue
+                      : true;
+                    
+                    segmentColor = isGoalMet ? '#05D38E' : '#FF4655';
                   }
+                }
 
-                  return (
-                    <FlexWidget
-                      key={dateStr}
-                      style={{
-                        flex: 1,
-                        height: 'match_parent',
-                        backgroundColor: segmentColor as any,
-                        borderRadius: 2,
-                        marginLeft: segmentIdx > 0 ? 3 : 0,
-                      }}
-                    />
-                  );
-                })
-              )}
+                return (
+                  <FlexWidget
+                    key={dateStr}
+                    style={{
+                      flex: 1,
+                      height: 'match_parent',
+                      backgroundColor: segmentColor as any,
+                      borderRadius: 2,
+                      marginLeft: segmentIdx > 0 ? 3 : 0,
+                    }}
+                  />
+                );
+              })}
             </FlexWidget>
 
             {/* Target details */}
@@ -373,7 +334,7 @@ export default function AndroidCommitmentsWidget({ commitments = [], weeklyData 
               }}
             >
               <TextWidget
-                text={`${commitment.targetScope === 'weekly' ? 'Weekly' : 'Daily'} target • ${commitment.targetValue.toLocaleString()} ${getMetricUnit(commitment.metricType)}`}
+                text={`Daily target • ${commitment.targetValue.toLocaleString()} ${getMetricUnit(commitment.metricType)}`}
                 style={{
                   fontSize: 10,
                   color: '#8F93A3',
@@ -390,7 +351,7 @@ export default function AndroidCommitmentsWidget({ commitments = [], weeklyData 
             {commitment.sentence && (
               <TextWidget
                 text={commitment.sentence}
-                maxLines={1}
+                maxLines={3}
                 style={{
                   fontSize: 9,
                   color: '#8F93A3',

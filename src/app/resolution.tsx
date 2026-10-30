@@ -19,11 +19,13 @@ import { Spacing } from '@/constants/theme';
 import { HealthDataService, Commitment, DailyHealthData } from '@/services/health';
 import { DisciplineCard } from '@/components/DisciplineCard';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '@/services/auth';
 
 export default function ResolutionScreen() {
   const router = useRouter();
   const { id, debug_auto_resolve } = useLocalSearchParams<{ id?: string; debug_auto_resolve?: string }>();
   const { t } = useTranslation();
+  const { refundPassValue } = useAuth();
 
   // States
   const [activeCommitment, setActiveCommitment] = useState<Commitment | null>(null);
@@ -49,17 +51,11 @@ export default function ResolutionScreen() {
       }
       setActiveCommitment(commitment);
       
-      const data = await HealthDataService.fetchWeeklyData(commitment.metricType);
+      const data = await HealthDataService.fetchWeeklyData(commitment.metricType, commitment);
       setWeeklyData(data);
       
       // Determine overall outcome (must pass all 7 days for daily, or reach sum for weekly)
-      let passedAll = false;
-      if (commitment.targetScope === 'weekly') {
-        const total = data.reduce((acc, d) => acc + d.value, 0);
-        passedAll = total >= commitment.targetValue;
-      } else {
-        passedAll = data.every((d) => d.value >= commitment.targetValue);
-      }
+      const passedAll = data.every((d) => d.value >= commitment.targetValue);
       setIsSuccess(passedAll);
 
       // Load history to compute active streak
@@ -131,9 +127,7 @@ export default function ResolutionScreen() {
       if (currentCheckingIndex < 7) {
         if (weeklyData && weeklyData[currentCheckingIndex]) {
           // Trigger haptic feedback for each day check
-          const dayPassed = activeCommitment?.targetScope === 'weekly'
-            ? weeklyData[currentCheckingIndex].value > 0
-            : weeklyData[currentCheckingIndex].value >= (activeCommitment?.targetValue || 0);
+          const dayPassed = weeklyData[currentCheckingIndex].value >= (activeCommitment?.targetValue || 0);
           
           if (dayPassed) {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -192,6 +186,11 @@ export default function ResolutionScreen() {
     // Clear active commitment slot
     await HealthDataService.clearActiveCommitment(activeCommitment.id);
 
+    // Refund the pass value back to user's available list
+    if (isSuccess && refundPassValue) {
+      await refundPassValue(activeCommitment.stakeAmount);
+    }
+
     // Redirect home to dashboard
     router.replace('/');
   };
@@ -248,31 +247,17 @@ export default function ResolutionScreen() {
       {phase === 'checking' && (
         <View style={styles.checkingContainer}>
           <Text style={styles.checkingTitle}>
-            {activeCommitment?.targetScope === 'weekly' 
-              ? t('resolution.checkingWeekly') 
-              : t('resolution.checkingDaily')}
+            {t('resolution.checkingDaily')}
           </Text>
           
-          {activeCommitment?.targetScope === 'weekly' && (
-            <View style={styles.weeklyRunningTotalCard}>
-              <Text style={styles.runningTotalLabel}>{t('resolution.runningTotal')}</Text>
-              <Text style={styles.runningTotalValue}>
-                {activeCommitment?.metricType === 'steps' || activeCommitment?.metricType === 'calories'
-                  ? Math.round(getRunningTotal(currentCheckingIndex)).toLocaleString()
-                  : getRunningTotal(currentCheckingIndex).toFixed(1)}{' '}
-                / {activeCommitment?.targetValue.toLocaleString()} {getMetricLabel()}
-              </Text>
-            </View>
-          )}
+
           
           <View style={styles.checkingDaysList}>
             {weeklyData.map((day, index) => {
               const isChecked = index < currentCheckingIndex;
               const isCheckingNow = index === currentCheckingIndex;
               const target = activeCommitment?.targetValue || 0;
-              const isPassed = activeCommitment?.targetScope === 'weekly'
-                ? day.value > 0
-                : day.value >= target;
+              const isPassed = day.value >= target;
  
               return (
                 <View 
@@ -305,9 +290,9 @@ export default function ResolutionScreen() {
                     )}
                     {isChecked && !isPassed && (
                       <MaterialCommunityIcons 
-                        name={activeCommitment?.targetScope === 'weekly' ? 'circle-outline' : 'close-circle'} 
+                        name="close-circle" 
                         size={20} 
-                        color={activeCommitment?.targetScope === 'weekly' ? '#576880' : '#FF4655'} 
+                        color="#FF4655" 
                       />
                     )}
                     {!isChecked && !isCheckingNow && (
@@ -332,6 +317,9 @@ export default function ResolutionScreen() {
               /* SUCCESS / REFUND LAYOUT WITH DISCIPLINE CARD */
               <View style={styles.outcomeWrapper}>
                 <Text style={styles.outcomeTitle}>{t('resolution.goalAchieved')}</Text>
+                <Text style={{color: '#94A3B8', fontSize: 13, textAlign: 'center', marginBottom: 16, paddingHorizontal: 20}}>
+                  {t('resolution.gracePeriodClaimNotice', 'You have successfully completed your commitment! Please claim your voucher below before your 48-hour grace period expires.')}
+                </Text>
                 
                 {activeCommitment && (
                   <DisciplineCard
@@ -356,14 +344,12 @@ export default function ResolutionScreen() {
 
                 <Text style={styles.failedOutcomeTitle}>{t('resolution.pledgeForfeited')}</Text>
                 <Text style={styles.failedOutcomeDesc}>
-                  {activeCommitment?.targetScope === 'weekly'
-                    ? t('resolution.weeklyFailureDesc', { achieved: weeklyData.reduce((acc, d) => acc + d.value, 0).toLocaleString(), unit: getMetricLabel(), target: activeCommitment?.targetValue.toLocaleString() })
-                    : t('resolution.dailyFailureDesc')}
+                  {t('resolution.dailyFailureDesc')}
                 </Text>
 
                 <LinearGradient colors={['#11131E', '#0B0C14']} style={[styles.outcomeDetailsCard, { borderColor: 'rgba(255, 70, 85, 0.15)' }]}>
                   <Text style={[styles.refundLabel, { color: '#FF4655' }]}>{t('resolution.stakeForfeited')}</Text>
-                  <Text style={[styles.refundAmount, { color: '#FF4655' }]}>€{activeCommitment?.stakeAmount}.00</Text>
+                  <Text style={[styles.refundAmount, { color: '#FF4655' }]}>1 Voucher</Text>
                   <Text style={styles.refundSubtext}>{t('resolution.platformRevenue')}</Text>
 
                 </LinearGradient>

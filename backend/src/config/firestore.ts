@@ -5,8 +5,8 @@ dotenv.config();
 
 // Fallback to local Firestore emulator if no GCP credentials are set
 if (process.env.NODE_ENV !== 'production' && !process.env.GOOGLE_APPLICATION_CREDENTIALS && !process.env.FIRESTORE_EMULATOR_HOST) {
-  process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8081';
-  console.log('No GCP credentials found. Falling back to local Firestore emulator at 127.0.0.1:8081');
+  process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8085';
+  console.log('No GCP credentials found. Falling back to local Firestore emulator at 127.0.0.1:8085');
 }
 
 // Initialize Firestore

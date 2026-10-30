@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "commitlock",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
     "ios": {
       "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.habitcontract.app",
@@ -31,7 +30,12 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.READ_DISTANCE",
+        "android.permission.health.READ_ACTIVE_CALORIES_BURNED",
+        "android.permission.health.READ_TOTAL_CALORIES_BURNED",
+        "android.permission.health.READ_EXERCISE"
       ],
       "package": "com.habitcontract.app"
     },
@@ -86,11 +90,26 @@
                       "title": "Commitment",
                       "type": "enum",
                       "values": [
-                        { "name": "1st Active Commitment", "value": "first" },
-                        { "name": "2nd Active Commitment", "value": "second" },
-                        { "name": "3rd Active Commitment", "value": "third" },
-                        { "name": "4th Active Commitment", "value": "fourth" },
-                        { "name": "5th Active Commitment", "value": "fifth" }
+                        {
+                          "name": "1st Active Commitment",
+                          "value": "first"
+                        },
+                        {
+                          "name": "2nd Active Commitment",
+                          "value": "second"
+                        },
+                        {
+                          "name": "3rd Active Commitment",
+                          "value": "third"
+                        },
+                        {
+                          "name": "4th Active Commitment",
+                          "value": "fourth"
+                        },
+                        {
+                          "name": "5th Active Commitment",
+                          "value": "fifth"
+                        }
                       ],
                       "default": "first"
                     }
@@ -124,8 +143,8 @@
       [
         "react-native-health",
         {
-          "healthSharePermission": "Allow HabitContract to read your health data to verify your goals.",
-          "healthUpdatePermission": "Allow HabitContract to save health and workout data."
+          "healthSharePermission": "Allow CommitLock to read your health data to verify your goals.",
+          "healthUpdatePermission": "Allow CommitLock to save health and workout data."
         }
       ],
       "expo-apple-authentication",
@@ -140,10 +159,16 @@
         {
           "ios": {
             "useFrameworks": "static"
+          },
+          "android": {
+            "minSdkVersion": 26
           }
         }
       ],
-      "expo-notifications"
+      "expo-health-connect",
+      "expo-notifications",
+      "expo-audio",
+      "./withWorkRuntimeFix.js"
     ],
     "experiments": {
       "typedRoutes": true,

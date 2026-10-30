@@ -3,7 +3,7 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as FileSystem from 'expo-file-system/legacy';
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { Alert, Platform } from 'react-native';
 
 export interface User {
@@ -14,6 +14,10 @@ export interface User {
   tier: string;
   provider: 'email' | 'google' | 'apple';
   hasPaymentMethod?: boolean;
+  passes: number;
+  bronzePasses?: number;
+  silverPasses?: number;
+  goldPasses?: number;
 }
 
 interface AuthContextType {
@@ -26,6 +30,9 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   updateAvatar: (avatarUri: string | null) => Promise<void>;
   refreshUser: () => Promise<void>;
+  purchasePasses: (quantity: number, tier?: string) => Promise<void>;
+  lockPassValue: (value: number) => Promise<void>;
+  refundPassValue: (value: number) => Promise<void>;
   error: string | null;
   clearError: () => void;
 }
@@ -66,7 +73,29 @@ if (Platform.OS !== 'web' && !isExpoGo) {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUserState] = useState<User | null>(null);
+  const setUser = (newUser: User | null) => {
+    if (newUser) {
+      const sanitizedPasses = (typeof newUser.passes === 'number' && !isNaN(newUser.passes)) ? newUser.passes : 0;
+      newUser.passes = sanitizedPasses;
+
+      const rawBronze = (typeof newUser.bronzePasses === 'number' && !isNaN(newUser.bronzePasses)) ? newUser.bronzePasses : 0;
+      const rawSilver = (typeof newUser.silverPasses === 'number' && !isNaN(newUser.silverPasses)) ? newUser.silverPasses : 0;
+      const rawGold = (typeof newUser.goldPasses === 'number' && !isNaN(newUser.goldPasses)) ? newUser.goldPasses : 0;
+
+      // Legacy migration: if total passes > 0 but all tier fields are 0, distribute them
+      if (sanitizedPasses > 0 && rawBronze === 0 && rawSilver === 0 && rawGold === 0) {
+        newUser.bronzePasses = sanitizedPasses >= 1 ? 1 : 0;
+        newUser.silverPasses = sanitizedPasses >= 2 ? 1 : 0;
+        newUser.goldPasses = sanitizedPasses >= 3 ? 1 : 0;
+      } else {
+        newUser.bronzePasses = rawBronze;
+        newUser.silverPasses = rawSilver;
+        newUser.goldPasses = rawGold;
+      }
+    }
+    setUserState(newUser);
+  };
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,10 +103,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const loadStoredUser = async () => {
       try {
-        if (__DEV__) {
-          console.log('[Auth] Dev Auto-Login triggered for demo@habitcontract.com');
+        if (__DEV__ && process.env.NODE_ENV !== 'test') {
+          console.log('[Auth] Dev Auto-Login triggered for demo@commitlock.com');
           try {
-            await signIn('demo@habitcontract.com', 'password');
+            await signIn('demo@commitlock.com', 'password');
             setIsLoading(false);
             return;
           } catch (err) {
@@ -128,7 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const clearError = () => setError(null);
 
   // Refresh User Profile
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     try {
       const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
       if (token) {
@@ -149,7 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.error('Failed to refresh user profile from backend', e);
     }
-  };
+  }, []);
 
   async function signIn(email: string, password: string) {
     setIsLoading(true);
@@ -227,7 +256,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           [{ text: 'Continue' }]
         );
 
-        await signIn('demo@habitcontract.com', 'password');
+        await signIn('demo@commitlock.com', 'password');
         return;
       }
 
@@ -291,7 +320,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           [{ text: 'Continue' }]
         );
 
-        await signIn('demo@habitcontract.com', 'password');
+        await signIn('demo@commitlock.com', 'password');
         return;
       }
 
@@ -418,6 +447,182 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Purchase Passes (Simulated In-App Purchase)
+  const purchasePasses = useCallback(async (quantity: number, tier?: string) => {
+    setIsLoading(true);
+    try {
+      const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+      if (!token) {
+        // Local fallback if no auth token is cached
+        setUser(prevUser => {
+          if (!prevUser) return null;
+          const currentPasses = (typeof prevUser.passes === 'number' && !isNaN(prevUser.passes)) ? prevUser.passes : 0;
+          const currentBronze = prevUser.bronzePasses ?? 0;
+          const currentSilver = prevUser.silverPasses ?? 0;
+          const currentGold = prevUser.goldPasses ?? 0;
+          
+          let incrementBronze = 0;
+          let incrementSilver = 0;
+          let incrementGold = 0;
+          if (quantity === 3) {
+            incrementBronze = 1;
+            incrementSilver = 1;
+            incrementGold = 1;
+          } else if (tier === 'bronze') {
+            incrementBronze = quantity;
+          } else if (tier === 'silver') {
+            incrementSilver = quantity;
+          } else if (tier === 'gold') {
+            incrementGold = quantity;
+          }
+
+          const updatedUser = { 
+            ...prevUser, 
+            passes: currentPasses + quantity,
+            bronzePasses: currentBronze + incrementBronze,
+            silverPasses: currentSilver + incrementSilver,
+            goldPasses: currentGold + incrementGold
+          };
+          AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser)).catch(() => {});
+          return updatedUser;
+        });
+        return;
+      }
+
+      let response: Response;
+      try {
+        response = await fetch(`${API_URL}/api/user/purchase-passes`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ quantity, tier }),
+        });
+      } catch (fetchErr) {
+        console.warn('[Auth] Network request failed for purchase-passes, falling back to local simulation:', fetchErr);
+        // Local fallback if backend server is offline/unreachable
+        setUser(prevUser => {
+          if (!prevUser) return null;
+          const currentPasses = (typeof prevUser.passes === 'number' && !isNaN(prevUser.passes)) ? prevUser.passes : 0;
+          const currentBronze = prevUser.bronzePasses ?? 0;
+          const currentSilver = prevUser.silverPasses ?? 0;
+          const currentGold = prevUser.goldPasses ?? 0;
+          
+          let incrementBronze = 0;
+          let incrementSilver = 0;
+          let incrementGold = 0;
+          if (quantity === 3) {
+            incrementBronze = 1;
+            incrementSilver = 1;
+            incrementGold = 1;
+          } else if (tier === 'bronze') {
+            incrementBronze = quantity;
+          } else if (tier === 'silver') {
+            incrementSilver = quantity;
+          } else if (tier === 'gold') {
+            incrementGold = quantity;
+          }
+
+          const updatedUser = { 
+            ...prevUser, 
+            passes: currentPasses + quantity,
+            bronzePasses: currentBronze + incrementBronze,
+            silverPasses: currentSilver + incrementSilver,
+            goldPasses: currentGold + incrementGold
+          };
+          AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser)).catch(() => {});
+          return updatedUser;
+        });
+        return;
+      }
+
+      const data = await response.json();
+      if (response.ok) {
+        setUser(prevUser => {
+          if (!prevUser) return null;
+          const serverPasses = (data && typeof data.passes === 'number' && !isNaN(data.passes)) 
+            ? data.passes 
+            : ((typeof prevUser.passes === 'number' && !isNaN(prevUser.passes)) ? prevUser.passes + quantity : quantity);
+          const serverBronze = (data && typeof data.bronzePasses === 'number') ? data.bronzePasses : (prevUser.bronzePasses ?? 0);
+          const serverSilver = (data && typeof data.silverPasses === 'number') ? data.silverPasses : (prevUser.silverPasses ?? 0);
+          const serverGold = (data && typeof data.goldPasses === 'number') ? data.goldPasses : (prevUser.goldPasses ?? 0);
+
+          const updatedUser = { 
+            ...prevUser, 
+            passes: serverPasses,
+            bronzePasses: serverBronze,
+            silverPasses: serverSilver,
+            goldPasses: serverGold
+          };
+          AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser)).catch(() => {});
+          return updatedUser;
+        });
+        return;
+      } else {
+        throw new Error(data.error || 'Failed to complete purchase.');
+      }
+    } catch (err: any) {
+      console.error('Error during pass purchase:', err);
+      setError(err.message || 'Pass purchase failed');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const lockPassValue = useCallback(async (value: number) => {
+    try {
+      setUser((prevUser) => {
+        if (!prevUser) return null;
+        let passField = 'bronzePasses';
+        if (value === 4.99 || value === 10) passField = 'silverPasses';
+        if (value === 9.99 || value === 20) passField = 'goldPasses';
+
+        const currentPasses = (typeof prevUser.passes === 'number' && !isNaN(prevUser.passes)) ? prevUser.passes : 0;
+        const currentTierPasses = (typeof prevUser[passField] === 'number' && !isNaN(prevUser[passField] as number)) ? prevUser[passField] as number : 0;
+
+        const updatedUser = { 
+          ...prevUser, 
+          passes: Math.max(0, currentPasses - 1),
+          [passField]: Math.max(0, currentTierPasses - 1)
+        };
+        AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser)).catch((err) => {
+          console.error('[Auth] Error saving locked user value:', err);
+        });
+        return updatedUser;
+      });
+    } catch (e) {
+      console.error('[Auth] Error locking pass value:', e);
+    }
+  }, []);
+
+  const refundPassValue = useCallback(async (value: number) => {
+    try {
+      setUser((prevUser) => {
+        if (!prevUser) return null;
+        let passField = 'bronzePasses';
+        if (value === 4.99 || value === 10) passField = 'silverPasses';
+        if (value === 9.99 || value === 20) passField = 'goldPasses';
+
+        const currentPasses = (typeof prevUser.passes === 'number' && !isNaN(prevUser.passes)) ? prevUser.passes : 0;
+        const currentTierPasses = (typeof prevUser[passField] === 'number' && !isNaN(prevUser[passField] as number)) ? prevUser[passField] as number : 0;
+
+        const updatedUser = { 
+          ...prevUser, 
+          passes: currentPasses + 1,
+          [passField]: currentTierPasses + 1
+        };
+        AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser)).catch((err) => {
+          console.error('[Auth] Error saving refunded user value:', err);
+        });
+        return updatedUser;
+      });
+    } catch (e) {
+      console.error('[Auth] Error refunding pass value:', e);
+    }
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -430,6 +635,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signOut,
         updateAvatar,
         refreshUser,
+        purchasePasses,
+        lockPassValue,
+        refundPassValue,
         error,
         clearError,
       }}
