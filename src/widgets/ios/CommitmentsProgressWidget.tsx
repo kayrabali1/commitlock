@@ -1,4 +1,4 @@
-import { Host, VStack, HStack, Text, Spacer, Divider, Rectangle, Button } from '@expo/ui/swift-ui';
+import { VStack, HStack, Text, Spacer, Divider, Rectangle } from '@expo/ui/swift-ui';
 import { 
   background, 
   foregroundColor, 
@@ -113,28 +113,26 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
   // Render empty state if there are no active commitments
   if (commitments.length === 0) {
     return (
-      <Host>
-        <VStack
-          alignment="center"
-          spacing={10}
-          modifiers={[
-            containerBackground('#06070B', 'widget'),
-            padding({ all: 16 })
-          ]}
-        >
-          <Spacer />
-          <Text modifiers={[font({ size: 16, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
-            CommitLock 🔒
-          </Text>
-          <Text modifiers={[font({ size: 12 }), foregroundColor('#8F93A3')]}>
-            No active commitments.
-          </Text>
-          <Text modifiers={[font({ size: 10 }), foregroundColor('#4F46E5')]}>
-            Open app to lock one!
-          </Text>
-          <Spacer />
-        </VStack>
-      </Host>
+      <VStack
+        alignment="center"
+        spacing={10}
+        modifiers={[
+          containerBackground('#06070B', 'widget'),
+          padding({ all: 16 })
+        ]}
+      >
+        <Spacer />
+        <Text modifiers={[font({ size: 16, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
+          CommitLock 🔒
+        </Text>
+        <Text modifiers={[font({ size: 12 }), foregroundColor('#8F93A3')]}>
+          No active commitments.
+        </Text>
+        <Text modifiers={[font({ size: 10 }), foregroundColor('#4F46E5')]}>
+          Open app to lock one!
+        </Text>
+        <Spacer />
+      </VStack>
     );
   }
 
@@ -150,69 +148,67 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
     const coinInfo = getCoinInfo(commitment.stakeAmount);
 
     return (
-      <Host>
-        <VStack
-          alignment="leading"
-          spacing={4}
-          modifiers={[
-            containerBackground('#0D0F18', 'widget'),
-            padding({ all: 14 })
-          ]}
-        >
-          {/* Header row: emoji + label ... ON TRACK + €amount */}
-          <HStack spacing={4}>
-            <Text modifiers={[font({ size: 14, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
-              {emoji} {commitment.label}
-            </Text>
-            <Spacer />
-            <Text modifiers={[
-              font({ size: 9, weight: 'bold' }),
-              foregroundColor(statusColor),
-              padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
-              background(commitment.isBroken ? '#1A0A0C' : '#0A1F15'),
-              cornerRadius(6)
-            ]}>
-              {statusText}
-            </Text>
-            <Text modifiers={[
-              font({ size: 9, weight: 'bold' }),
-              foregroundColor(coinInfo.color),
-              padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
-              background(coinInfo.bgColor),
-              cornerRadius(6)
-            ]}>
-              {coinInfo.emoji} {coinInfo.label}
-            </Text>
-          </HStack>
-
-          {/* Commitment sentence */}
-          {commitment.sentence && (
-            <Text modifiers={[font({ size: 9 }), foregroundColor('#8F93A3'), lineLimit(3)]}>
-              {commitment.sentence}
-            </Text>
-          )}
-
+      <VStack
+        alignment="leading"
+        spacing={4}
+        modifiers={[
+          containerBackground('#0D0F18', 'widget'),
+          padding({ all: 14 })
+        ]}
+      >
+        {/* Header row: emoji + label ... ON TRACK + €amount */}
+        <HStack spacing={4}>
+          <Text modifiers={[font({ size: 14, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
+            {emoji} {commitment.label}
+          </Text>
           <Spacer />
+          <Text modifiers={[
+            font({ size: 9, weight: 'bold' }),
+            foregroundColor(statusColor),
+            padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
+            background(commitment.isBroken ? '#1A0A0C' : '#0A1F15'),
+            cornerRadius(6)
+          ]}>
+            {statusText}
+          </Text>
+          <Text modifiers={[
+            font({ size: 9, weight: 'bold' }),
+            foregroundColor(coinInfo.color),
+            padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
+            background(coinInfo.bgColor),
+            cornerRadius(6)
+          ]}>
+            {coinInfo.emoji} {coinInfo.label}
+          </Text>
+        </HStack>
 
-          {/* Progress bar - centered */}
-          {renderSlicedProgressBar(commitment.segments, commitment.overallProgress)}
+        {/* Commitment sentence */}
+        {commitment.sentence && (
+          <Text modifiers={[font({ size: 9 }), foregroundColor('#8F93A3'), lineLimit(3)]}>
+            {commitment.sentence}
+          </Text>
+        )}
 
+        <Spacer />
+
+        {/* Progress bar - centered */}
+        {renderSlicedProgressBar(commitment.segments, commitment.overallProgress)}
+
+        <Spacer />
+
+        {/* Bottom stats */}
+        <HStack alignment="bottom">
+          <VStack alignment="leading" spacing={1}>
+            <Text modifiers={[font({ size: 8, weight: 'bold' }), foregroundColor('#8F93A3')]}>
+              COMPLETED
+            </Text>
+            <Text modifiers={[font({ size: 13, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
+              {commitment.overallProgress}%
+            </Text>
+          </VStack>
           <Spacer />
-
-          {/* Bottom stats */}
-          <HStack alignment="bottom">
-            <VStack alignment="leading" spacing={1}>
-              <Text modifiers={[font({ size: 8, weight: 'bold' }), foregroundColor('#8F93A3')]}>
-                COMPLETED
-              </Text>
-              <Text modifiers={[font({ size: 13, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
-                {commitment.overallProgress}%
-              </Text>
-            </VStack>
-            <Spacer />
-          </HStack>
-        </VStack>
-      </Host>
+        </HStack>
+      </VStack>
     );
   }
 
@@ -228,85 +224,83 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
     const coinInfo = getCoinInfo(commitment.stakeAmount);
 
     return (
-      <Host>
-        <VStack
-          alignment="leading"
-          spacing={6}
-          modifiers={[
-            containerBackground('#0D0F18', 'widget'),
-            padding({ all: 16 })
-          ]}
-        >
-          {/* Row 1: emoji + label ... ON TRACK pill + €amount pill */}
-          <HStack spacing={6}>
-            <Text modifiers={[font({ size: 16, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
-              {emoji} {commitment.label}
-            </Text>
-            <Spacer />
-            <Text modifiers={[
-              font({ size: 9, weight: 'bold' }),
-              foregroundColor(statusColor),
-              padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
-              background(commitment.isBroken ? '#1A0A0C' : '#0A1F15'),
-              cornerRadius(6)
-            ]}>
-              {statusText}
-            </Text>
-            <Text modifiers={[
-              font({ size: 9, weight: 'bold' }),
-              foregroundColor(coinInfo.color),
-              padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
-              background(coinInfo.bgColor),
-              cornerRadius(6)
-            ]}>
-              {coinInfo.emoji} {coinInfo.label}
-            </Text>
-          </HStack>
-
-          {/* Commitment sentence */}
-          {commitment.sentence && (
-            <Text modifiers={[font({ size: 11 }), foregroundColor('#8F93A3'), lineLimit(3)]}>
-              {commitment.sentence}
-            </Text>
-          )}
-
+      <VStack
+        alignment="leading"
+        spacing={6}
+        modifiers={[
+          containerBackground('#0D0F18', 'widget'),
+          padding({ all: 16 })
+        ]}
+      >
+        {/* Row 1: emoji + label ... ON TRACK pill + €amount pill */}
+        <HStack spacing={6}>
+          <Text modifiers={[font({ size: 16, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
+            {emoji} {commitment.label}
+          </Text>
           <Spacer />
+          <Text modifiers={[
+            font({ size: 9, weight: 'bold' }),
+            foregroundColor(statusColor),
+            padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
+            background(commitment.isBroken ? '#1A0A0C' : '#0A1F15'),
+            cornerRadius(6)
+          ]}>
+            {statusText}
+          </Text>
+          <Text modifiers={[
+            font({ size: 9, weight: 'bold' }),
+            foregroundColor(coinInfo.color),
+            padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
+            background(coinInfo.bgColor),
+            cornerRadius(6)
+          ]}>
+            {coinInfo.emoji} {coinInfo.label}
+          </Text>
+        </HStack>
 
-          {/* Progress bar - centered vertically */}
-          {renderSlicedProgressBar(commitment.segments, commitment.overallProgress)}
+        {/* Commitment sentence */}
+        {commitment.sentence && (
+          <Text modifiers={[font({ size: 11 }), foregroundColor('#8F93A3'), lineLimit(3)]}>
+            {commitment.sentence}
+          </Text>
+        )}
 
+        <Spacer />
+
+        {/* Progress bar - centered vertically */}
+        {renderSlicedProgressBar(commitment.segments, commitment.overallProgress)}
+
+        <Spacer />
+
+        {/* Bottom stats row */}
+        <HStack>
+          <VStack alignment="leading" spacing={1}>
+            <Text modifiers={[font({ size: 8, weight: 'bold' }), foregroundColor('#8F93A3')]}>
+              COMPLETED
+            </Text>
+            <Text modifiers={[font({ size: 13, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
+              {commitment.overallProgress}%
+            </Text>
+          </VStack>
           <Spacer />
-
-          {/* Bottom stats row */}
-          <HStack>
-            <VStack alignment="leading" spacing={1}>
-              <Text modifiers={[font({ size: 8, weight: 'bold' }), foregroundColor('#8F93A3')]}>
-                COMPLETED
-              </Text>
-              <Text modifiers={[font({ size: 13, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
-                {commitment.overallProgress}%
-              </Text>
-            </VStack>
-            <Spacer />
-            <VStack alignment="trailing" spacing={1}>
-              <Text modifiers={[font({ size: 8, weight: 'bold' }), foregroundColor('#8F93A3')]}>
-                TARGET GOAL
-              </Text>
-              <Text modifiers={[font({ size: 13, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
-                {commitment.targetValue.toLocaleString()} {commitment.unit}
-              </Text>
-            </VStack>
-            <VStack alignment="trailing" spacing={1} modifiers={[padding({ leading: 12 })]}>
-              <Text modifiers={[font({ size: 8, weight: 'bold' }), foregroundColor('#8F93A3')]}>
-                REMAINING
-              </Text>
-              <Text modifiers={[font({ size: 13, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
-                {commitment.remainingDays}
-              </Text>
-            </VStack>
-          </HStack>
-        </VStack>
-      </Host>
+          <VStack alignment="trailing" spacing={1}>
+            <Text modifiers={[font({ size: 8, weight: 'bold' }), foregroundColor('#8F93A3')]}>
+              TARGET GOAL
+            </Text>
+            <Text modifiers={[font({ size: 13, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
+              {commitment.targetValue.toLocaleString()} {commitment.unit}
+            </Text>
+          </VStack>
+          <VStack alignment="trailing" spacing={1} modifiers={[padding({ leading: 12 })]}>
+            <Text modifiers={[font({ size: 8, weight: 'bold' }), foregroundColor('#8F93A3')]}>
+              REMAINING
+            </Text>
+            <Text modifiers={[font({ size: 13, weight: 'bold' }), foregroundColor('#FFFFFF')]}>
+              {commitment.remainingDays}
+            </Text>
+          </VStack>
+        </HStack>
+      </VStack>
     );
   }
 
@@ -314,94 +308,92 @@ const CommitmentsProgressWidget = (props: WidgetProps, context: any) => {
   const largeListItems = commitments.slice(0, 5);
 
   return (
-    <Host>
-      <VStack
-        alignment="leading"
-        spacing={10}
-        modifiers={[
-          containerBackground('#06070B', 'widget'),
-          padding({ all: 16 })
-        ]}
-      >
-        {/* Header Title */}
+    <VStack
+      alignment="leading"
+      spacing={10}
+      modifiers={[
+        containerBackground('#06070B', 'widget'),
+        padding({ all: 16 })
+      ]}
+    >
+      {/* Header Title */}
+      <HStack>
+        <Text modifiers={[font({ size: 12, weight: 'bold' }), foregroundColor('#8F93A3')]}>
+          ALL ACTIVE COMMITMENTS
+        </Text>
+        <Spacer />
+        <Text modifiers={[font({ size: 10, weight: 'bold' }), foregroundColor('#F5A623')]}>
+          🔒 PLEDGED
+        </Text>
+      </HStack>
+
+      <Spacer modifiers={[frame({ height: 2 })]} />
+
+      {/* Commitments List */}
+      {largeListItems.map((commitment, index) => {
+        const emoji = getMetricEmoji(commitment.metricType);
+        const statusColor = commitment.isBroken ? '#FF4655' : '#05D38E';
+        const statusText = commitment.isBroken
+          ? '⚠️ Broken'
+          : '● On Track';
+        const coinInfo = getCoinInfo(commitment.stakeAmount);
+
+        return (
+          <VStack
+            key={commitment.id || index}
+            alignment="leading"
+            spacing={4}
+            modifiers={[padding({ bottom: index < largeListItems.length - 1 ? 6 : 0 })]}
+          >
+            <HStack>
+              <VStack alignment="leading" spacing={2}>
+                <Text modifiers={[font({ size: 13, weight: 'semibold' }), foregroundColor('#FFFFFF')]}>
+                  {emoji} {commitment.label}
+                </Text>
+                <Text modifiers={[font({ size: 10 }), foregroundColor('#8F93A3')]}>
+                  Daily • {commitment.targetValue.toLocaleString()} {commitment.unit}
+                </Text>
+                {commitment.sentence && (
+                  <Text modifiers={[font({ size: 9 }), foregroundColor('#6B7280'), lineLimit(2)]}>
+                    {commitment.sentence}
+                  </Text>
+                )}
+              </VStack>
+
+              <Spacer />
+
+              <VStack alignment="trailing" spacing={2}>
+                <HStack spacing={6}>
+                  <Text modifiers={[font({ size: 11, weight: 'bold' }), foregroundColor(statusColor)]}>
+                    {statusText}
+                  </Text>
+                  <Text modifiers={[font({ size: 11, weight: 'bold' }), foregroundColor(coinInfo.color)]}>
+                    {coinInfo.emoji} {coinInfo.label}
+                  </Text>
+                </HStack>
+                <Text modifiers={[font({ size: 9 }), foregroundColor('#8F93A3')]}>
+                  {commitment.remainingDays}
+                </Text>
+              </VStack>
+            </HStack>
+
+            {index < largeListItems.length - 1 && (
+              <Divider modifiers={[padding({ top: 6 })]} />
+            )}
+          </VStack>
+        );
+      })}
+
+      {commitments.length > 5 && (
         <HStack>
-          <Text modifiers={[font({ size: 12, weight: 'bold' }), foregroundColor('#8F93A3')]}>
-            ALL ACTIVE COMMITMENTS
+          <Spacer />
+          <Text modifiers={[font({ size: 10, weight: 'semibold' }), foregroundColor('#8F93A3')]}>
+            + {commitments.length - 5} more active
           </Text>
           <Spacer />
-          <Text modifiers={[font({ size: 10, weight: 'bold' }), foregroundColor('#F5A623')]}>
-            🔒 PLEDGED
-          </Text>
         </HStack>
-
-        <Spacer modifiers={[frame({ height: 2 })]} />
-
-        {/* Commitments List */}
-        {largeListItems.map((commitment, index) => {
-          const emoji = getMetricEmoji(commitment.metricType);
-          const statusColor = commitment.isBroken ? '#FF4655' : '#05D38E';
-          const statusText = commitment.isBroken
-            ? '⚠️ Broken'
-            : '● On Track';
-          const coinInfo = getCoinInfo(commitment.stakeAmount);
-
-          return (
-            <VStack
-              key={commitment.id || index}
-              alignment="leading"
-              spacing={4}
-              modifiers={[padding({ bottom: index < largeListItems.length - 1 ? 6 : 0 })]}
-            >
-              <HStack>
-                <VStack alignment="leading" spacing={2}>
-                  <Text modifiers={[font({ size: 13, weight: 'semibold' }), foregroundColor('#FFFFFF')]}>
-                    {emoji} {commitment.label}
-                  </Text>
-                  <Text modifiers={[font({ size: 10 }), foregroundColor('#8F93A3')]}>
-                    Daily • {commitment.targetValue.toLocaleString()} {commitment.unit}
-                  </Text>
-                  {commitment.sentence && (
-                    <Text modifiers={[font({ size: 9 }), foregroundColor('#6B7280'), lineLimit(2)]}>
-                      {commitment.sentence}
-                    </Text>
-                  )}
-                </VStack>
-
-                <Spacer />
-
-                <VStack alignment="trailing" spacing={2}>
-                  <HStack spacing={6}>
-                    <Text modifiers={[font({ size: 11, weight: 'bold' }), foregroundColor(statusColor)]}>
-                      {statusText}
-                    </Text>
-                    <Text modifiers={[font({ size: 11, weight: 'bold' }), foregroundColor(coinInfo.color)]}>
-                      {coinInfo.emoji} {coinInfo.label}
-                    </Text>
-                  </HStack>
-                  <Text modifiers={[font({ size: 9 }), foregroundColor('#8F93A3')]}>
-                    {commitment.remainingDays}
-                  </Text>
-                </VStack>
-              </HStack>
-
-              {index < largeListItems.length - 1 && (
-                <Divider modifiers={[padding({ top: 6 })]} />
-              )}
-            </VStack>
-          );
-        })}
-
-        {commitments.length > 5 && (
-          <HStack>
-            <Spacer />
-            <Text modifiers={[font({ size: 10, weight: 'semibold' }), foregroundColor('#8F93A3')]}>
-              + {commitments.length - 5} more active
-            </Text>
-            <Spacer />
-          </HStack>
-        )}
-      </VStack>
-    </Host>
+      )}
+    </VStack>
   );
 };
 

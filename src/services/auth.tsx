@@ -74,27 +74,37 @@ if (Platform.OS !== 'web' && !isExpoGo) {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUserState] = useState<User | null>(null);
-  const setUser = (newUser: User | null) => {
-    if (newUser) {
-      const sanitizedPasses = (typeof newUser.passes === 'number' && !isNaN(newUser.passes)) ? newUser.passes : 0;
-      newUser.passes = sanitizedPasses;
+  const normalizeUserPasses = (u: User): User => {
+    const sanitizedPasses = (typeof u.passes === 'number' && !isNaN(u.passes)) ? u.passes : 0;
+    const rawBronze = (typeof u.bronzePasses === 'number' && !isNaN(u.bronzePasses)) ? u.bronzePasses : 0;
+    const rawSilver = (typeof u.silverPasses === 'number' && !isNaN(u.silverPasses)) ? u.silverPasses : 0;
+    const rawGold = (typeof u.goldPasses === 'number' && !isNaN(u.goldPasses)) ? u.goldPasses : 0;
 
-      const rawBronze = (typeof newUser.bronzePasses === 'number' && !isNaN(newUser.bronzePasses)) ? newUser.bronzePasses : 0;
-      const rawSilver = (typeof newUser.silverPasses === 'number' && !isNaN(newUser.silverPasses)) ? newUser.silverPasses : 0;
-      const rawGold = (typeof newUser.goldPasses === 'number' && !isNaN(newUser.goldPasses)) ? newUser.goldPasses : 0;
+    let bronze = Math.min(1, Math.max(0, rawBronze));
+    let silver = Math.min(1, Math.max(0, rawSilver));
+    let gold = Math.min(1, Math.max(0, rawGold));
 
-      // Legacy migration: if total passes > 0 but all tier fields are 0, distribute them
-      if (sanitizedPasses > 0 && rawBronze === 0 && rawSilver === 0 && rawGold === 0) {
-        newUser.bronzePasses = sanitizedPasses >= 1 ? 1 : 0;
-        newUser.silverPasses = sanitizedPasses >= 2 ? 1 : 0;
-        newUser.goldPasses = sanitizedPasses >= 3 ? 1 : 0;
-      } else {
-        newUser.bronzePasses = rawBronze;
-        newUser.silverPasses = rawSilver;
-        newUser.goldPasses = rawGold;
-      }
+    // Legacy migration: if total passes > 0 but all tier fields are 0, distribute them (max 1 each)
+    if (sanitizedPasses > 0 && rawBronze === 0 && rawSilver === 0 && rawGold === 0) {
+      bronze = sanitizedPasses >= 1 ? 1 : 0;
+      silver = sanitizedPasses >= 2 ? 1 : 0;
+      gold = sanitizedPasses >= 3 ? 1 : 0;
     }
-    setUserState(newUser);
+
+    return {
+      ...u,
+      bronzePasses: bronze,
+      silverPasses: silver,
+      goldPasses: gold,
+      passes: bronze + silver + gold,
+    };
+  };
+
+  const setUser = (newUser: User | null | ((prev: User | null) => User | null)) => {
+    setUserState((prev) => {
+      const next = typeof newUser === 'function' ? newUser(prev) : newUser;
+      return next ? normalizeUserPasses(next) : null;
+    });
   };
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -456,32 +466,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Local fallback if no auth token is cached
         setUser(prevUser => {
           if (!prevUser) return null;
-          const currentPasses = (typeof prevUser.passes === 'number' && !isNaN(prevUser.passes)) ? prevUser.passes : 0;
-          const currentBronze = prevUser.bronzePasses ?? 0;
-          const currentSilver = prevUser.silverPasses ?? 0;
-          const currentGold = prevUser.goldPasses ?? 0;
+          const currentBronze = Math.min(1, Math.max(0, prevUser.bronzePasses ?? 0));
+          const currentSilver = Math.min(1, Math.max(0, prevUser.silverPasses ?? 0));
+          const currentGold = Math.min(1, Math.max(0, prevUser.goldPasses ?? 0));
           
-          let incrementBronze = 0;
-          let incrementSilver = 0;
-          let incrementGold = 0;
+          let nextBronze = currentBronze;
+          let nextSilver = currentSilver;
+          let nextGold = currentGold;
           if (quantity === 3) {
-            incrementBronze = 1;
-            incrementSilver = 1;
-            incrementGold = 1;
+            nextBronze = 1;
+            nextSilver = 1;
+            nextGold = 1;
           } else if (tier === 'bronze') {
-            incrementBronze = quantity;
+            nextBronze = 1;
           } else if (tier === 'silver') {
-            incrementSilver = quantity;
+            nextSilver = 1;
           } else if (tier === 'gold') {
-            incrementGold = quantity;
+            nextGold = 1;
           }
 
           const updatedUser = { 
             ...prevUser, 
-            passes: currentPasses + quantity,
-            bronzePasses: currentBronze + incrementBronze,
-            silverPasses: currentSilver + incrementSilver,
-            goldPasses: currentGold + incrementGold
+            passes: nextBronze + nextSilver + nextGold,
+            bronzePasses: nextBronze,
+            silverPasses: nextSilver,
+            goldPasses: nextGold
           };
           AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser)).catch(() => {});
           return updatedUser;
@@ -504,32 +513,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Local fallback if backend server is offline/unreachable
         setUser(prevUser => {
           if (!prevUser) return null;
-          const currentPasses = (typeof prevUser.passes === 'number' && !isNaN(prevUser.passes)) ? prevUser.passes : 0;
-          const currentBronze = prevUser.bronzePasses ?? 0;
-          const currentSilver = prevUser.silverPasses ?? 0;
-          const currentGold = prevUser.goldPasses ?? 0;
+          const currentBronze = Math.min(1, Math.max(0, prevUser.bronzePasses ?? 0));
+          const currentSilver = Math.min(1, Math.max(0, prevUser.silverPasses ?? 0));
+          const currentGold = Math.min(1, Math.max(0, prevUser.goldPasses ?? 0));
           
-          let incrementBronze = 0;
-          let incrementSilver = 0;
-          let incrementGold = 0;
+          let nextBronze = currentBronze;
+          let nextSilver = currentSilver;
+          let nextGold = currentGold;
           if (quantity === 3) {
-            incrementBronze = 1;
-            incrementSilver = 1;
-            incrementGold = 1;
+            nextBronze = 1;
+            nextSilver = 1;
+            nextGold = 1;
           } else if (tier === 'bronze') {
-            incrementBronze = quantity;
+            nextBronze = 1;
           } else if (tier === 'silver') {
-            incrementSilver = quantity;
+            nextSilver = 1;
           } else if (tier === 'gold') {
-            incrementGold = quantity;
+            nextGold = 1;
           }
 
           const updatedUser = { 
             ...prevUser, 
-            passes: currentPasses + quantity,
-            bronzePasses: currentBronze + incrementBronze,
-            silverPasses: currentSilver + incrementSilver,
-            goldPasses: currentGold + incrementGold
+            passes: nextBronze + nextSilver + nextGold,
+            bronzePasses: nextBronze,
+            silverPasses: nextSilver,
+            goldPasses: nextGold
           };
           AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser)).catch(() => {});
           return updatedUser;
@@ -575,22 +583,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setUser((prevUser) => {
         if (!prevUser) return null;
-        let passField = 'bronzePasses';
+        let passField: 'bronzePasses' | 'silverPasses' | 'goldPasses' = 'bronzePasses';
         if (value === 4.99 || value === 10) passField = 'silverPasses';
         if (value === 9.99 || value === 20) passField = 'goldPasses';
 
-        const currentPasses = (typeof prevUser.passes === 'number' && !isNaN(prevUser.passes)) ? prevUser.passes : 0;
-        const currentTierPasses = (typeof prevUser[passField] === 'number' && !isNaN(prevUser[passField] as number)) ? prevUser[passField] as number : 0;
-
-        const updatedUser = { 
-          ...prevUser, 
-          passes: Math.max(0, currentPasses - 1),
-          [passField]: Math.max(0, currentTierPasses - 1)
-        };
-        AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser)).catch((err) => {
+        const nextUser = normalizeUserPasses({
+          ...prevUser,
+          [passField]: 0,
+        });
+        AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(nextUser)).catch((err) => {
           console.error('[Auth] Error saving locked user value:', err);
         });
-        return updatedUser;
+        return nextUser;
       });
     } catch (e) {
       console.error('[Auth] Error locking pass value:', e);
@@ -601,22 +605,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setUser((prevUser) => {
         if (!prevUser) return null;
-        let passField = 'bronzePasses';
+        let passField: 'bronzePasses' | 'silverPasses' | 'goldPasses' = 'bronzePasses';
         if (value === 4.99 || value === 10) passField = 'silverPasses';
         if (value === 9.99 || value === 20) passField = 'goldPasses';
 
-        const currentPasses = (typeof prevUser.passes === 'number' && !isNaN(prevUser.passes)) ? prevUser.passes : 0;
-        const currentTierPasses = (typeof prevUser[passField] === 'number' && !isNaN(prevUser[passField] as number)) ? prevUser[passField] as number : 0;
-
-        const updatedUser = { 
-          ...prevUser, 
-          passes: currentPasses + 1,
-          [passField]: currentTierPasses + 1
-        };
-        AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser)).catch((err) => {
+        const nextUser = normalizeUserPasses({
+          ...prevUser,
+          [passField]: 1,
+        });
+        AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(nextUser)).catch((err) => {
           console.error('[Auth] Error saving refunded user value:', err);
         });
-        return updatedUser;
+        return nextUser;
       });
     } catch (e) {
       console.error('[Auth] Error refunding pass value:', e);

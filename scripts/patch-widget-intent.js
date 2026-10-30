@@ -94,8 +94,17 @@ struct CommitmentsProgressWidgetTimelineProvider: AppIntentTimelineProvider {
 
   func timeline(for configuration: CommitmentsProgressWidgetConfigurationAppIntent, in context: Context) async -> Timeline<CommitmentsProgressWidgetTimelineEntry> {
     let entries = self.parseTimeline(configuration: configuration)
-    let timeline = Timeline<CommitmentsProgressWidgetTimelineEntry>(entries: entries, policy: .atEnd)
-    return timeline
+    if entries.isEmpty {
+      let fallbackEntry = CommitmentsProgressWidgetTimelineEntry(
+        date: Date(),
+        name: "CommitmentsProgressWidget",
+        props: ["commitments": []],
+        entryIndex: 0,
+        configuration: configuration
+      )
+      return Timeline(entries: [fallbackEntry], policy: .atEnd)
+    }
+    return Timeline<CommitmentsProgressWidgetTimelineEntry>(entries: entries, policy: .atEnd)
   }
   
   func parseTimeline(configuration: CommitmentsProgressWidgetConfigurationAppIntent) -> [CommitmentsProgressWidgetTimelineEntry] {
@@ -171,6 +180,26 @@ struct CommitmentsProgressWidgetTimelineProvider: AppIntentTimelineProvider {
   }
 }
 
+struct CommitmentsProgressWidgetFallbackView: View {
+  var body: some View {
+    VStack(spacing: 8) {
+      Spacer()
+      Text("CommitLock 🔒")
+        .font(.system(size: 16, weight: .bold))
+        .foregroundColor(.white)
+      Text("No active commitments.")
+        .font(.system(size: 12))
+        .foregroundColor(Color(red: 0.56, green: 0.58, blue: 0.64))
+      Text("Open app to lock one!")
+        .font(.system(size: 10, weight: .semibold))
+        .foregroundColor(Color(red: 0.49, green: 0.23, blue: 0.93))
+      Spacer()
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .padding(16)
+  }
+}
+
 struct CommitmentsProgressWidgetEntryView: View {
   @Environment(\\.self) var environment
   var entry: CommitmentsProgressWidgetTimelineProvider.Entry
@@ -204,14 +233,22 @@ struct CommitmentsProgressWidgetEntryView: View {
     return jsonString
   }
 
+  @ViewBuilder
   public var body: some View {
-    if let layout = WidgetsStorage.getString(forKey: "__expo_widgets_\\(entry.name)_layout"),
-       !layout.isEmpty {
-      let node = evaluateLayout(layout: layout, props: entry.props ?? [:], environment: widgetEnvironment)
-      WidgetsDynamicView(name: entry.name, kind: .widget, node: node, entryIndex: entry.entryIndex, environmentString: widgetEnvironmentString)
-    } else {
-      WidgetsDynamicView(name: entry.name, kind: .widget, node: createRedBox(message: "No layout found for \\(WidgetsStorage.appGroupIdentifier ?? "")::\\(entry.name)"), entryIndex: entry.entryIndex, environmentString: widgetEnvironmentString)
+    ZStack {
+      if let layout = WidgetsStorage.getString(forKey: "__expo_widgets_\\(entry.name)_layout"),
+         !layout.isEmpty {
+        let node = evaluateLayout(layout: layout, props: entry.props ?? [:], environment: widgetEnvironment)
+        if (node["type"] as? String) == "RedBoxView" {
+          CommitmentsProgressWidgetFallbackView()
+        } else {
+          WidgetsDynamicView(name: entry.name, kind: .widget, node: node, entryIndex: entry.entryIndex, environmentString: widgetEnvironmentString)
+        }
+      } else {
+        CommitmentsProgressWidgetFallbackView()
+      }
     }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
   }
 }
 
@@ -221,12 +258,10 @@ struct CommitmentsProgressWidget: Widget {
 
   var body: some WidgetConfiguration {
     return AppIntentConfiguration(kind: name, intent: CommitmentsProgressWidgetConfigurationAppIntent.self, provider: CommitmentsProgressWidgetTimelineProvider()) { entry in
-      if #available(iOS 17.0, *) {
-        CommitmentsProgressWidgetEntryView(entry: entry)
-          .containerBackground(.clear, for: .widget)
-      } else {
-        CommitmentsProgressWidgetEntryView(entry: entry)
-      }
+      CommitmentsProgressWidgetEntryView(entry: entry)
+        .containerBackground(for: .widget) {
+          Color(red: 0.05, green: 0.06, blue: 0.09)
+        }
     }
     .configurationDisplayName("Commitments Progress")
     .description("Track your active commitments progress.")
@@ -238,7 +273,7 @@ struct CommitmentsProgressWidget: Widget {
 
 try {
   fs.writeFileSync(targetPath, customSwiftCode);
-  console.log('Successfully patched CommitmentsProgressWidget.swift with dynamic options intent.');
+  console.log('Successfully patched CommitmentsProgressWidget.swift with dynamic options intent and containerBackground.');
 } catch (e) {
   console.error('Failed to write patched Swift file', e);
   process.exit(1);

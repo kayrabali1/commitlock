@@ -128,6 +128,11 @@ export default function TrackerDashboard() {
 
       // Re-schedule all local reminders based on achievements and current active commitments
       await NotificationService.scheduleAllNotifications();
+
+      // Always sync iOS widget layout & snapshot to App Group storage (even when 0 active commitments)
+      if (Platform.OS === 'ios') {
+        await HealthDataService.syncWidgets();
+      }
     } catch (error) {
       console.error('Failed to load tracking data', error);
     } finally {
@@ -150,8 +155,10 @@ export default function TrackerDashboard() {
 
   const handleWelcomeClaim = async () => {
     try {
-      // Actually credit the 3 passes
-      await purchasePasses(3);
+      // Credit the 3 starter coins (capped at 1 per tier / 3 total)
+      if ((user?.passes ?? 0) < 3) {
+        await purchasePasses(3);
+      }
       await AsyncStorage.setItem('@commitlock_welcome_shown', 'true');
       setIsWelcomeVisible(false);
     } catch (e) {

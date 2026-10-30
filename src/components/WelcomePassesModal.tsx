@@ -8,19 +8,46 @@ import {
   Animated,
   Dimensions,
   Easing,
-  Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface WelcomePassesModalProps {
   visible: boolean;
   onClaim: () => void;
 }
+
+const GIFT_COINS = [
+  {
+    name: 'BRONZE COIN',
+    price: '€1.99',
+    color: '#CD7F32',
+    borderColor: 'rgba(205, 127, 50, 0.5)',
+    bgColors: ['#241710', '#140C08'] as const,
+    source: require('@/assets/images/bronze_coin.png'),
+  },
+  {
+    name: 'SILVER COIN',
+    price: '€4.99',
+    color: '#BDC3C7',
+    borderColor: 'rgba(189, 195, 199, 0.6)',
+    bgColors: ['#1C2536', '#0E1522'] as const,
+    source: require('@/assets/images/silver_coin.png'),
+  },
+  {
+    name: 'GOLD COIN',
+    price: '€9.99',
+    color: '#FBBF24',
+    borderColor: 'rgba(251, 191, 36, 0.6)',
+    bgColors: ['#2C2110', '#181106'] as const,
+    source: require('@/assets/images/gold_coin.png'),
+  },
+];
 
 export default function WelcomePassesModal({ visible, onClaim }: WelcomePassesModalProps) {
   const [showContent, setShowContent] = useState(false);
@@ -28,7 +55,7 @@ export default function WelcomePassesModal({ visible, onClaim }: WelcomePassesMo
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
-  
+
   // Cards entry animations
   const card1Anim = useRef(new Animated.Value(0)).current;
   const card2Anim = useRef(new Animated.Value(0)).current;
@@ -40,8 +67,7 @@ export default function WelcomePassesModal({ visible, onClaim }: WelcomePassesMo
   useEffect(() => {
     if (visible) {
       setShowContent(true);
-      
-      // Main container entry
+
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -53,9 +79,8 @@ export default function WelcomePassesModal({ visible, onClaim }: WelcomePassesMo
           duration: 600,
           easing: Easing.out(Easing.back(1.2)),
           useNativeDriver: true,
-        })
+        }),
       ]).start(() => {
-        // Staggered card entries
         Animated.stagger(150, [
           Animated.spring(card1Anim, {
             toValue: 1,
@@ -74,9 +99,8 @@ export default function WelcomePassesModal({ visible, onClaim }: WelcomePassesMo
             friction: 6,
             tension: 40,
             useNativeDriver: true,
-          })
+          }),
         ]).start(() => {
-          // Play continuous hover float animation
           Animated.loop(
             Animated.sequence([
               Animated.timing(floatAnim, {
@@ -90,7 +114,7 @@ export default function WelcomePassesModal({ visible, onClaim }: WelcomePassesMo
                 duration: 2000,
                 easing: Easing.inOut(Easing.ease),
                 useNativeDriver: true,
-              })
+              }),
             ])
           ).start();
         });
@@ -99,12 +123,10 @@ export default function WelcomePassesModal({ visible, onClaim }: WelcomePassesMo
   }, [visible]);
 
   const handleClaimPress = async () => {
-    // Premium claim haptics sequence
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light), 100);
     setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium), 250);
 
-    // Fade out modal
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 0,
@@ -115,7 +137,7 @@ export default function WelcomePassesModal({ visible, onClaim }: WelcomePassesMo
         toValue: 100,
         duration: 350,
         useNativeDriver: true,
-      })
+      }),
     ]).start(() => {
       setShowContent(false);
       onClaim();
@@ -124,19 +146,12 @@ export default function WelcomePassesModal({ visible, onClaim }: WelcomePassesMo
 
   if (!visible && !showContent) return null;
 
-  // Float interpolations for cards
   const floatOffsetY = floatAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, -8],
+    outputRange: [0, -6],
   });
 
-  const renderCardCutouts = () => (
-    <>
-      <View style={[styles.cutout, styles.cutoutLeft]} />
-      <View style={[styles.cutout, styles.cutoutRight]} />
-      <View style={styles.dashLine} />
-    </>
-  );
+  const cardAnims = [card1Anim, card2Anim, card3Anim];
 
   return (
     <Modal
@@ -157,109 +172,78 @@ export default function WelcomePassesModal({ visible, onClaim }: WelcomePassesMo
         >
           {/* Neon Glow Header */}
           <LinearGradient
-            colors={['rgba(124, 58, 237, 0.15)', 'rgba(0, 0, 0, 0)']}
+            colors={['rgba(124, 58, 237, 0.2)', 'rgba(0, 0, 0, 0)']}
             style={styles.glowHeader}
           />
 
           <View style={styles.header}>
             <View style={styles.giftIconContainer}>
-              <MaterialCommunityIcons name="gift" size={32} color="#A78BFA" />
+              <MaterialCommunityIcons name="gift" size={32} color="#FBBF24" />
             </View>
+
+            <View style={styles.noPaymentBadge}>
+              <MaterialCommunityIcons name="check-decagram" size={14} color="#05D38E" />
+              <Text style={styles.noPaymentBadgeText}>100% FREE GIFT • NO PAYMENT REQUIRED</Text>
+            </View>
+
             <Text style={styles.title}>WELCOME GIFT ACTIVATED</Text>
             <Text style={styles.subtitle}>
-              Your journey to build life-changing habits starts now. We've credited your profile with 3 Premium Challenge Passes!
+              We've gifted you 1 of each Vault Coin (Bronze, Silver & Gold) to start your habit journey. These 3 coins are completely free—no payment required!
             </Text>
           </View>
 
-          {/* Cards Showcase Showcase Area */}
+          {/* 3 Gifted Coins Visual Showcase */}
           <View style={styles.cardsShowcase}>
-            
-            {/* €1.99 Pass - Bronze Theme */}
-            <Animated.View
-              style={[
-                styles.cardWrapper,
-                {
-                  opacity: card1Anim,
-                  transform: [
-                    { scale: card1Anim },
-                    { rotate: '-6deg' },
-                    { translateX: -15 },
-                    { translateY: Animated.add(floatOffsetY, new Animated.Value(10)) },
-                  ],
-                },
-              ]}
-            >
-              <LinearGradient
-                colors={['#1E152A', '#130C1E']}
-                style={[styles.card, { borderColor: 'rgba(167, 139, 250, 0.4)' }]}
-              >
-                {renderCardCutouts()}
-                <MaterialCommunityIcons name="shield" size={24} color="#CD7F32" style={styles.cardIcon} />
-                <Text style={[styles.cardValueText, { color: '#CD7F32', fontSize: 26 }]}>€1.99</Text>
-                <Text style={styles.cardLevelText}>BRONZE PASS</Text>
-              </LinearGradient>
-            </Animated.View>
+            {GIFT_COINS.map((coin, idx) => {
+              const anim = cardAnims[idx];
+              const isCenter = idx === 1;
+              return (
+                <Animated.View
+                  key={coin.name}
+                  style={[
+                    styles.cardWrapper,
+                    {
+                      opacity: anim,
+                      transform: [
+                        { scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.8, isCenter ? 1.04 : 1] }) },
+                        { translateY: floatOffsetY },
+                      ],
+                    },
+                  ]}
+                >
+                  <LinearGradient
+                    colors={coin.bgColors}
+                    style={[styles.card, { borderColor: coin.borderColor }]}
+                  >
+                    <View style={styles.freePill}>
+                      <Text style={styles.freePillText}>GIFT • €0</Text>
+                    </View>
 
-            {/* €4.99 Pass - Silver Theme (Centered, higher zIndex) */}
-            <Animated.View
-              style={[
-                styles.cardWrapper,
-                {
-                  zIndex: 10,
-                  elevation: 10,
-                  opacity: card2Anim,
-                  transform: [
-                    { scale: card2Anim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1.1] }) },
-                    { rotate: '0deg' },
-                    { translateY: floatOffsetY },
-                  ],
-                },
-              ]}
-            >
-              <LinearGradient
-                colors={['#1A253C', '#0E1726']}
-                style={[styles.card, { borderColor: 'rgba(189, 195, 199, 0.5)' }]}
-              >
-                {renderCardCutouts()}
-                <MaterialCommunityIcons name="medal" size={26} color="#BDC3C7" style={styles.cardIcon} />
-                <Text style={[styles.cardValueText, { color: '#BDC3C7', fontSize: 32 }]}>€4.99</Text>
-                <Text style={[styles.cardLevelText, { color: '#BDC3C7' }]}>SILVER PASS</Text>
-              </LinearGradient>
-            </Animated.View>
+                    <Image
+                      source={coin.source}
+                      style={styles.coinImage}
+                      contentFit="contain"
+                    />
 
-            {/* €9.99 Pass - Gold Theme */}
-            <Animated.View
-              style={[
-                styles.cardWrapper,
-                {
-                  opacity: card3Anim,
-                  transform: [
-                    { scale: card3Anim },
-                    { rotate: '6deg' },
-                    { translateX: 15 },
-                    { translateY: Animated.add(floatOffsetY, new Animated.Value(10)) },
-                  ],
-                },
-              ]}
-            >
-              <LinearGradient
-                colors={['#2D231E', '#1C130D']}
-                style={[styles.card, { borderColor: 'rgba(251, 191, 36, 0.4)' }]}
-              >
-                {renderCardCutouts()}
-                <MaterialCommunityIcons name="crown" size={24} color="#FBBF24" style={styles.cardIcon} />
-                <Text style={[styles.cardValueText, { color: '#FBBF24', fontSize: 26 }]}>€9.99</Text>
-                <Text style={styles.cardLevelText}>GOLD PASS</Text>
-              </LinearGradient>
-            </Animated.View>
+                    <Text style={[styles.cardLevelText, { color: coin.color }]}>
+                      {coin.name}
+                    </Text>
 
+                    <View style={styles.priceBadge}>
+                      <Text style={styles.strikePriceText}>{coin.price}</Text>
+                      <Text style={styles.freeLabelText}>FREE</Text>
+                    </View>
+                  </LinearGradient>
+                </Animated.View>
+              );
+            })}
           </View>
 
           <View style={styles.footer}>
             <View style={styles.infoRow}>
-              <MaterialCommunityIcons name="shield-lock-outline" size={16} color="#94A3B8" />
+              <MaterialCommunityIcons name="shield-lock-outline" size={18} color="#05D38E" />
               <Text style={styles.infoText}>
-                Use them as accountability stakes. Succeed and keep your pass. Fail and the pass is lost.
+                Stake 1 coin per commitment. Hit your daily target to keep your coin in the Vault—only replace a coin if you lose it in a challenge.
               </Text>
             </View>
 
@@ -274,7 +258,8 @@ export default function WelcomePassesModal({ visible, onClaim }: WelcomePassesMo
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                <Text style={styles.claimText}>CLAIM CHALLENGE PASSES</Text>
+                <MaterialCommunityIcons name="gift-open-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.claimText}>CLAIM 3 FREE GIFT COINS</Text>
                 <MaterialCommunityIcons name="chevron-right" size={20} color="#FFFFFF" />
               </LinearGradient>
             </TouchableOpacity>
@@ -292,11 +277,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   container: {
-    width: SCREEN_WIDTH * 0.9,
+    width: SCREEN_WIDTH * 0.92,
     backgroundColor: '#07080E',
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     overflow: 'hidden',
     paddingBottom: 24,
     alignItems: 'center',
@@ -310,28 +295,46 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 32,
-    marginBottom: 20,
+    paddingHorizontal: 20,
+    paddingTop: 28,
+    marginBottom: 14,
   },
   giftIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(124, 58, 237, 0.15)',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(251, 191, 36, 0.14)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: 'rgba(124, 58, 237, 0.3)',
+    borderColor: 'rgba(251, 191, 36, 0.35)',
+  },
+  noPaymentBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(5, 211, 142, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(5, 211, 142, 0.35)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+  noPaymentBadgeText: {
+    color: '#05D38E',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.7,
   },
   title: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    letterSpacing: 1.5,
+    letterSpacing: 1.2,
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 13,
@@ -342,72 +345,76 @@ const styles = StyleSheet.create({
   cardsShowcase: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    height: 180,
+    justifyContent: 'space-between',
     width: '100%',
-    marginVertical: 12,
+    paddingHorizontal: 16,
+    gap: 10,
+    marginVertical: 10,
   },
   cardWrapper: {
-    width: 100,
-    height: 140,
-    position: 'absolute',
+    flex: 1,
   },
   card: {
-    flex: 1,
     borderRadius: 16,
     borderWidth: 1.5,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4,
     shadowRadius: 10,
     elevation: 8,
   },
-  cardIcon: {
+  freePill: {
+    backgroundColor: 'rgba(5, 211, 142, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(5, 211, 142, 0.45)',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     marginBottom: 6,
   },
-  cardValueText: {
-    fontSize: 32,
-    fontWeight: '900',
-    letterSpacing: -1,
+  freePillText: {
+    color: '#05D38E',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  coinImage: {
+    width: 68,
+    height: 68,
+    marginVertical: 4,
   },
   cardLevelText: {
-    fontSize: 8,
-    fontWeight: 'bold',
-    color: '#94A3B8',
+    fontSize: 10,
+    fontWeight: '800',
     marginTop: 4,
-    letterSpacing: 1,
+    letterSpacing: 0.6,
+    textAlign: 'center',
   },
-  cutout: {
-    position: 'absolute',
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#07080E',
-    top: '55%',
+  priceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 4,
   },
-  cutoutLeft: {
-    left: -7,
+  strikePriceText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+    textDecorationLine: 'line-through',
   },
-  cutoutRight: {
-    right: -7,
-  },
-  dashLine: {
-    position: 'absolute',
-    left: 10,
-    right: 10,
-    top: '60%',
-    height: 1,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderStyle: 'dashed',
+  freeLabelText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#05D38E',
   },
   footer: {
     width: '100%',
-    paddingHorizontal: 24,
-    marginTop: 20,
+    paddingHorizontal: 20,
+    marginTop: 14,
     alignItems: 'center',
   },
   infoRow: {
@@ -418,8 +425,8 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-    marginBottom: 20,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    marginBottom: 16,
   },
   infoText: {
     flex: 1,
@@ -438,12 +445,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   claimText: {
     fontSize: 13,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    letterSpacing: 1,
+    letterSpacing: 0.8,
   },
 });

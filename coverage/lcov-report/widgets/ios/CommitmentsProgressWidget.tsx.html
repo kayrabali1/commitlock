@@ -463,15 +463,7 @@
 <a name='L398'></a><a href='#L398'>398</a>
 <a name='L399'></a><a href='#L399'>399</a>
 <a name='L400'></a><a href='#L400'>400</a>
-<a name='L401'></a><a href='#L401'>401</a>
-<a name='L402'></a><a href='#L402'>402</a>
-<a name='L403'></a><a href='#L403'>403</a>
-<a name='L404'></a><a href='#L404'>404</a>
-<a name='L405'></a><a href='#L405'>405</a>
-<a name='L406'></a><a href='#L406'>406</a>
-<a name='L407'></a><a href='#L407'>407</a>
-<a name='L408'></a><a href='#L408'>408</a>
-<a name='L409'></a><a href='#L409'>409</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L401'></a><a href='#L401'>401</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -610,8 +602,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -623,8 +613,6 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -782,12 +770,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -878,8 +863,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { Host, VStack, HStack, Text, Spacer, Divider, Rectangle, Button } from '@expo/ui/swift-ui';
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { VStack, HStack, Text, Spacer, Divider, Rectangle } from '@expo/ui/swift-ui';
 import { 
   background, 
   foregroundColor, 
@@ -994,28 +978,26 @@ const CommitmentsProgressWidget = <span class="cstat-no" title="statement not co
   // Render empty state if there are no active commitments
 <span class="cstat-no" title="statement not covered" >  if (commitments.length === 0) {</span>
 <span class="cstat-no" title="statement not covered" >    return (</span>
-      &lt;Host&gt;
-        &lt;VStack
-          alignment="center"
-          spacing={10}
-          modifiers={[
-            containerBackground('#06070B', 'widget'),
-            padding({ all: 16 })
-          ]}
-        &gt;
-          &lt;Spacer /&gt;
-          &lt;Text modifiers={[font({ size: 16, weight: 'bold' }), foregroundColor('#FFFFFF')]}&gt;
-            CommitLock 🔒
-          &lt;/Text&gt;
-          &lt;Text modifiers={[font({ size: 12 }), foregroundColor('#8F93A3')]}&gt;
-            No active commitments.
-          &lt;/Text&gt;
-          &lt;Text modifiers={[font({ size: 10 }), foregroundColor('#4F46E5')]}&gt;
-            Open app to lock one!
-          &lt;/Text&gt;
-          &lt;Spacer /&gt;
-        &lt;/VStack&gt;
-      &lt;/Host&gt;
+      &lt;VStack
+        alignment="center"
+        spacing={10}
+        modifiers={[
+          containerBackground('#06070B', 'widget'),
+          padding({ all: 16 })
+        ]}
+      &gt;
+        &lt;Spacer /&gt;
+        &lt;Text modifiers={[font({ size: 16, weight: 'bold' }), foregroundColor('#FFFFFF')]}&gt;
+          CommitLock 🔒
+        &lt;/Text&gt;
+        &lt;Text modifiers={[font({ size: 12 }), foregroundColor('#8F93A3')]}&gt;
+          No active commitments.
+        &lt;/Text&gt;
+        &lt;Text modifiers={[font({ size: 10 }), foregroundColor('#4F46E5')]}&gt;
+          Open app to lock one!
+        &lt;/Text&gt;
+        &lt;Spacer /&gt;
+      &lt;/VStack&gt;
     );
   }
 &nbsp;
@@ -1031,69 +1013,67 @@ const CommitmentsProgressWidget = <span class="cstat-no" title="statement not co
     const coinInfo = <span class="cstat-no" title="statement not covered" >getCoinInfo(commitment.stakeAmount);</span>
 &nbsp;
 <span class="cstat-no" title="statement not covered" >    return (</span>
-      &lt;Host&gt;
-        &lt;VStack
-          alignment="leading"
-          spacing={4}
-          modifiers={[
-            containerBackground('#0D0F18', 'widget'),
-            padding({ all: 14 })
-          ]}
-        &gt;
-          {/* Header row: emoji + label ... ON TRACK + €amount */}
-          &lt;HStack spacing={4}&gt;
-            &lt;Text modifiers={[font({ size: 14, weight: 'bold' }), foregroundColor('#FFFFFF')]}&gt;
-              {emoji} {commitment.label}
-            &lt;/Text&gt;
-            &lt;Spacer /&gt;
-            &lt;Text modifiers={[
-              font({ size: 9, weight: 'bold' }),
-              foregroundColor(statusColor),
-              padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
-              background(commitment.isBroken ? '#1A0A0C' : '#0A1F15'),
-              cornerRadius(6)
-            ]}&gt;
-              {statusText}
-            &lt;/Text&gt;
-            &lt;Text modifiers={[
-              font({ size: 9, weight: 'bold' }),
-              foregroundColor(coinInfo.color),
-              padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
-              background(coinInfo.bgColor),
-              cornerRadius(6)
-            ]}&gt;
-              {coinInfo.emoji} {coinInfo.label}
-            &lt;/Text&gt;
-          &lt;/HStack&gt;
-&nbsp;
-          {/* Commitment sentence */}
-          {commitment.sentence &amp;&amp; (
-            &lt;Text modifiers={[font({ size: 9 }), foregroundColor('#8F93A3'), lineLimit(3)]}&gt;
-              {commitment.sentence}
-            &lt;/Text&gt;
-          )}
-&nbsp;
+      &lt;VStack
+        alignment="leading"
+        spacing={4}
+        modifiers={[
+          containerBackground('#0D0F18', 'widget'),
+          padding({ all: 14 })
+        ]}
+      &gt;
+        {/* Header row: emoji + label ... ON TRACK + €amount */}
+        &lt;HStack spacing={4}&gt;
+          &lt;Text modifiers={[font({ size: 14, weight: 'bold' }), foregroundColor('#FFFFFF')]}&gt;
+            {emoji} {commitment.label}
+          &lt;/Text&gt;
           &lt;Spacer /&gt;
+          &lt;Text modifiers={[
+            font({ size: 9, weight: 'bold' }),
+            foregroundColor(statusColor),
+            padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
+            background(commitment.isBroken ? '#1A0A0C' : '#0A1F15'),
+            cornerRadius(6)
+          ]}&gt;
+            {statusText}
+          &lt;/Text&gt;
+          &lt;Text modifiers={[
+            font({ size: 9, weight: 'bold' }),
+            foregroundColor(coinInfo.color),
+            padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
+            background(coinInfo.bgColor),
+            cornerRadius(6)
+          ]}&gt;
+            {coinInfo.emoji} {coinInfo.label}
+          &lt;/Text&gt;
+        &lt;/HStack&gt;
 &nbsp;
-          {/* Progress bar - centered */}
-          {renderSlicedProgressBar(commitment.segments, commitment.overallProgress)}
+        {/* Commitment sentence */}
+        {commitment.sentence &amp;&amp; (
+          &lt;Text modifiers={[font({ size: 9 }), foregroundColor('#8F93A3'), lineLimit(3)]}&gt;
+            {commitment.sentence}
+          &lt;/Text&gt;
+        )}
 &nbsp;
+        &lt;Spacer /&gt;
+&nbsp;
+        {/* Progress bar - centered */}
+        {renderSlicedProgressBar(commitment.segments, commitment.overallProgress)}
+&nbsp;
+        &lt;Spacer /&gt;
+&nbsp;
+        {/* Bottom stats */}
+        &lt;HStack alignment="bottom"&gt;
+          &lt;VStack alignment="leading" spacing={1}&gt;
+            &lt;Text modifiers={[font({ size: 8, weight: 'bold' }), foregroundColor('#8F93A3')]}&gt;
+              COMPLETED
+            &lt;/Text&gt;
+            &lt;Text modifiers={[font({ size: 13, weight: 'bold' }), foregroundColor('#FFFFFF')]}&gt;
+              {commitment.overallProgress}%
+            &lt;/Text&gt;
+          &lt;/VStack&gt;
           &lt;Spacer /&gt;
-&nbsp;
-          {/* Bottom stats */}
-          &lt;HStack alignment="bottom"&gt;
-            &lt;VStack alignment="leading" spacing={1}&gt;
-              &lt;Text modifiers={[font({ size: 8, weight: 'bold' }), foregroundColor('#8F93A3')]}&gt;
-                COMPLETED
-              &lt;/Text&gt;
-              &lt;Text modifiers={[font({ size: 13, weight: 'bold' }), foregroundColor('#FFFFFF')]}&gt;
-                {commitment.overallProgress}%
-              &lt;/Text&gt;
-            &lt;/VStack&gt;
-            &lt;Spacer /&gt;
-          &lt;/HStack&gt;
-        &lt;/VStack&gt;
-      &lt;/Host&gt;
+        &lt;/HStack&gt;
+      &lt;/VStack&gt;
     );
   }
 &nbsp;
@@ -1109,85 +1089,83 @@ const CommitmentsProgressWidget = <span class="cstat-no" title="statement not co
     const coinInfo = <span class="cstat-no" title="statement not covered" >getCoinInfo(commitment.stakeAmount);</span>
 &nbsp;
 <span class="cstat-no" title="statement not covered" >    return (</span>
-      &lt;Host&gt;
-        &lt;VStack
-          alignment="leading"
-          spacing={6}
-          modifiers={[
-            containerBackground('#0D0F18', 'widget'),
-            padding({ all: 16 })
-          ]}
-        &gt;
-          {/* Row 1: emoji + label ... ON TRACK pill + €amount pill */}
-          &lt;HStack spacing={6}&gt;
-            &lt;Text modifiers={[font({ size: 16, weight: 'bold' }), foregroundColor('#FFFFFF')]}&gt;
-              {emoji} {commitment.label}
-            &lt;/Text&gt;
-            &lt;Spacer /&gt;
-            &lt;Text modifiers={[
-              font({ size: 9, weight: 'bold' }),
-              foregroundColor(statusColor),
-              padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
-              background(commitment.isBroken ? '#1A0A0C' : '#0A1F15'),
-              cornerRadius(6)
-            ]}&gt;
-              {statusText}
-            &lt;/Text&gt;
-            &lt;Text modifiers={[
-              font({ size: 9, weight: 'bold' }),
-              foregroundColor(coinInfo.color),
-              padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
-              background(coinInfo.bgColor),
-              cornerRadius(6)
-            ]}&gt;
-              {coinInfo.emoji} {coinInfo.label}
-            &lt;/Text&gt;
-          &lt;/HStack&gt;
-&nbsp;
-          {/* Commitment sentence */}
-          {commitment.sentence &amp;&amp; (
-            &lt;Text modifiers={[font({ size: 11 }), foregroundColor('#8F93A3'), lineLimit(3)]}&gt;
-              {commitment.sentence}
-            &lt;/Text&gt;
-          )}
-&nbsp;
+      &lt;VStack
+        alignment="leading"
+        spacing={6}
+        modifiers={[
+          containerBackground('#0D0F18', 'widget'),
+          padding({ all: 16 })
+        ]}
+      &gt;
+        {/* Row 1: emoji + label ... ON TRACK pill + €amount pill */}
+        &lt;HStack spacing={6}&gt;
+          &lt;Text modifiers={[font({ size: 16, weight: 'bold' }), foregroundColor('#FFFFFF')]}&gt;
+            {emoji} {commitment.label}
+          &lt;/Text&gt;
           &lt;Spacer /&gt;
+          &lt;Text modifiers={[
+            font({ size: 9, weight: 'bold' }),
+            foregroundColor(statusColor),
+            padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
+            background(commitment.isBroken ? '#1A0A0C' : '#0A1F15'),
+            cornerRadius(6)
+          ]}&gt;
+            {statusText}
+          &lt;/Text&gt;
+          &lt;Text modifiers={[
+            font({ size: 9, weight: 'bold' }),
+            foregroundColor(coinInfo.color),
+            padding({ leading: 8, trailing: 8, top: 3, bottom: 3 }),
+            background(coinInfo.bgColor),
+            cornerRadius(6)
+          ]}&gt;
+            {coinInfo.emoji} {coinInfo.label}
+          &lt;/Text&gt;
+        &lt;/HStack&gt;
 &nbsp;
-          {/* Progress bar - centered vertically */}
-          {renderSlicedProgressBar(commitment.segments, commitment.overallProgress)}
+        {/* Commitment sentence */}
+        {commitment.sentence &amp;&amp; (
+          &lt;Text modifiers={[font({ size: 11 }), foregroundColor('#8F93A3'), lineLimit(3)]}&gt;
+            {commitment.sentence}
+          &lt;/Text&gt;
+        )}
 &nbsp;
+        &lt;Spacer /&gt;
+&nbsp;
+        {/* Progress bar - centered vertically */}
+        {renderSlicedProgressBar(commitment.segments, commitment.overallProgress)}
+&nbsp;
+        &lt;Spacer /&gt;
+&nbsp;
+        {/* Bottom stats row */}
+        &lt;HStack&gt;
+          &lt;VStack alignment="leading" spacing={1}&gt;
+            &lt;Text modifiers={[font({ size: 8, weight: 'bold' }), foregroundColor('#8F93A3')]}&gt;
+              COMPLETED
+            &lt;/Text&gt;
+            &lt;Text modifiers={[font({ size: 13, weight: 'bold' }), foregroundColor('#FFFFFF')]}&gt;
+              {commitment.overallProgress}%
+            &lt;/Text&gt;
+          &lt;/VStack&gt;
           &lt;Spacer /&gt;
-&nbsp;
-          {/* Bottom stats row */}
-          &lt;HStack&gt;
-            &lt;VStack alignment="leading" spacing={1}&gt;
-              &lt;Text modifiers={[font({ size: 8, weight: 'bold' }), foregroundColor('#8F93A3')]}&gt;
-                COMPLETED
-              &lt;/Text&gt;
-              &lt;Text modifiers={[font({ size: 13, weight: 'bold' }), foregroundColor('#FFFFFF')]}&gt;
-                {commitment.overallProgress}%
-              &lt;/Text&gt;
-            &lt;/VStack&gt;
-            &lt;Spacer /&gt;
-            &lt;VStack alignment="trailing" spacing={1}&gt;
-              &lt;Text modifiers={[font({ size: 8, weight: 'bold' }), foregroundColor('#8F93A3')]}&gt;
-                TARGET GOAL
-              &lt;/Text&gt;
-              &lt;Text modifiers={[font({ size: 13, weight: 'bold' }), foregroundColor('#FFFFFF')]}&gt;
-                {commitment.targetValue.toLocaleString()} {commitment.unit}
-              &lt;/Text&gt;
-            &lt;/VStack&gt;
-            &lt;VStack alignment="trailing" spacing={1} modifiers={[padding({ leading: 12 })]}&gt;
-              &lt;Text modifiers={[font({ size: 8, weight: 'bold' }), foregroundColor('#8F93A3')]}&gt;
-                REMAINING
-              &lt;/Text&gt;
-              &lt;Text modifiers={[font({ size: 13, weight: 'bold' }), foregroundColor('#FFFFFF')]}&gt;
-                {commitment.remainingDays}
-              &lt;/Text&gt;
-            &lt;/VStack&gt;
-          &lt;/HStack&gt;
-        &lt;/VStack&gt;
-      &lt;/Host&gt;
+          &lt;VStack alignment="trailing" spacing={1}&gt;
+            &lt;Text modifiers={[font({ size: 8, weight: 'bold' }), foregroundColor('#8F93A3')]}&gt;
+              TARGET GOAL
+            &lt;/Text&gt;
+            &lt;Text modifiers={[font({ size: 13, weight: 'bold' }), foregroundColor('#FFFFFF')]}&gt;
+              {commitment.targetValue.toLocaleString()} {commitment.unit}
+            &lt;/Text&gt;
+          &lt;/VStack&gt;
+          &lt;VStack alignment="trailing" spacing={1} modifiers={[padding({ leading: 12 })]}&gt;
+            &lt;Text modifiers={[font({ size: 8, weight: 'bold' }), foregroundColor('#8F93A3')]}&gt;
+              REMAINING
+            &lt;/Text&gt;
+            &lt;Text modifiers={[font({ size: 13, weight: 'bold' }), foregroundColor('#FFFFFF')]}&gt;
+              {commitment.remainingDays}
+            &lt;/Text&gt;
+          &lt;/VStack&gt;
+        &lt;/HStack&gt;
+      &lt;/VStack&gt;
     );
   }
 &nbsp;
@@ -1195,94 +1173,92 @@ const CommitmentsProgressWidget = <span class="cstat-no" title="statement not co
   const largeListItems = <span class="cstat-no" title="statement not covered" >commitments.slice(0, 5);</span>
 &nbsp;
 <span class="cstat-no" title="statement not covered" >  return (</span>
-    &lt;Host&gt;
-      &lt;VStack
-        alignment="leading"
-        spacing={10}
-        modifiers={[
-          containerBackground('#06070B', 'widget'),
-          padding({ all: 16 })
-        ]}
-      &gt;
-        {/* Header Title */}
+    &lt;VStack
+      alignment="leading"
+      spacing={10}
+      modifiers={[
+        containerBackground('#06070B', 'widget'),
+        padding({ all: 16 })
+      ]}
+    &gt;
+      {/* Header Title */}
+      &lt;HStack&gt;
+        &lt;Text modifiers={[font({ size: 12, weight: 'bold' }), foregroundColor('#8F93A3')]}&gt;
+          ALL ACTIVE COMMITMENTS
+        &lt;/Text&gt;
+        &lt;Spacer /&gt;
+        &lt;Text modifiers={[font({ size: 10, weight: 'bold' }), foregroundColor('#F5A623')]}&gt;
+          🔒 PLEDGED
+        &lt;/Text&gt;
+      &lt;/HStack&gt;
+&nbsp;
+      &lt;Spacer modifiers={[frame({ height: 2 })]} /&gt;
+&nbsp;
+      {/* Commitments List */}
+      {largeListItems.map(<span class="fstat-no" title="function not covered" >(c</span>ommitment, index) =&gt; {
+        const emoji = <span class="cstat-no" title="statement not covered" >getMetricEmoji(commitment.metricType);</span>
+        const statusColor = <span class="cstat-no" title="statement not covered" >commitment.isBroken ? '#FF4655' : '#05D38E';</span>
+        const statusText = <span class="cstat-no" title="statement not covered" >commitment.isBroken</span>
+          ? '⚠️ Broken'
+          : '● On Track';
+        const coinInfo = <span class="cstat-no" title="statement not covered" >getCoinInfo(commitment.stakeAmount);</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >        return (</span>
+          &lt;VStack
+            key={commitment.id || index}
+            alignment="leading"
+            spacing={4}
+            modifiers={[padding({ bottom: index &lt; largeListItems.length - 1 ? 6 : 0 })]}
+          &gt;
+            &lt;HStack&gt;
+              &lt;VStack alignment="leading" spacing={2}&gt;
+                &lt;Text modifiers={[font({ size: 13, weight: 'semibold' }), foregroundColor('#FFFFFF')]}&gt;
+                  {emoji} {commitment.label}
+                &lt;/Text&gt;
+                &lt;Text modifiers={[font({ size: 10 }), foregroundColor('#8F93A3')]}&gt;
+                  Daily • {commitment.targetValue.toLocaleString()} {commitment.unit}
+                &lt;/Text&gt;
+                {commitment.sentence &amp;&amp; (
+                  &lt;Text modifiers={[font({ size: 9 }), foregroundColor('#6B7280'), lineLimit(2)]}&gt;
+                    {commitment.sentence}
+                  &lt;/Text&gt;
+                )}
+              &lt;/VStack&gt;
+&nbsp;
+              &lt;Spacer /&gt;
+&nbsp;
+              &lt;VStack alignment="trailing" spacing={2}&gt;
+                &lt;HStack spacing={6}&gt;
+                  &lt;Text modifiers={[font({ size: 11, weight: 'bold' }), foregroundColor(statusColor)]}&gt;
+                    {statusText}
+                  &lt;/Text&gt;
+                  &lt;Text modifiers={[font({ size: 11, weight: 'bold' }), foregroundColor(coinInfo.color)]}&gt;
+                    {coinInfo.emoji} {coinInfo.label}
+                  &lt;/Text&gt;
+                &lt;/HStack&gt;
+                &lt;Text modifiers={[font({ size: 9 }), foregroundColor('#8F93A3')]}&gt;
+                  {commitment.remainingDays}
+                &lt;/Text&gt;
+              &lt;/VStack&gt;
+            &lt;/HStack&gt;
+&nbsp;
+            {index &lt; largeListItems.length - 1 &amp;&amp; (
+              &lt;Divider modifiers={[padding({ top: 6 })]} /&gt;
+            )}
+          &lt;/VStack&gt;
+        );
+      })}
+&nbsp;
+      {commitments.length &gt; 5 &amp;&amp; (
         &lt;HStack&gt;
-          &lt;Text modifiers={[font({ size: 12, weight: 'bold' }), foregroundColor('#8F93A3')]}&gt;
-            ALL ACTIVE COMMITMENTS
+          &lt;Spacer /&gt;
+          &lt;Text modifiers={[font({ size: 10, weight: 'semibold' }), foregroundColor('#8F93A3')]}&gt;
+            + {commitments.length - 5} more active
           &lt;/Text&gt;
           &lt;Spacer /&gt;
-          &lt;Text modifiers={[font({ size: 10, weight: 'bold' }), foregroundColor('#F5A623')]}&gt;
-            🔒 PLEDGED
-          &lt;/Text&gt;
         &lt;/HStack&gt;
-&nbsp;
-        &lt;Spacer modifiers={[frame({ height: 2 })]} /&gt;
-&nbsp;
-        {/* Commitments List */}
-        {largeListItems.map(<span class="fstat-no" title="function not covered" >(c</span>ommitment, index) =&gt; {
-          const emoji = <span class="cstat-no" title="statement not covered" >getMetricEmoji(commitment.metricType);</span>
-          const statusColor = <span class="cstat-no" title="statement not covered" >commitment.isBroken ? '#FF4655' : '#05D38E';</span>
-          const statusText = <span class="cstat-no" title="statement not covered" >commitment.isBroken</span>
-            ? '⚠️ Broken'
-            : '● On Track';
-          const coinInfo = <span class="cstat-no" title="statement not covered" >getCoinInfo(commitment.stakeAmount);</span>
-&nbsp;
-<span class="cstat-no" title="statement not covered" >          return (</span>
-            &lt;VStack
-              key={commitment.id || index}
-              alignment="leading"
-              spacing={4}
-              modifiers={[padding({ bottom: index &lt; largeListItems.length - 1 ? 6 : 0 })]}
-            &gt;
-              &lt;HStack&gt;
-                &lt;VStack alignment="leading" spacing={2}&gt;
-                  &lt;Text modifiers={[font({ size: 13, weight: 'semibold' }), foregroundColor('#FFFFFF')]}&gt;
-                    {emoji} {commitment.label}
-                  &lt;/Text&gt;
-                  &lt;Text modifiers={[font({ size: 10 }), foregroundColor('#8F93A3')]}&gt;
-                    Daily • {commitment.targetValue.toLocaleString()} {commitment.unit}
-                  &lt;/Text&gt;
-                  {commitment.sentence &amp;&amp; (
-                    &lt;Text modifiers={[font({ size: 9 }), foregroundColor('#6B7280'), lineLimit(2)]}&gt;
-                      {commitment.sentence}
-                    &lt;/Text&gt;
-                  )}
-                &lt;/VStack&gt;
-&nbsp;
-                &lt;Spacer /&gt;
-&nbsp;
-                &lt;VStack alignment="trailing" spacing={2}&gt;
-                  &lt;HStack spacing={6}&gt;
-                    &lt;Text modifiers={[font({ size: 11, weight: 'bold' }), foregroundColor(statusColor)]}&gt;
-                      {statusText}
-                    &lt;/Text&gt;
-                    &lt;Text modifiers={[font({ size: 11, weight: 'bold' }), foregroundColor(coinInfo.color)]}&gt;
-                      {coinInfo.emoji} {coinInfo.label}
-                    &lt;/Text&gt;
-                  &lt;/HStack&gt;
-                  &lt;Text modifiers={[font({ size: 9 }), foregroundColor('#8F93A3')]}&gt;
-                    {commitment.remainingDays}
-                  &lt;/Text&gt;
-                &lt;/VStack&gt;
-              &lt;/HStack&gt;
-&nbsp;
-              {index &lt; largeListItems.length - 1 &amp;&amp; (
-                &lt;Divider modifiers={[padding({ top: 6 })]} /&gt;
-              )}
-            &lt;/VStack&gt;
-          );
-        })}
-&nbsp;
-        {commitments.length &gt; 5 &amp;&amp; (
-          &lt;HStack&gt;
-            &lt;Spacer /&gt;
-            &lt;Text modifiers={[font({ size: 10, weight: 'semibold' }), foregroundColor('#8F93A3')]}&gt;
-              + {commitments.length - 5} more active
-            &lt;/Text&gt;
-            &lt;Spacer /&gt;
-          &lt;/HStack&gt;
-        )}
-      &lt;/VStack&gt;
-    &lt;/Host&gt;
+      )}
+    &lt;/VStack&gt;
   );
 };
 &nbsp;
@@ -1294,7 +1270,7 @@ export default CommitmentsProgressWidget;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-07-18T09:58:42.516Z
+                at 2026-10-30T14:01:52.558Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

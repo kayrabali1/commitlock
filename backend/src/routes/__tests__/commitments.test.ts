@@ -154,7 +154,7 @@ describe('Commitments Routes', () => {
       expect(response.status).toBe(201);
       expect(response.body.commitment.id).toBeDefined();
       expect(response.body.commitment.passesSpent).toBe(1);
-      expect(mockUpdate).toHaveBeenCalledWith(expect.anything(), { passes: 2, bronzePasses: 0 });
+      expect(mockUpdate).toHaveBeenCalledWith(expect.anything(), { passes: 0, bronzePasses: 0, silverPasses: 0, goldPasses: 0 });
       expect(mockSet).toHaveBeenCalled();
     });
   });
@@ -188,7 +188,7 @@ describe('Commitments Routes', () => {
         })
         .mockResolvedValueOnce({
           exists: true,
-          data: () => ({ name: 'Kayra', passes: 2, bronzePasses: 1 })
+          data: () => ({ name: 'Kayra', passes: 2, bronzePasses: 0, silverPasses: 1, goldPasses: 1 })
         });
         
       const mockDocDelete = require('../../config/firestore').db.collection().doc().delete;
@@ -199,7 +199,7 @@ describe('Commitments Routes', () => {
       expect(response.body.message).toBe('Commitment deleted successfully');
       expect(response.body.refunded).toBe(true);
       expect(mockDocDelete).toHaveBeenCalled();
-      expect(mockDocUpdate).toHaveBeenCalledWith(expect.anything(), { passes: 3, bronzePasses: 2 });
+      expect(mockDocUpdate).toHaveBeenCalledWith(expect.anything(), { passes: 3, bronzePasses: 1, silverPasses: 1, goldPasses: 1 });
     });
 
     it('should successfully delete an inactive commitment and NOT refund pass', async () => {
@@ -300,7 +300,7 @@ describe('Commitments Routes', () => {
       const transactionMock = {
         get: jest.fn()
           .mockResolvedValueOnce({ exists: true, data: () => ({ status: 'active', userId: 'user-123' }) })
-          .mockResolvedValueOnce({ exists: true, data: () => ({ name: 'Kayra', passes: 2, bronzePasses: 1 }) }),
+          .mockResolvedValueOnce({ exists: true, data: () => ({ name: 'Kayra', passes: 2, bronzePasses: 0, silverPasses: 1, goldPasses: 1 }) }),
         update: jest.fn()
       };
       require('../../config/firestore').db.runTransaction.mockImplementationOnce(async (cb: any) => await cb(transactionMock));
@@ -308,7 +308,7 @@ describe('Commitments Routes', () => {
       const response = await request(app).post('/api/commitments/mock-id/resolve').send({ status: 'success', performanceData: [{ value: 10 }] });
       expect(response.status).toBe(200);
       expect(transactionMock.update).toHaveBeenNthCalledWith(1, expect.anything(), expect.objectContaining({ status: 'success' }));
-      expect(transactionMock.update).toHaveBeenNthCalledWith(2, expect.anything(), { passes: 3, bronzePasses: 2 });
+      expect(transactionMock.update).toHaveBeenNthCalledWith(2, expect.anything(), { passes: 3, bronzePasses: 1, silverPasses: 1, goldPasses: 1 });
     });
   });
 });

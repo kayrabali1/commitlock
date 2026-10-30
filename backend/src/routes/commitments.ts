@@ -87,20 +87,30 @@ router.post('/', authenticateToken as any, async (req: AuthenticatedRequest, res
         throw new Error('User not found');
       }
       const userData = userSnap.data()!;
-      const currentPasses = userData.passes !== undefined ? userData.passes : 3;
+      const currentBronze = Math.min(1, Math.max(0, Number(userData.bronzePasses ?? 0)));
+      const currentSilver = Math.min(1, Math.max(0, Number(userData.silverPasses ?? 0)));
+      const currentGold = Math.min(1, Math.max(0, Number(userData.goldPasses ?? 0)));
 
-      let passField = 'bronzePasses';
+      let passField: 'bronzePasses' | 'silverPasses' | 'goldPasses' = 'bronzePasses';
       if (Number(stakeAmount) === 4.99 || Number(stakeAmount) === 10) passField = 'silverPasses';
       if (Number(stakeAmount) === 9.99 || Number(stakeAmount) === 20) passField = 'goldPasses';
 
-      const currentTierPasses = userData[passField] !== undefined ? userData[passField] : 0;
-      if (currentPasses < 1 || currentTierPasses < 1) {
+      const nextTiers = {
+        bronzePasses: currentBronze,
+        silverPasses: currentSilver,
+        goldPasses: currentGold,
+      };
+      const currentTierPasses = nextTiers[passField];
+      if (currentTierPasses < 1) {
         throw new Error('insufficient_passes');
       }
 
+      nextTiers[passField] = 0;
+      const nextPasses = nextTiers.bronzePasses + nextTiers.silverPasses + nextTiers.goldPasses;
+
       transaction.update(userRef, { 
-        passes: Math.max(0, currentPasses - 1),
-        [passField]: Math.max(0, currentTierPasses - 1)
+        passes: nextPasses,
+        ...nextTiers
       });
       transaction.set(newCommitmentRef, newCommitment);
     });
@@ -147,17 +157,25 @@ router.delete('/:id', authenticateToken as any, async (req: AuthenticatedRequest
         const userSnap = await transaction.get(userRef);
         if (userSnap.exists) {
           const userData = userSnap.data()!;
-          const currentPasses = userData.passes !== undefined ? userData.passes : 3;
-
           let passField = 'bronzePasses';
           if (commitment.stakeAmount === 4.99 || commitment.stakeAmount === 10) passField = 'silverPasses';
           if (commitment.stakeAmount === 9.99 || commitment.stakeAmount === 20) passField = 'goldPasses';
 
-          const currentTierPasses = userData[passField] !== undefined ? userData[passField] : 0;
+          const currentBronze = Math.min(1, Math.max(0, Number(userData.bronzePasses ?? 0)));
+          const currentSilver = Math.min(1, Math.max(0, Number(userData.silverPasses ?? 0)));
+          const currentGold = Math.min(1, Math.max(0, Number(userData.goldPasses ?? 0)));
+
+          const nextTiers = {
+            bronzePasses: currentBronze,
+            silverPasses: currentSilver,
+            goldPasses: currentGold,
+            [passField]: 1,
+          };
+          const nextPasses = nextTiers.bronzePasses + nextTiers.silverPasses + nextTiers.goldPasses;
 
           transaction.update(userRef, { 
-            passes: currentPasses + 1,
-            [passField]: currentTierPasses + 1
+            passes: nextPasses,
+            ...nextTiers
           });
         }
       }
@@ -231,17 +249,25 @@ router.post('/:id/resolve', authenticateToken as any, async (req: AuthenticatedR
         const userSnap = await transaction.get(userRef);
         if (userSnap.exists) {
           const userData = userSnap.data()!;
-          const currentPasses = userData.passes !== undefined ? userData.passes : 3;
-
           let passField = 'bronzePasses';
           if (commitment.stakeAmount === 4.99 || commitment.stakeAmount === 10) passField = 'silverPasses';
           if (commitment.stakeAmount === 9.99 || commitment.stakeAmount === 20) passField = 'goldPasses';
 
-          const currentTierPasses = userData[passField] !== undefined ? userData[passField] : 0;
+          const currentBronze = Math.min(1, Math.max(0, Number(userData.bronzePasses ?? 0)));
+          const currentSilver = Math.min(1, Math.max(0, Number(userData.silverPasses ?? 0)));
+          const currentGold = Math.min(1, Math.max(0, Number(userData.goldPasses ?? 0)));
+
+          const nextTiers = {
+            bronzePasses: currentBronze,
+            silverPasses: currentSilver,
+            goldPasses: currentGold,
+            [passField]: 1,
+          };
+          const nextPasses = nextTiers.bronzePasses + nextTiers.silverPasses + nextTiers.goldPasses;
 
           transaction.update(userRef, { 
-            passes: currentPasses + 1,
-            [passField]: currentTierPasses + 1
+            passes: nextPasses,
+            ...nextTiers
           });
         }
       }

@@ -75,7 +75,7 @@ describe('User Routes', () => {
       expect(response.body.id).toBe('test-user-id');
       expect(response.body.name).toBe('Kayra');
       expect(response.body.email).toBe('kayra@test.com');
-      expect(response.body.passes).toBe(5);
+      expect(response.body.passes).toBe(3);
       // notificationSettings fallback to defaults
       expect(response.body.notificationSettings.dailyReminder).toBe(true);
     });
@@ -174,10 +174,10 @@ describe('User Routes', () => {
       const mockUpdate = require('../../config/firestore').db.collection().doc().update;
       mockUpdate.mockResolvedValueOnce();
 
-      const response = await request(app).post('/api/user/purchase-passes').send({ quantity: 5 });
+      const response = await request(app).post('/api/user/purchase-passes').send({ quantity: 3 });
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(response.body.passes).toBe(8);
+      expect(response.body.passes).toBe(3);
     });
   });
 });

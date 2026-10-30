@@ -20,40 +20,48 @@ const getJwtSecret = () => {
 async function migrateTierPasses(
   docId: string,
   userData: FirebaseFirestore.DocumentData
-): Promise<{ bronzePasses: number; silverPasses: number; goldPasses: number }> {
+): Promise<{ passes: number; bronzePasses: number; silverPasses: number; goldPasses: number }> {
   const hasTierFields =
     userData.bronzePasses !== undefined ||
     userData.silverPasses !== undefined ||
     userData.goldPasses !== undefined;
 
-  if (hasTierFields) {
-    // Tier fields exist — no migration needed, return as-is
-    return {
-      bronzePasses: userData.bronzePasses ?? 0,
-      silverPasses: userData.silverPasses ?? 0,
-      goldPasses: userData.goldPasses ?? 0,
-    };
+  let bronze = Math.min(1, Math.max(0, Number(userData.bronzePasses ?? 0)));
+  let silver = Math.min(1, Math.max(0, Number(userData.silverPasses ?? 0)));
+  let gold = Math.min(1, Math.max(0, Number(userData.goldPasses ?? 0)));
+
+  if (!hasTierFields) {
+    // Legacy user: distribute total passes across tiers (1 each, bronze first)
+    const totalPasses = typeof userData.passes === 'number' ? userData.passes : 0;
+    bronze = totalPasses >= 1 ? 1 : 0;
+    silver = totalPasses >= 2 ? 1 : 0;
+    gold = totalPasses >= 3 ? 1 : 0;
   }
 
-  // Legacy user: distribute total passes across tiers (1 each, bronze first)
-  const totalPasses = typeof userData.passes === 'number' ? userData.passes : 0;
-  const bronze = totalPasses >= 1 ? 1 : 0;
-  const silver = totalPasses >= 2 ? 1 : 0;
-  const gold = totalPasses >= 3 ? 1 : 0;
+  const normalizedPasses = bronze + silver + gold;
 
-  // Write back to Firestore so this migration only runs once
-  try {
-    await db.collection('users').doc(docId).update({
-      bronzePasses: bronze,
-      silverPasses: silver,
-      goldPasses: gold,
-    });
-    console.log(`[Migration] Set tier passes for user ${docId}: bronze=${bronze}, silver=${silver}, gold=${gold}`);
-  } catch (e) {
-    console.error(`[Migration] Failed to write tier passes for user ${docId}:`, e);
+  // Write back to Firestore if missing or out of bounds (>1 per tier or >3 total)
+  if (
+    !hasTierFields ||
+    userData.bronzePasses !== bronze ||
+    userData.silverPasses !== silver ||
+    userData.goldPasses !== gold ||
+    userData.passes !== normalizedPasses
+  ) {
+    try {
+      await db.collection('users').doc(docId).update({
+        passes: normalizedPasses,
+        bronzePasses: bronze,
+        silverPasses: silver,
+        goldPasses: gold,
+      });
+      console.log(`[Migration] Normalized tier passes for user ${docId}: bronze=${bronze}, silver=${silver}, gold=${gold}`);
+    } catch (e) {
+      console.error(`[Migration] Failed to write tier passes for user ${docId}:`, e);
+    }
   }
 
-  return { bronzePasses: bronze, silverPasses: silver, goldPasses: gold };
+  return { passes: normalizedPasses, bronzePasses: bronze, silverPasses: silver, goldPasses: gold };
 }
 
 // Register a new user
@@ -167,7 +175,6 @@ router.post('/login', async (req: any, res: any) => {
         email: user.email,
         avatar: user.avatar,
         tier: user.tier,
-        passes: user.passes !== undefined ? user.passes : 3,
         ...tierPasses,
         provider: 'email',
       },
@@ -201,7 +208,6 @@ router.get('/validate', authenticateToken as any, async (req: AuthenticatedReque
         email: user.email,
         avatar: user.avatar,
         tier: user.tier,
-        passes: user.passes !== undefined ? user.passes : 3,
         ...tierPasses,
         provider: 'email',
       },
@@ -286,7 +292,6 @@ router.post('/google', async (req: any, res: any) => {
         email: userData.email,
         avatar: userData.avatar,
         tier: userData.tier,
-        passes: userData.passes !== undefined ? userData.passes : 3,
         ...tierPasses,
         provider: 'google',
       },
@@ -371,7 +376,6 @@ router.post('/apple', async (req: any, res: any) => {
         email: userData.email,
         avatar: userData.avatar,
         tier: userData.tier,
-        passes: userData.passes !== undefined ? userData.passes : 3,
         ...tierPasses,
         provider: 'apple',
       },

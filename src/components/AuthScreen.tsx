@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   KeyboardAvoidingView,
+  ScrollView,
   Platform,
-  Keyboard,
-  Modal,
+  Pressable,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -29,7 +29,7 @@ export default function AuthScreen() {
     error: authError,
     clearError,
   } = useAuth();
-  
+
   const { t, i18n } = useTranslation();
 
   const [isSignUp, setIsSignUp] = useState(false);
@@ -37,35 +37,18 @@ export default function AuthScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  
+
+  const nameInputRef = useRef<TextInput>(null);
+  const emailInputRef = useRef<TextInput>(null);
+  const passwordInputRef = useRef<TextInput>(null);
+  const confirmPasswordInputRef = useRef<TextInput>(null);
+
   // Local loading state for auth actions
   const [loading, setLoading] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  // Social Auth Overlay Mock State
-  const [socialModalVisible, setSocialModalVisible] = useState(false);
-  const [socialProvider, setSocialProvider] = useState<'Google' | 'Apple' | null>(null);
-  const [socialLoadingStep, setSocialLoadingStep] = useState(0);
-
-  // Focus and keyboard tracking for responsive UI
+  // Focus tracking for input border styling only (no conditional unmounting)
   const [focusedField, setFocusedField] = useState<'name' | 'email' | 'password' | 'confirmPassword' | null>(null);
-  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
-
-  useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener(
-      'keyboardDidShow',
-      () => setKeyboardVisible(true)
-    );
-    const keyboardDidHideListener = Keyboard.addListener(
-      'keyboardDidHide',
-      () => setKeyboardVisible(false)
-    );
-
-    return () => {
-      keyboardDidShowListener.remove();
-      keyboardDidHideListener.remove();
-    };
-  }, []);
 
   const toggleAuthMode = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -167,46 +150,47 @@ export default function AuthScreen() {
         end={{ x: 0.5, y: 1 }}
       />
 
-      <View style={styles.innerContainer}>
-        {/* Language Selector */}
-        <View style={styles.languageSelector}>
-          <TouchableOpacity onPress={() => changeLanguage('en')}>
-            <Text style={[styles.langText, i18n.language.startsWith('en') && styles.langTextActive]}>EN</Text>
-          </TouchableOpacity>
-          <Text style={styles.langDivider}>|</Text>
-          <TouchableOpacity onPress={() => changeLanguage('de')}>
-            <Text style={[styles.langText, i18n.language.startsWith('de') && styles.langTextActive]}>DE</Text>
-          </TouchableOpacity>
-          <Text style={styles.langDivider}>|</Text>
-          <TouchableOpacity onPress={() => changeLanguage('tr')}>
-            <Text style={[styles.langText, i18n.language.startsWith('tr') && styles.langTextActive]}>TR</Text>
-          </TouchableOpacity>
+      {/* Language Selector */}
+      <View style={styles.languageSelector}>
+        <TouchableOpacity onPress={() => changeLanguage('en')}>
+          <Text style={[styles.langText, i18n.language.startsWith('en') && styles.langTextActive]}>EN</Text>
+        </TouchableOpacity>
+        <Text style={styles.langDivider}>|</Text>
+        <TouchableOpacity onPress={() => changeLanguage('de')}>
+          <Text style={[styles.langText, i18n.language.startsWith('de') && styles.langTextActive]}>DE</Text>
+        </TouchableOpacity>
+        <Text style={styles.langDivider}>|</Text>
+        <TouchableOpacity onPress={() => changeLanguage('tr')}>
+          <Text style={[styles.langText, i18n.language.startsWith('tr') && styles.langTextActive]}>TR</Text>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        {/* Header Hero Area */}
+        <View style={styles.heroSection}>
+          <View style={styles.logoContainer}>
+            <Image
+              source={require('@/assets/images/icon.png')}
+              style={styles.logoImage}
+            />
+            <Text style={styles.appName}>{t('auth.appName')}</Text>
+            <Text style={styles.appTagline}>{t('auth.appTagline')}</Text>
+          </View>
         </View>
 
-        {/* Header Hero Area */}
-        {!isKeyboardVisible && (
-          <View style={styles.heroSection}>
-            <View style={styles.logoContainer}>
-              <Image 
-                source={require('@/assets/images/icon.png')} 
-                style={styles.logoImage} 
-              />
-              <Text style={styles.appName}>{t('auth.appName')}</Text>
-              <Text style={styles.appTagline}>{t('auth.appTagline')}</Text>
-            </View>
-          </View>
-        )}
-
         {/* Input Card Container */}
-        <View style={[styles.authCard, isKeyboardVisible && styles.authCardKeyboardVisible]}>
+        <View style={styles.authCard}>
           <Text style={styles.cardHeaderTitle}>
             {isSignUp ? t('auth.createAccount') : t('auth.welcomeBack')}
           </Text>
-          {!isKeyboardVisible && (
-            <Text style={styles.cardHeaderSubtitle}>
-              {isSignUp ? t('auth.signUpSubtitle') : t('auth.signInSubtitle')}
-            </Text>
-          )}
+          <Text style={styles.cardHeaderSubtitle}>
+            {isSignUp ? t('auth.signUpSubtitle') : t('auth.signInSubtitle')}
+          </Text>
 
           {/* Error Banner */}
           {displayError && (
@@ -217,16 +201,20 @@ export default function AuthScreen() {
           )}
 
           {/* Form Fields */}
-          <View style={[styles.formContainer, isKeyboardVisible && { gap: Spacing.two }]}>
+          <View style={styles.formContainer}>
             {isSignUp && (
-              <View style={[styles.inputWrapper, focusedField === 'name' && styles.inputWrapperFocused]}>
-                <MaterialCommunityIcons 
-                  name="account-outline" 
-                  size={20} 
-                  color={focusedField === 'name' ? '#7C3AED' : '#576880'} 
-                  style={styles.inputIcon} 
+              <Pressable
+                onPress={() => nameInputRef.current?.focus()}
+                style={[styles.inputWrapper, focusedField === 'name' && styles.inputWrapperFocused]}
+              >
+                <MaterialCommunityIcons
+                  name="account-outline"
+                  size={20}
+                  color={focusedField === 'name' ? '#7C3AED' : '#576880'}
+                  style={styles.inputIcon}
                 />
                 <TextInput
+                  ref={nameInputRef}
                   style={styles.textInput}
                   placeholder={t('auth.fullName')}
                   placeholderTextColor="#576880"
@@ -236,20 +224,26 @@ export default function AuthScreen() {
                     if (validationError) setValidationError(null);
                   }}
                   onFocus={() => setFocusedField('name')}
-                  onBlur={() => setFocusedField(null)}
+                  onBlur={() => setFocusedField((prev) => (prev === 'name' ? null : prev))}
                   autoCapitalize="words"
+                  returnKeyType="next"
+                  onSubmitEditing={() => emailInputRef.current?.focus()}
                 />
-              </View>
+              </Pressable>
             )}
 
-            <View style={[styles.inputWrapper, focusedField === 'email' && styles.inputWrapperFocused]}>
-              <MaterialCommunityIcons 
-                name="email-outline" 
-                size={20} 
-                color={focusedField === 'email' ? '#7C3AED' : '#576880'} 
-                style={styles.inputIcon} 
+            <Pressable
+              onPress={() => emailInputRef.current?.focus()}
+              style={[styles.inputWrapper, focusedField === 'email' && styles.inputWrapperFocused]}
+            >
+              <MaterialCommunityIcons
+                name="email-outline"
+                size={20}
+                color={focusedField === 'email' ? '#7C3AED' : '#576880'}
+                style={styles.inputIcon}
               />
               <TextInput
+                ref={emailInputRef}
                 style={styles.textInput}
                 placeholder={t('auth.emailAddress')}
                 placeholderTextColor="#576880"
@@ -259,20 +253,28 @@ export default function AuthScreen() {
                   if (validationError) setValidationError(null);
                 }}
                 onFocus={() => setFocusedField('email')}
-                onBlur={() => setFocusedField(null)}
+                onBlur={() => setFocusedField((prev) => (prev === 'email' ? null : prev))}
                 autoCapitalize="none"
+                autoCorrect={false}
                 keyboardType="email-address"
+                textContentType="emailAddress"
+                returnKeyType="next"
+                onSubmitEditing={() => passwordInputRef.current?.focus()}
               />
-            </View>
+            </Pressable>
 
-            <View style={[styles.inputWrapper, focusedField === 'password' && styles.inputWrapperFocused]}>
-              <MaterialCommunityIcons 
-                name="lock-outline" 
-                size={20} 
-                color={focusedField === 'password' ? '#7C3AED' : '#576880'} 
-                style={styles.inputIcon} 
+            <Pressable
+              onPress={() => passwordInputRef.current?.focus()}
+              style={[styles.inputWrapper, focusedField === 'password' && styles.inputWrapperFocused]}
+            >
+              <MaterialCommunityIcons
+                name="lock-outline"
+                size={20}
+                color={focusedField === 'password' ? '#7C3AED' : '#576880'}
+                style={styles.inputIcon}
               />
               <TextInput
+                ref={passwordInputRef}
                 style={styles.textInput}
                 placeholder={isSignUp ? t('auth.passwordMinChars') : t('auth.password')}
                 placeholderTextColor="#576880"
@@ -283,20 +285,33 @@ export default function AuthScreen() {
                   if (validationError) setValidationError(null);
                 }}
                 onFocus={() => setFocusedField('password')}
-                onBlur={() => setFocusedField(null)}
+                onBlur={() => setFocusedField((prev) => (prev === 'password' ? null : prev))}
                 autoCapitalize="none"
+                textContentType={isSignUp ? 'newPassword' : 'password'}
+                returnKeyType={isSignUp ? 'next' : 'done'}
+                onSubmitEditing={() => {
+                  if (isSignUp) {
+                    confirmPasswordInputRef.current?.focus();
+                  } else {
+                    handleEmailAuth();
+                  }
+                }}
               />
-            </View>
+            </Pressable>
 
             {isSignUp && (
-              <View style={[styles.inputWrapper, focusedField === 'confirmPassword' && styles.inputWrapperFocused]}>
-                <MaterialCommunityIcons 
-                  name="lock-check-outline" 
-                  size={20} 
-                  color={focusedField === 'confirmPassword' ? '#7C3AED' : '#576880'} 
-                  style={styles.inputIcon} 
+              <Pressable
+                onPress={() => confirmPasswordInputRef.current?.focus()}
+                style={[styles.inputWrapper, focusedField === 'confirmPassword' && styles.inputWrapperFocused]}
+              >
+                <MaterialCommunityIcons
+                  name="lock-check-outline"
+                  size={20}
+                  color={focusedField === 'confirmPassword' ? '#7C3AED' : '#576880'}
+                  style={styles.inputIcon}
                 />
                 <TextInput
+                  ref={confirmPasswordInputRef}
                   style={styles.textInput}
                   placeholder={t('auth.confirmPassword')}
                   placeholderTextColor="#576880"
@@ -307,10 +322,13 @@ export default function AuthScreen() {
                     if (validationError) setValidationError(null);
                   }}
                   onFocus={() => setFocusedField('confirmPassword')}
-                  onBlur={() => setFocusedField(null)}
+                  onBlur={() => setFocusedField((prev) => (prev === 'confirmPassword' ? null : prev))}
                   autoCapitalize="none"
+                  textContentType="newPassword"
+                  returnKeyType="done"
+                  onSubmitEditing={handleEmailAuth}
                 />
-              </View>
+              </Pressable>
             )}
 
             {/* Forgot Password Link */}
@@ -347,7 +365,7 @@ export default function AuthScreen() {
             </TouchableOpacity>
 
             {/* Dev Hint Box */}
-            {!isSignUp && !isKeyboardVisible && (
+            {!isSignUp && (
               <View style={styles.demoHintBox}>
                 <MaterialCommunityIcons name="information" size={14} color="#8B5CF6" />
                 <Text style={styles.demoHintText}>
@@ -357,41 +375,37 @@ export default function AuthScreen() {
             )}
           </View>
 
-          {/* Divider & Social Buttons (only show when keyboard is closed) */}
-          {!isKeyboardVisible && (
-            <>
-              <View style={styles.dividerRow}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>{t('auth.orContinueWith')}</Text>
-                <View style={styles.dividerLine} />
-              </View>
+          {/* Divider & Social Buttons */}
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>{t('auth.orContinueWith')}</Text>
+            <View style={styles.dividerLine} />
+          </View>
 
-              <View style={styles.socialButtonsContainer}>
-                {/* Apple Sign In Button */}
-                <TouchableOpacity
-                  style={styles.socialButton}
-                  onPress={() => triggerSocialAuth('Apple')}
-                  activeOpacity={0.8}
-                >
-                  <MaterialCommunityIcons name="apple" size={20} color="#FFFFFF" />
-                  <Text style={styles.socialButtonText}>{t('auth.apple')}</Text>
-                </TouchableOpacity>
+          <View style={styles.socialButtonsContainer}>
+            {/* Apple Sign In Button */}
+            <TouchableOpacity
+              style={styles.socialButton}
+              onPress={() => triggerSocialAuth('Apple')}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons name="apple" size={20} color="#FFFFFF" />
+              <Text style={styles.socialButtonText}>{t('auth.apple')}</Text>
+            </TouchableOpacity>
 
-                {/* Google Sign In Button */}
-                <TouchableOpacity
-                  style={styles.socialButton}
-                  onPress={() => triggerSocialAuth('Google')}
-                  activeOpacity={0.8}
-                >
-                  <MaterialCommunityIcons name="google" size={18} color="#FFFFFF" />
-                  <Text style={styles.socialButtonText}>{t('auth.google')}</Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
+            {/* Google Sign In Button */}
+            <TouchableOpacity
+              style={styles.socialButton}
+              onPress={() => triggerSocialAuth('Google')}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons name="google" size={18} color="#FFFFFF" />
+              <Text style={styles.socialButtonText}>{t('auth.google')}</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Toggle Auth Mode Button */}
-          <View style={[styles.toggleModeContainer, isKeyboardVisible && styles.toggleModeContainerKeyboardVisible]}>
+          <View style={styles.toggleModeContainer}>
             <Text style={styles.toggleModeText}>
               {isSignUp ? t('auth.alreadyHaveAccount') : t('auth.dontHaveAccount')}
             </Text>
@@ -402,7 +416,7 @@ export default function AuthScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -412,16 +426,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#06070B',
   },
-  innerContainer: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: Spacing.four,
-    paddingVertical: Platform.OS === 'ios' ? Spacing.five : Spacing.four,
+    paddingTop: Platform.OS === 'ios' ? 76 : 56,
+    paddingBottom: Spacing.five,
   },
   languageSelector: {
     flexDirection: 'row',
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 60 : 40,
+    top: Platform.OS === 'ios' ? 56 : 36,
     right: Spacing.four,
     zIndex: 10,
     backgroundColor: 'rgba(17, 19, 30, 0.75)',
@@ -454,7 +469,7 @@ const styles = StyleSheet.create({
   heroSection: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.three,
+    paddingVertical: Spacing.two,
     width: '100%',
     marginBottom: Spacing.three,
   },
@@ -494,10 +509,6 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 400,
     alignSelf: 'center',
-  },
-  authCardKeyboardVisible: {
-    padding: Spacing.three,
-    marginTop: -Spacing.four,
   },
   cardHeaderTitle: {
     fontSize: 22,
@@ -558,7 +569,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#FFFFFF',
     fontSize: 14,
-    height: '100%',
+    paddingVertical: 12,
   },
   forgotPasswordContainer: {
     alignSelf: 'flex-end',
@@ -663,9 +674,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: Spacing.three,
   },
-  toggleModeContainerKeyboardVisible: {
-    marginTop: Spacing.two,
-  },
   toggleModeText: {
     color: '#94A3B8',
     fontSize: 13,
@@ -674,58 +682,5 @@ const styles = StyleSheet.create({
     color: '#7C3AED',
     fontSize: 13,
     fontWeight: 'bold',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.four,
-  },
-  modalContent: {
-    backgroundColor: '#11131E',
-    borderWidth: 1,
-    borderColor: '#181B28',
-    borderRadius: Spacing.four,
-    padding: Spacing.five,
-    alignItems: 'center',
-    width: '100%',
-    maxWidth: 360,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  modalIconBg: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.three,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: Spacing.one,
-    textAlign: 'center',
-  },
-  modalSubtitle: {
-    fontSize: 13,
-    color: '#94A3B8',
-    textAlign: 'center',
-    marginBottom: Spacing.four,
-    lineHeight: 18,
-  },
-  loadingSpinnerContainer: {
-    marginVertical: Spacing.three,
-  },
-  modalFooterText: {
-    color: '#576880',
-    fontSize: 10,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    marginTop: Spacing.three,
   },
 });

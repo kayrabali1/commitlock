@@ -48,3 +48,27 @@ RCT_EXPORT_METHOD(getAnchoredWorkouts:(NSDictionary *)input callback:(RCTRespons
 } else {
   console.log('[patch-healthkit] react-native-health source file not found at:', filePath);
 }
+
+// Also patch ExpoModulesJSI JavaScriptRuntime.swift C function pointer ternary issue on newer Xcode Swift compilers
+const jsiRuntimePath = path.join(__dirname, '../node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptRuntime.swift');
+if (fs.existsSync(jsiRuntimePath)) {
+  let jsiContent = fs.readFileSync(jsiRuntimePath, 'utf8');
+  const badTernary = `    let callbacks = expo.HostObjectCallbacks(
+      context, getter, set == nil ? nil : setter, propertyNamesGetter, deallocate)
+    let hostObject = expo.HostObject.makeObject(pointee, consume callbacks)`;
+  const fixedBranches = `    let hostObject: facebook.jsi.Object
+    if set == nil {
+      var callbacks = expo.HostObjectCallbacks(
+        context, getter, nil, propertyNamesGetter, deallocate)
+      hostObject = expo.HostObject.makeObject(pointee, consume callbacks)
+    } else {
+      var callbacks = expo.HostObjectCallbacks(
+        context, getter, setter, propertyNamesGetter, deallocate)
+      hostObject = expo.HostObject.makeObject(pointee, consume callbacks)
+    }`;
+  if (jsiContent.includes(badTernary)) {
+    jsiContent = jsiContent.replace(badTernary, fixedBranches);
+    fs.writeFileSync(jsiRuntimePath, jsiContent, 'utf8');
+    console.log('[patch-healthkit] Successfully patched ExpoModulesJSI JavaScriptRuntime.swift');
+  }
+}
